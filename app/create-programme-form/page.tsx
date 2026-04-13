@@ -19,6 +19,19 @@ export default function CreateProgrammePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    const budgetValue = parseFloat(budget)
+
+  if (budgetValue > 5000) {
+    alert("Budget must be below RM 5000")
+    return
+  }
+
+  if (budgetValue <= 0) {
+    alert("Budget must be more than RM 0")
+    return
+  }
+
+
     // 1. Get current session token
     const { data: { session } } = await supabase.auth.getSession()
 
@@ -34,7 +47,7 @@ export default function CreateProgrammePage() {
       category,
       start_date,
       end_date,
-      budget: budget ? parseFloat(budget) : null,
+      budget: budgetValue ? parseFloat(budget) : null,
       venue
     }
 
@@ -133,7 +146,7 @@ export default function CreateProgrammePage() {
               className={styles.input}
               value={budget}
               onChange={(e) => setBudget(e.target.value)}
-              placeholder="e.g., Must Below RM 5000"
+              placeholder="e.g., Must Below RM 5000.00"
             />
           </label>
 

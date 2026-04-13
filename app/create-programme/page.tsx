@@ -88,7 +88,22 @@ export default function ProgrammePage() {
                                     <td>{p.end_date}</td>     {/* fix: was p.endDate */}
                                     <td>{p.venue || "—"}</td>
                                     <td>RM {p.budget ?? "—"}</td>
-                                    <td>{p.status}</td>       {/* fix: was p.approvalStatus */}
+                                    <td><td>
+                                    <span
+                                        className={
+                                        p.status === "Pending"
+                                            ? styles.pending
+                                            : p.status === "Approved"
+                                            ? styles.approved
+                                            : p.status === "Rejected"
+                                            ? styles.rejected
+                                            : ""
+                                        }
+                                    >
+                                        {p.status}
+                                    </span>
+                                    </td></td>    
+
                                     <td>—</td>
                                 </tr>
                             ))
