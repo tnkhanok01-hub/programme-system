@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
+import { KeyRound, CheckCircle } from 'lucide-react';
 
 export default function UpdatePassword() {
   const [newPassword, setNewPassword] = useState('');
@@ -11,7 +12,8 @@ export default function UpdatePassword() {
   
   const router = useRouter();
 
-  const handleUpdatePassword = async () => {
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
     setMessage('');
     setIsLoading(true);
 
@@ -21,20 +23,20 @@ export default function UpdatePassword() {
       return;
     }
 
+    // Call Supabase Auth to update the user's password in the database
     const { error } = await supabase.auth.updateUser({
       password: newPassword,
     });
 
-    // Evaluate response. If successful, sign out to force a fresh login with the new credentials.
     if (error) {
       setMessage('❌ ' + error.message);
     } else {
       setMessage('✅ Password updated successfully! Redirecting to login...');
       
-      // Force logout so the user must use their new password.
+      // Security best practice: Sign out the user immediately after password change
       await supabase.auth.signOut();
       
-      // Delay navigation by 2 seconds so the user can read the success message.
+      // Delay redirection for 2 seconds to allow the user to read the success message
       setTimeout(() => {
         router.push('/login');
       }, 2000);
@@ -44,41 +46,55 @@ export default function UpdatePassword() {
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h2 style={styles.title}>Set New Password</h2>
+    <main className="min-h-screen flex items-center justify-center p-8 bg-slate-900">
+      <div className="w-full max-w-[400px] bg-slate-800 rounded-xl shadow-md p-7 flex flex-col gap-6">
+        
+        {/* Visual Header indicating password security action */}
+        <div className="text-center flex flex-col items-center">
+          <div className="bg-blue-500/20 p-3 rounded-full mb-3">
+            <KeyRound size={28} className="text-blue-400" />
+          </div>
+          <h2 className="text-white text-2xl font-bold">Set New Password</h2>
+          <p className="text-slate-400 text-sm mt-2">
+            Please enter your new secure password.
+          </p>
+        </div>
 
-        {/* Used standard HTML password input.
-          Captures the new password from the user.
-        */}
-        <input
-          type="password"
-          placeholder="Enter new password"
-          style={styles.input}
-          onChange={(e) => setNewPassword(e.target.value)}
-          disabled={isLoading}
-        />
+        <form onSubmit={handleUpdatePassword} className="flex flex-col gap-4">
+          <label className="text-slate-200 text-sm flex flex-col gap-1">
+            New Password
+            <input
+              type="password"
+              placeholder="Enter new password"
+              className="w-full p-3 rounded-md bg-slate-700 text-white outline-none focus:ring-2 focus:ring-blue-500 transition mt-1"
+              onChange={(e) => setNewPassword(e.target.value)}
+              disabled={isLoading}
+            />
+          </label>
 
-        <button 
-          style={styles.button} 
-          onClick={handleUpdatePassword}
-          disabled={isLoading}
-        >
-          {isLoading ? 'Updating...' : 'Update Password'}
-        </button>
+          {message && (
+            <p className={`text-sm text-center px-2 py-2 rounded-md ${
+              message.startsWith('✅') ? 'text-green-400 bg-green-400/10' : 'text-red-400 bg-red-400/10'
+            }`}>
+              {message}
+            </p>
+          )}
 
-        {message && <p style={styles.message}>{message}</p>}
+          <button 
+            type="submit"
+            disabled={isLoading}
+            className="w-full py-3 mt-2 rounded-md bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-base transition flex items-center justify-center gap-2"
+          >
+            {isLoading ? 'Updating...' : (
+              <>
+                <CheckCircle size={18} />
+                Update Password
+              </>
+            )}
+          </button>
+        </form>
+
       </div>
-    </div>
+    </main>
   );
 }
-
-// Used same responsive styles
-const styles = {
-  container: { minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f172a', padding: '20px' },
-  card: { backgroundColor: '#1e293b', padding: '30px', borderRadius: '10px', width: '100%', maxWidth: '350px', display: 'flex', flexDirection: 'column', gap: '18px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' },
-  title: { color: 'white', textAlign: 'center', margin: '0 0 10px 0' },
-  input: { padding: '12px', borderRadius: '5px', border: 'none', outline: 'none', fontSize: '15px' },
-  button: { padding: '12px', borderRadius: '5px', border: 'none', backgroundColor: '#3b82f6', color: 'white', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', marginTop: '5px', transition: 'background-color 0.2s' },
-  message: { color: '#e2e8f0', fontSize: '14px', textAlign: 'center', marginTop: '5px' }
-};
