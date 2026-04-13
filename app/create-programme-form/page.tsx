@@ -185,7 +185,7 @@ export default function CreateProgrammePage() {
                   setBudget(Number(budget).toFixed(2))
                 }
               }}
-              placeholder="e.g. 1000.00"
+              placeholder="e.g. 4999.99"
             />
 
             {budgetError && (
