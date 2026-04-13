@@ -2,12 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
-  // Use service role for server-side operations
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
 
+  // 1. Get auth token from request header
   const authHeader = request.headers.get('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return NextResponse.json(
@@ -18,7 +14,21 @@ export async function POST(request: Request) {
 
   const token = authHeader.replace('Bearer ', '');
 
-  // Verify the token and get user
+  // 2. Create a user-scoped client using their token
+  //    This makes all queries run AS the user, so RLS recognises them
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    }
+  );
+
+  // 3. Verify the token and get user
   const { data: { user }, error: userError } = await supabase.auth.getUser(token);
 
   if (userError || !user) {
@@ -30,11 +40,11 @@ export async function POST(request: Request) {
 
   const userId = user.id;
 
-  // Parse request body
+  // 4. Parse request body
   const body = await request.json();
   const { name, description, category, venue, start_date, end_date, budget } = body;
 
-  // Validate required fields
+  // 5. Validate required fields
   if (!name || !start_date || !end_date) {
     return NextResponse.json(
       { error: 'Name, start date, and end date are required.' },
@@ -42,9 +52,9 @@ export async function POST(request: Request) {
     );
   }
 
-  if (budget !== undefined && budget !== null && budget > 4999.99) {
+  if (budget !== undefined && budget !== null && parseFloat(budget) > 4999.00) {
     return NextResponse.json(
-      { error: 'Budget cannot exceed RM4,999.99.' },
+      { error: 'Budget cannot exceed RM4,999.00.' },
       { status: 400 }
     );
   }
@@ -56,7 +66,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // Insert programme
+  // 6. Insert programme — RLS now recognises auth.uid() correctly
   const { data: programme, error: programmeError } = await supabase
     .from('programmes')
     .insert({
@@ -66,9 +76,9 @@ export async function POST(request: Request) {
       venue,
       start_date,
       end_date,
-      budget,
+      budget: budget ? parseFloat(budget) : null,
       status: 'Pending',
-      programme_director_id: userId  // auto-assigned, never from user input
+      programme_director_id: userId
     })
     .select()
     .single();
@@ -80,7 +90,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // Auto-assign Programme Director role
+  // 7. Auto-assign Programme Director role
   const { error: roleError } = await supabase
     .from('programme_roles')
     .insert({
@@ -96,7 +106,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // Return success
+  // 8. Return success
   return NextResponse.json(
     {
       message: 'Programme created successfully.',
