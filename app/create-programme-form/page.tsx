@@ -1,5 +1,6 @@
 "use client"
 import React, { useState } from "react"
+import { supabase } from '../../lib/supabaseClient'
 import styles from "./styles.module.css"
 import { useRouter } from "next/navigation"
 
@@ -9,28 +10,52 @@ export default function CreateProgrammePage() {
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [category, setCategory] = useState("")
-  const [startDate, setStartDate] = useState("")
-  const [endDate, setEndDate] = useState("")
+  const [start_date, setStartDate] = useState("")
+  const [end_date, setEndDate] = useState("")
   const [committee, setCommittee] = useState("") 
   const [budget, setBudget] = useState("")
   const [venue, setVenue] = useState("") 
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    // 1. Get current session token
+    const { data: { session } } = await supabase.auth.getSession()
+
+    if (!session) {
+      alert('You must be logged in to create a programme.')
+      return
+    }
+
+    // Build Payload
     const payload = {
       name,
       description,
       category,
-      startDate,
-      endDate,
-      committee,
-      budget,
+      start_date,
+      end_date,
+      budget: budget ? parseFloat(budget) : null,
       venue
     }
 
-    console.log("Create programme payload:", payload)
-    alert("Programme submitted (check console).")
+    // 3. Call the API with auth token
+    const response = await fetch('/api/programmes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`  // fix: was missing
+      },
+      body: JSON.stringify(payload)
+    })
+
+    const result = await response.json()
+
+    if (!response.ok) {
+      alert('Error: ' + result.error)
+    } else {
+      alert('Programme created successfully!')
+      router.push('/create-programme')
+    }
   }
 
   return (
@@ -84,7 +109,7 @@ export default function CreateProgrammePage() {
               <input
                 type="date"
                 className={styles.input}
-                value={startDate}
+                value={start_date}
                 onChange={(e) => setStartDate(e.target.value)}
               />
             </label>
@@ -94,7 +119,7 @@ export default function CreateProgrammePage() {
               <input
                 type="date"
                 className={styles.input}
-                value={endDate}
+                value={end_date}
                 onChange={(e) => setEndDate(e.target.value)}
               />
             </label>
