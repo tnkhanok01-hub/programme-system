@@ -21,8 +21,6 @@ export default function UpdatePassword() {
       return;
     }
 
-    // Action: Call Supabase Authentication API to update the currently logged-in user's data.
-    // Note: Clicking the email link temporarily logs the user in, making this secure call possible.
     const { error } = await supabase.auth.updateUser({
       password: newPassword,
     });
