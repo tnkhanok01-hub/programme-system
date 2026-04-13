@@ -9,18 +9,17 @@ export default function ProgrammePage() {
   
     return (
     <main className={styles.wrapper}>
-      
-      {/* BUTTON */}
-      <button
-        className={styles.submitBtn}
-        onClick={() => router.push("/create-programme-form")}
-      >
-        Create Programme
-      </button>
-
-      {/* TABLE */}
       <div className={styles.card}>
-        <h2 className={styles.title}>Programme List</h2>
+        <div className={styles.cardHeader}>
+            <h2 className={styles.title}>Programme List</h2>
+      
+            <button
+                className={styles.submitBtn}
+                onClick={() => router.push("/create-programme-form")}
+            >
+                Create Programme
+            </button>
+        </div>
 
         <table className={styles.table}>
           <thead>
@@ -31,13 +30,15 @@ export default function ProgrammePage() {
               <th>End</th>
               <th>Venue</th>
               <th>Budget</th>
+              <th>Approval</th>
+              <th>Actions</th>
             </tr>
           </thead>
 
           <tbody>
             {programmes.length === 0 ? (
               <tr>
-                <td colSpan={6}>No programme yet</td>
+                <td colSpan={8}>No programme yet</td>
               </tr>
             ) : (
               programmes.map((p, i) => (
@@ -48,6 +49,8 @@ export default function ProgrammePage() {
                   <td>{p.endDate}</td>
                   <td>{p.venue}</td>
                   <td>RM {p.budget}</td>
+                  <td>{p.approvalStatus}</td>
+                  <td>-</td>
                 </tr>
               ))
             )}

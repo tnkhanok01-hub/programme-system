@@ -1,8 +1,11 @@
 "use client"
 import React, { useState } from "react"
 import styles from "./styles.module.css"
+import { useRouter } from "next/navigation"
 
 export default function CreateProgrammePage() {
+  const router = useRouter()
+
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [category, setCategory] = useState("")
@@ -121,10 +124,17 @@ export default function CreateProgrammePage() {
           </label>
 
           <div className={styles.actions}>
+              
+            <button type="button" className={styles.submitBtn} 
+              onClick={() => router.push("/create-programme")}>
+              ← Back
+            </button>
+
             <button type="submit" className={styles.submitBtn}>
               Create Programme
             </button>
           </div>
+
         </form>
       </div>
     </main>

@@ -4,13 +4,13 @@
   align-items: center;
   justify-content: center;
   padding: 2rem;
-  background: #0f172a; /* same as login */
-}
+  background: #0f172a;
+} 
 
 .card {
   width: 100%;
   max-width: 820px;
-  background: #1e293b; /* dark card like login */
+  background: #1e293b; 
   border-radius: 12px;
   box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
   padding: 28px;
@@ -100,7 +100,8 @@
 
 .actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between; /* ✅ FIX */
+  align-items: center;
   margin-top: 12px;
 }
 
