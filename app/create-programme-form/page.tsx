@@ -1,7 +1,6 @@
 "use client"
 import React, { useState } from "react"
 import { supabase } from '../../lib/supabaseClient'
-import styles from "./styles.module.css"
 import { useRouter } from "next/navigation"
 
 export default function CreateProgrammePage() {
@@ -12,51 +11,48 @@ export default function CreateProgrammePage() {
   const [category, setCategory] = useState("")
   const [start_date, setStartDate] = useState("")
   const [end_date, setEndDate] = useState("")
-  const [committee, setCommittee] = useState("") 
   const [budget, setBudget] = useState("")
-  const [venue, setVenue] = useState("") 
+  const [venue, setVenue] = useState("")
+
+  const [budgetError, setBudgetError] = useState("")
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     const budgetValue = parseFloat(budget)
 
-  if (budgetValue > 5000) {
-    alert("Budget must be below RM 5000")
-    return
-  }
-
-  if (budgetValue <= 0) {
-    alert("Budget must be more than RM 0")
-    return
-  }
-
-
-    // 1. Get current session token
-    const { data: { session } } = await supabase.auth.getSession()
-
-    if (!session) {
-      alert('You must be logged in to create a programme.')
+    if (budgetValue > 5000) {
+      alert("Budget must be below RM 5000")
       return
     }
 
-    // Build Payload
+    if (budgetValue <= 0) {
+      alert("Budget must be more than RM 0")
+      return
+    }
+
+    const { data: { session } } = await supabase.auth.getSession()
+
+    if (!session) {
+      alert('You must be logged in')
+      return
+    }
+
     const payload = {
       name,
       description,
       category,
       start_date,
       end_date,
-      budget: budgetValue ? parseFloat(budget) : null,
+      budget: budgetValue,
       venue
     }
 
-    // 3. Call the API with auth token
     const response = await fetch('/api/programmes', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`  // fix: was missing
+        'Authorization': `Bearer ${session.access_token}`
       },
       body: JSON.stringify(payload)
     })
@@ -64,111 +60,165 @@ export default function CreateProgrammePage() {
     const result = await response.json()
 
     if (!response.ok) {
-      alert('Error: ' + result.error)
+      alert(result.error)
     } else {
-      alert('Programme created successfully!')
-      router.push('/create-programme')
+      alert("Programme created!")
+      router.push("/create-programme")
     }
   }
 
   return (
-    <main className={styles.wrapper}>
-      <div className={styles.card}>
-        <h1 className={styles.title}>Create Programme</h1>
+    <main className="min-h-screen flex items-center justify-center p-8 bg-slate-900">
+      <div className="w-full max-w-[820px] bg-slate-800 rounded-xl shadow-md p-7">
 
-        <form onSubmit={handleSubmit} className={styles.form}>
-       
-          <label className={styles.label}>
+        <h1 className="text-white text-2xl mb-4 text-center">
+          Create Programme
+        </h1>
+
+        <form onSubmit={handleSubmit} className="grid gap-4">
+
+          {/* NAME */}
+          <label className="text-slate-200 text-sm">
             Programme Name
             <input
-              className={styles.input}
+              className="w-full mt-1 p-3 rounded-md bg-slate-700 text-white outline-none"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., Badminton Competition"
             />
           </label>
 
-  
-          <label className={styles.label}>
+          {/* DESCRIPTION */}
+          <label className="text-slate-200 text-sm">
             Description
             <textarea
-              className={styles.textarea}
+              className="w-full mt-1 p-3 rounded-md bg-slate-700 text-white outline-none min-h-[100px]"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Short description"
             />
           </label>
 
-   
-          <label className={styles.label}>
+          {/* CATEGORY */}
+          <label className="text-slate-200 text-sm">
             Category
             <select
-              className={styles.input}
+              className="w-full mt-1 p-3 rounded-md bg-slate-700 text-white outline-none"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
             >
               <option value="">Select category</option>
-              <option value="academic">Academic</option>
-              <option value="sports">Sports</option>
-              <option value="community">Community Service</option>
-              <option value="others">Others</option>
+              <option value="Academic">Academic</option>
+              <option value="Sports">Sports</option>
+              <option value="Community Service">Community Service</option>
+              <option value="Others">Others</option>
             </select>
           </label>
 
-    
-          <div className={styles.row}>
-            <label className={styles.labelSmall}>
-              Start date
+          {/* DATES */}
+          <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+            <label className="text-slate-200 text-sm">
+              Start Date
               <input
                 type="date"
-                className={styles.input}
+                className="w-full mt-1 p-3 rounded-md bg-slate-700 text-white outline-none"
                 value={start_date}
                 onChange={(e) => setStartDate(e.target.value)}
               />
             </label>
 
-            <label className={styles.labelSmall}>
-              End date
+            <label className="text-slate-200 text-sm">
+              End Date
               <input
                 type="date"
-                className={styles.input}
+                className="w-full mt-1 p-3 rounded-md bg-slate-700 text-white outline-none"
                 value={end_date}
                 onChange={(e) => setEndDate(e.target.value)}
               />
             </label>
           </div>
-
           
-          <label className={styles.label}>
+          {/* BUDGET */}
+          <label className="text-slate-200 text-sm">
             Budget (RM)
             <input
-              type="number"
-              className={styles.input}
+              type="text"
+              inputMode="decimal"
+              className="w-full mt-1 p-3 rounded-md bg-slate-700 text-white outline-none"
               value={budget}
-              onChange={(e) => setBudget(e.target.value)}
-              placeholder="e.g., Must Below RM 5000.00"
-            />
-          </label>
+              onChange={(e) => {
+                const value = e.target.value
 
-          <label className={styles.label}>
+                // allow only numbers + decimal
+                if (!/^\d*\.?\d*$/.test(value)) return
+
+                setBudget(value)
+
+                if (!value) {
+                  setBudgetError("")
+                  return
+                }
+
+                const num = Number(value)
+
+                // ❌ must be exactly 2 decimal places
+                if (!/^\d+(\.\d{2})$/.test(value)) {
+                  setBudgetError("Must be exactly 2 decimal places (e.g. 1000.00)")
+                  return
+                }
+
+                if (num >= 5000) {
+                  setBudgetError("Budget must be below RM 5000.00")
+                  return
+                }
+
+                if (num <= 0) {
+                  setBudgetError("Budget must be more than RM 0.00")
+                  return
+                }
+
+                setBudgetError("")
+              }}
+              onBlur={() => {
+                // auto format to 2 decimal places
+                if (budget && !isNaN(Number(budget))) {
+                  setBudget(Number(budget).toFixed(2))
+                }
+              }}
+              placeholder="e.g. 1000.00"
+            />
+
+            {budgetError && (
+              <p className="text-red-400 text-xs mt-1">
+                {budgetError}
+              </p>
+            )}
+          </label>
+          {/* VENUE */}
+          <label className="text-slate-200 text-sm">
             Venue
             <input
-                type="text"
-                className={styles.input}
-                value={venue}
-                onChange={(e) => setVenue(e.target.value)}
-                placeholder="e.g., Foyer Block A, KSJ"
+              className="w-full mt-1 p-3 rounded-md bg-slate-700 text-white outline-none"
+              value={venue}
+              onChange={(e) => setVenue(e.target.value)}
+              placeholder="e.g., Foyer Block A, KSJ"
             />
           </label>
 
-          <div className={styles.actions}>
-              
-            <button type="button" className={styles.submitBtn} 
-              onClick={() => router.push("/create-programme")}>
+          {/* ACTIONS */}
+          <div className="flex justify-between items-center mt-3">
+            <button
+              type="button"
+              onClick={() => router.push("/create-programme")}
+              className="bg-slate-600 hover:bg-slate-500 text-white px-4 py-2 rounded-md"
+            >
               ← Back
             </button>
 
-            <button type="submit" className={styles.submitBtn}>
+            <button
+              type="submit"
+              className="bg-blue-500 hover:bg-blue-600 text-white font-bold px-4 py-2 rounded-md transition"
+            >
               Create Programme
             </button>
           </div>
