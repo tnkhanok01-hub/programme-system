@@ -1,27 +1,40 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
-  const supabase = createRouteHandlerClient({ cookies });
+  // Use service role for server-side operations
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
 
-  // 1. Check session
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-  if (sessionError || !session) {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return NextResponse.json(
       { error: 'Unauthorized. Please log in.' },
       { status: 401 }
     );
   }
 
-  const userId = session.user.id;
+  const token = authHeader.replace('Bearer ', '');
 
-  // 2. Parse request body
+  // Verify the token and get user
+  const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+
+  if (userError || !user) {
+    return NextResponse.json(
+      { error: 'Unauthorized. Invalid session.' },
+      { status: 401 }
+    );
+  }
+
+  const userId = user.id;
+
+  // Parse request body
   const body = await request.json();
   const { name, description, category, venue, start_date, end_date, budget } = body;
 
-  // 3. Validate required fields
+  // Validate required fields
   if (!name || !start_date || !end_date) {
     return NextResponse.json(
       { error: 'Name, start date, and end date are required.' },
@@ -29,9 +42,9 @@ export async function POST(request: Request) {
     );
   }
 
-  if (budget && budget > 4999) {
+  if (budget !== undefined && budget !== null && budget > 4999.99) {
     return NextResponse.json(
-      { error: 'Budget cannot exceed RM4,999.00.' },
+      { error: 'Budget cannot exceed RM4,999.99.' },
       { status: 400 }
     );
   }
@@ -43,7 +56,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // 4. Insert programme (auto-assign creator as director)
+  // Insert programme
   const { data: programme, error: programmeError } = await supabase
     .from('programmes')
     .insert({
@@ -67,7 +80,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // 5. Auto-assign Programme Director role in programme_roles
+  // Auto-assign Programme Director role
   const { error: roleError } = await supabase
     .from('programme_roles')
     .insert({
@@ -83,11 +96,11 @@ export async function POST(request: Request) {
     );
   }
 
-  // 6. Return success
+  // Return success
   return NextResponse.json(
-    { 
+    {
       message: 'Programme created successfully.',
-      programme 
+      programme
     },
     { status: 201 }
   );
