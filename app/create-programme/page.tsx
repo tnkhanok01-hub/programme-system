@@ -88,10 +88,10 @@ export default function ProgrammePage() {
                                     <td>{p.end_date}</td>     {/* fix: was p.endDate */}
                                     <td>{p.venue || "—"}</td>
                                     <td>RM {p.budget ?? "—"}</td>
-                                    <td><td>
-                                    <span
+                                    <td>
+                                      <span
                                         className={
-                                        p.status === "Pending"
+                                          p.status === "Pending"
                                             ? styles.pending
                                             : p.status === "Approved"
                                             ? styles.approved
@@ -99,10 +99,10 @@ export default function ProgrammePage() {
                                             ? styles.rejected
                                             : ""
                                         }
-                                    >
+                                      >
                                         {p.status}
-                                    </span>
-                                    </td></td>    
+                                      </span>
+                                    </td>  
 
                                     <td>—</td>
                                 </tr>
