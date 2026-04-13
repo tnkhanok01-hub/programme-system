@@ -108,7 +108,7 @@ export default function ProgrammePage() {
 
           <button
             onClick={() => router.push("/create-programme-form")}
-            className="bg-blue-500 hover:bg-blue-600 text-white font-bold px-4 py-2 rounded-md transition"
+            className="bg-blue-500 hover:bg-blue-600 text-white font-bold px-4 py-2 rounded-md transition cursor-pointer"
           >
             Create Programme
           </button>
@@ -162,11 +162,11 @@ export default function ProgrammePage() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleEdit(p)}
-                        className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md"
+                        className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md cursor-pointer"
                         >
                         <Pencil size={16} />
                       </button>
-                      <button className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md flex items-center justify-center">
+                      <button className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md flex items-center justify-center cursor-pointer">
                         <Trash size={16} />
                       </button>
                     </div>
@@ -251,14 +251,14 @@ export default function ProgrammePage() {
                 <div className="flex justify-end gap-2">
                     <button
                     onClick={() => setShowEditModal(false)}
-                    className="bg-gray-500 px-4 py-2 rounded text-white"
+                    className="bg-gray-500 hover:bg-gray-600 px-4 py-2 rounded text-white cursor-pointer"
                     >
                     Cancel
                     </button>
 
                     <button
                     onClick={handleUpdate}
-                    className="bg-green-500 hover:bg-green-600 px-4 py-2 rounded text-white"
+                    className="bg-green-500 hover:bg-green-600 px-4 py-2 rounded text-white cursor-pointer"
                     >
                     Save
                     </button>
