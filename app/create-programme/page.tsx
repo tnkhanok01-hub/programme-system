@@ -9,6 +9,40 @@ export default function ProgrammePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const router = useRouter()
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editForm, setEditForm] = useState<any>({})
+
+  const handleEdit = (programme: any) => {
+  setEditForm(programme)
+  setShowEditModal(true)
+    }
+  
+    const handleEditChange = (e: any) => {
+  setEditForm({ ...editForm, [e.target.name]: e.target.value })
+    }
+
+  const handleUpdate = async () => {
+  const { error } = await supabase
+    .from("programmes")
+    .update({
+      name: editForm.name,
+      category: editForm.category,
+      venue: editForm.venue,
+      budget: editForm.budget
+    })
+    .eq("id", editForm.id)
+
+  if (error) {
+    alert("Update failed: " + error.message)
+  } else {
+    // update UI instantly
+    setProgrammes((prev) =>
+      prev.map((p) => (p.id === editForm.id ? editForm : p))
+    )
+
+    setShowEditModal(false)
+  }
+    }
 
   const handleDelete = async (id: string) => {
         const confirmDelete = confirm("Are you sure you want to delete this programme?")
@@ -74,7 +108,7 @@ export default function ProgrammePage() {
 
           <button
             onClick={() => router.push("/create-programme-form")}
-            className="bg-blue-500 hover:bg-blue-600 text-white font-bold px-4 py-2 rounded-md transition"
+            className="bg-blue-500 hover:bg-blue-600 text-white font-bold px-4 py-2 rounded-md transition cursor-pointer"
           >
             Create Programme
           </button>
@@ -112,7 +146,9 @@ export default function ProgrammePage() {
                   <td className="p-3 border-b border-slate-700">{p.start_date}</td>
                   <td className="p-3 border-b border-slate-700">{p.end_date}</td>
                   <td className="p-3 border-b border-slate-700">{p.venue}</td>
-                  <td className="p-3 border-b border-slate-700">RM {p.budget}</td>
+                    <td className="p-3 border-b border-slate-700">
+                      RM {p.budget !== null ? Number(p.budget).toFixed(2) : "—"}
+                    </td>
 
                   {/* STATUS */}
                   <td className="p-3 border-b border-slate-700 text-left">
@@ -124,10 +160,13 @@ export default function ProgrammePage() {
                   {/* ACTIONS */}
                   <td className="p-3 border-b border-slate-700">
                     <div className="flex gap-2">
-                      <button className="bg-blue-500 hover:bg-blue-600 text-white text-xs px-3 py-1 rounded-md">
+                      <button
+                        onClick={() => handleEdit(p)}
+                        className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md cursor-pointer"
+                        >
                         <Pencil size={16} />
                       </button>
-                      <button className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md flex items-center justify-center">
+                      <button className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md flex items-center justify-center cursor-pointer">
                         <Trash size={16} />
                       </button>
                     </div>
@@ -138,6 +177,97 @@ export default function ProgrammePage() {
             )}
           </tbody>
         </table>
+        {showEditModal && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                
+                <div className="bg-slate-800 p-6 rounded-xl w-full max-w-[500px]">
+
+                <h2 className="text-white text-xl mb-4">Edit Programme</h2>
+
+                {/* NAME */}
+                <input
+                    name="name"
+                    value={editForm.name || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-3 mb-3 bg-slate-700 text-white rounded"
+                    placeholder="Programme Name"
+                />
+
+                {/* CATEGORY */}
+                <select
+                    name="category"
+                    value={editForm.category || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-3 mb-3 bg-slate-700 text-white rounded"
+                >
+                    <option value="">Select category</option>
+                    <option value="Academic">Academic</option>
+                    <option value="Sports">Sports</option>
+                    <option value="Community Service">Community Service</option>
+                    <option value="Others">Others</option>
+                </select>
+
+                <div className="grid grid-cols-2 gap-3 mb-3">
+
+                {/* START DATE */}
+                <input
+                    type="date"
+                    name="start_date"
+                    value={editForm.start_date || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-3 bg-slate-700 text-white rounded"
+                />
+
+                {/* END DATE */}
+                <input
+                    type="date"
+                    name="end_date"
+                    value={editForm.end_date || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-3 bg-slate-700 text-white rounded"
+                />
+
+                </div>
+
+                {/* VENUE */}
+                <input
+                    name="venue"
+                    value={editForm.venue || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-3 mb-3 bg-slate-700 text-white rounded"
+                    placeholder="Venue"
+                />
+
+                {/* BUDGET */}
+                <input
+                    name="budget"
+                    value={editForm.budget || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-3 mb-4 bg-slate-700 text-white rounded"
+                    placeholder="Budget"
+                />
+
+                {/* BUTTONS */}
+                <div className="flex justify-end gap-2">
+                    <button
+                    onClick={() => setShowEditModal(false)}
+                    className="bg-gray-500 hover:bg-gray-600 px-4 py-2 rounded text-white cursor-pointer"
+                    >
+                    Cancel
+                    </button>
+
+                    <button
+                    onClick={handleUpdate}
+                    className="bg-green-500 hover:bg-green-600 px-4 py-2 rounded text-white cursor-pointer"
+                    >
+                    Save
+                    </button>
+                </div>
+
+                </div>
+            </div>
+            
+        )}
       </div>
     </main>
   )
