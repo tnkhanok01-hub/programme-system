@@ -2,6 +2,7 @@
 import React, { useState } from "react"
 import { supabase } from '../../lib/supabaseClient'
 import { useRouter } from "next/navigation"
+import { CircleChevronLeft } from "lucide-react"
 
 export default function CreateProgrammePage() {
   const router = useRouter()
@@ -185,7 +186,7 @@ export default function CreateProgrammePage() {
                   setBudget(Number(budget).toFixed(2))
                 }
               }}
-              placeholder="e.g. 1000.00"
+              placeholder="e.g. 4999.99"
             />
 
             {budgetError && (
@@ -210,14 +211,15 @@ export default function CreateProgrammePage() {
             <button
               type="button"
               onClick={() => router.push("/create-programme")}
-              className="bg-slate-600 hover:bg-slate-500 text-white px-4 py-2 rounded-md"
+              className=" flex items-center bg-slate-600 hover:bg-slate-500 text-white px-4 py-2 rounded-md cursor-pointer"
             >
-              ← Back
+              <CircleChevronLeft size={30}/>
+              Back  
             </button>
 
             <button
               type="submit"
-              className="bg-blue-500 hover:bg-blue-600 text-white font-bold px-4 py-2 rounded-md transition"
+              className="bg-blue-500 hover:bg-blue-600 text-white font-bold px-4 py-2 rounded-md transition cursor-pointer"
             >
               Create Programme
             </button>
