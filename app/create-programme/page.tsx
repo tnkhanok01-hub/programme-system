@@ -127,7 +127,10 @@ export default function ProgrammePage() {
                       <button className="bg-blue-500 hover:bg-blue-600 text-white text-xs px-3 py-1 rounded-md">
                         <Pencil size={16} />
                       </button>
-                      <button className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md flex items-center justify-center">
+                      <button
+                        onClick={() => handleDelete(p.id)}
+                        className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md flex items-center justify-center"
+                      >
                         <Trash size={16} />
                       </button>
                     </div>
