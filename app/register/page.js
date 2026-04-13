@@ -1,21 +1,22 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { supabase } from '../../lib/supabaseClient';
+import { useState } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
 export default function Register() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [message, setMessage] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
-  const handleRegister = async () => {
-    setMessage('');
+  const handleRegister = async (e) => {
+    e.preventDefault();
 
-    if (
-      !email.endsWith('@utm.my') &&
-      !email.endsWith('@graduate.utm.my')
-    ) {
-      setMessage('❌ Only UTM email allowed');
+    if (!email || !password) {
+      alert("Please fill all fields");
       return;
     }
 
@@ -25,13 +26,9 @@ export default function Register() {
     });
 
     if (error) {
-      if (error.message.includes('rate limit')) {
-        setMessage('⚠️ Too many attempts. Please wait a moment.');
-      } else {
-        setMessage('❌ ' + error.message);
-      }
+      alert(error.message);
     } else {
-      setMessage('✅ Check your email for confirmation!');
+      alert("Registered successfully! Check your email.");
     }
   };
 
@@ -40,25 +37,33 @@ export default function Register() {
       <div style={styles.card}>
         <h2 style={styles.title}>Register</h2>
 
-        <input
-          type="email"
-          placeholder="UTM Email"
-          style={styles.input}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+        <form onSubmit={handleRegister}>
+          <input
+            type="email"
+            placeholder="Email"
+            style={styles.input}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
 
-        <input
-          type="password"
-          placeholder="Password"
-          style={styles.input}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+          <input
+            type="password"
+            placeholder="Password"
+            style={styles.input}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
 
-        <button style={styles.button} onClick={handleRegister}>
-          Register
-        </button>
+          <button type="submit" style={styles.button}>
+            Register
+          </button>
+        </form>
 
-        {message && <p style={styles.message}>{message}</p>}
+        <p style={styles.text}>Already have an account?</p>
+
+        <a href="/login">
+          <button style={styles.loginBtn}>Go to Login</button>
+        </a>
       </div>
     </div>
   );
@@ -66,42 +71,53 @@ export default function Register() {
 
 const styles = {
   container: {
-    height: '100vh',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#0f172a',
+    height: "100vh",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#0f172a",
   },
   card: {
-    backgroundColor: '#1e293b',
-    padding: '30px',
-    borderRadius: '10px',
-    width: '300px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '15px',
+    backgroundColor: "#1e293b",
+    padding: "30px",
+    borderRadius: "10px",
+    width: "300px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "15px",
   },
   title: {
-    color: 'white',
-    textAlign: 'center',
+    color: "white",
+    textAlign: "center",
   },
   input: {
-    padding: '10px',
-    borderRadius: '5px',
-    border: 'none',
-    outline: 'none',
+    width: "100%",
+    padding: "10px",
+    marginBottom: "10px",
+    borderRadius: "5px",
+    border: "none",
+    outline: "none",
   },
   button: {
-    padding: '10px',
-    borderRadius: '5px',
-    border: 'none',
-    backgroundColor: '#3b82f6',
-    color: 'white',
-    cursor: 'pointer',
+    width: "100%",
+    padding: "10px",
+    borderRadius: "5px",
+    border: "none",
+    backgroundColor: "#3b82f6",
+    color: "white",
+    cursor: "pointer",
   },
-  message: {
-    color: '#e2e8f0',
-    fontSize: '14px',
-    textAlign: 'center',
+  text: {
+    color: "#e2e8f0",
+    textAlign: "center",
+  },
+  loginBtn: {
+    width: "100%",
+    padding: "10px",
+    borderRadius: "5px",
+    border: "none",
+    backgroundColor: "#10b981",
+    color: "white",
+    cursor: "pointer",
   },
 };
