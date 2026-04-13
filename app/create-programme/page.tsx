@@ -12,55 +12,83 @@ export default function ProgrammePage() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [editForm, setEditForm] = useState<any>({})
 
-  const handleEdit = (programme: any) => {
-  setEditForm(programme)
-  setShowEditModal(true)
-    }
-  
-    const handleEditChange = (e: any) => {
-  setEditForm({ ...editForm, [e.target.name]: e.target.value })
-    }
+  // ─── Helpers ──────────────────────────────────────────────────────────────
 
-  const handleUpdate = async () => {
-  const { error } = await supabase
-    .from("programmes")
-    .update({
-      name: editForm.name,
-      category: editForm.category,
-      venue: editForm.venue,
-      budget: editForm.budget
-    })
-    .eq("id", editForm.id)
-
-  if (error) {
-    alert("Update failed: " + error.message)
-  } else {
-    // update UI instantly
-    setProgrammes((prev) =>
-      prev.map((p) => (p.id === editForm.id ? editForm : p))
-    )
-
-    setShowEditModal(false)
+  // Get the current session token to pass as Bearer to API routes
+  const getToken = async (): Promise<string | null> => {
+    const { data: { session } } = await supabase.auth.getSession()
+    return session?.access_token ?? null
   }
-    }
 
+  // ─── Open edit modal ───────────────────────────────────────────────────────
+  const handleEdit = (programme: any) => {
+    setEditForm(programme)
+    setShowEditModal(true)
+  }
+
+  const handleEditChange = (e: any) => {
+    setEditForm({ ...editForm, [e.target.name]: e.target.value })
+  }
+
+  // ─── Update (PUT /api/programmes/[id]) ────────────────────────────────────
+  const handleUpdate = async () => {
+    const token = await getToken()
+    if (!token) return alert("You must be logged in.")
+
+    const res = await fetch(`/api/programmes/${editForm.id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        name: editForm.name,
+        category: editForm.category,
+        venue: editForm.venue,
+        budget: editForm.budget,
+        start_date: editForm.start_date,
+        end_date: editForm.end_date,
+      }),
+    })
+
+    const data = await res.json()
+
+    if (!res.ok) {
+      alert("Update failed: " + data.error)
+    } else {
+      // Update UI instantly using the returned programme
+      setProgrammes((prev) =>
+        prev.map((p) => (p.id === editForm.id ? data.programme : p))
+      )
+      setShowEditModal(false)
+    }
+  }
+
+  // ─── Delete (DELETE /api/programmes/[id]) ─────────────────────────────────
   const handleDelete = async (id: string) => {
-        const confirmDelete = confirm("Are you sure you want to delete this programme?")
-        if (!confirmDelete) return
+    const confirmDelete = confirm("Are you sure you want to delete this programme?")
+    if (!confirmDelete) return
 
-        const { error } = await supabase
-            .from("programmes")
-            .delete()
-            .eq("id", id)
+    const token = await getToken()
+    if (!token) return alert("You must be logged in.")
 
-        if (error) {
-            alert("Failed to delete: " + error.message)
-        } else {
-            // ✅ update UI instantly (no refresh)
-            setProgrammes((prev) => prev.filter((p) => p.id !== id))
-        }
+    const res = await fetch(`/api/programmes/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    // Safely parse — some responses may have an empty body
+    const text = await res.text()
+    const data = text ? JSON.parse(text) : {}
+
+    if (!res.ok) {
+      alert("Failed to delete: " + (data.error ?? "Unknown error"))
+    } else {
+      setProgrammes((prev) => prev.filter((p) => p.id !== id))
     }
+  }
 
+  // ─── Fetch programmes on mount ────────────────────────────────────────────
   useEffect(() => {
     const fetchProgrammes = async () => {
       setLoading(true)
@@ -88,16 +116,15 @@ export default function ProgrammePage() {
     fetchProgrammes()
   }, [])
 
+  // ─── Status badge styles ──────────────────────────────────────────────────
   const getStatusStyle = (status: string) => {
-    if (status === "Pending")
-      return "text-yellow-400 bg-yellow-400/20"
-    if (status === "Approved")
-      return "text-green-400 bg-green-400/20"
-    if (status === "Rejected")
-      return "text-red-400 bg-red-400/20"
+    if (status === "Pending")  return "text-yellow-400 bg-yellow-400/20"
+    if (status === "Approved") return "text-green-400 bg-green-400/20"
+    if (status === "Rejected") return "text-red-400 bg-red-400/20"
     return ""
   }
 
+  // ─── UI ───────────────────────────────────────────────────────────────────
   return (
     <main className="min-h-screen flex items-center justify-center p-8 bg-slate-900">
       <div className="w-full max-w-[1200px] bg-slate-800 rounded-xl shadow-md p-7">
@@ -122,7 +149,7 @@ export default function ProgrammePage() {
         <table className="w-full mt-4 text-white border-collapse">
           <thead>
             <tr>
-              {["Name","Category","Start","End","Venue","Budget","Approval","Actions"].map((h) => (
+              {["Name", "Category", "Start", "End", "Venue", "Budget", "Approval", "Actions"].map((h) => (
                 <th key={h} className="text-left text-slate-400 font-semibold p-3 border-b border-slate-700">
                   {h}
                 </th>
@@ -140,15 +167,14 @@ export default function ProgrammePage() {
             ) : (
               programmes.map((p) => (
                 <tr key={p.id} className="hover:bg-slate-700">
-                  
                   <td className="p-3 border-b border-slate-700 whitespace-nowrap">{p.name}</td>
                   <td className="p-3 border-b border-slate-700">{p.category}</td>
                   <td className="p-3 border-b border-slate-700">{p.start_date}</td>
                   <td className="p-3 border-b border-slate-700">{p.end_date}</td>
                   <td className="p-3 border-b border-slate-700">{p.venue}</td>
-                    <td className="p-3 border-b border-slate-700">
-                      RM {p.budget !== null ? Number(p.budget).toFixed(2) : "—"}
-                    </td>
+                  <td className="p-3 border-b border-slate-700">
+                    RM {p.budget !== null ? Number(p.budget).toFixed(2) : "—"}
+                  </td>
 
                   {/* STATUS */}
                   <td className="p-3 border-b border-slate-700 text-left">
@@ -163,111 +189,112 @@ export default function ProgrammePage() {
                       <button
                         onClick={() => handleEdit(p)}
                         className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md cursor-pointer"
-                        >
+                      >
                         <Pencil size={16} />
                       </button>
-                      <button className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md flex items-center justify-center cursor-pointer">
+                      <button
+                        onClick={() => handleDelete(p.id)}
+                        className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md flex items-center justify-center cursor-pointer"
+                      >
                         <Trash size={16} />
                       </button>
                     </div>
                   </td>
-
                 </tr>
               ))
             )}
           </tbody>
         </table>
+
+        {/* EDIT MODAL */}
         {showEditModal && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                
-                <div className="bg-slate-800 p-6 rounded-xl w-full max-w-[500px]">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-slate-800 p-6 rounded-xl w-full max-w-[500px]">
 
-                <h2 className="text-white text-xl mb-4">Edit Programme</h2>
+              <h2 className="text-white text-xl mb-4">Edit Programme</h2>
 
-                {/* NAME */}
-                <input
-                    name="name"
-                    value={editForm.name || ""}
-                    onChange={handleEditChange}
-                    className="w-full p-3 mb-3 bg-slate-700 text-white rounded"
-                    placeholder="Programme Name"
-                />
+              {/* NAME */}
+              <input
+                name="name"
+                value={editForm.name || ""}
+                onChange={handleEditChange}
+                className="w-full p-3 mb-3 bg-slate-700 text-white rounded"
+                placeholder="Programme Name"
+              />
 
-                {/* CATEGORY */}
-                <select
-                    name="category"
-                    value={editForm.category || ""}
-                    onChange={handleEditChange}
-                    className="w-full p-3 mb-3 bg-slate-700 text-white rounded"
-                >
-                    <option value="">Select category</option>
-                    <option value="Academic">Academic</option>
-                    <option value="Sports">Sports</option>
-                    <option value="Community Service">Community Service</option>
-                    <option value="Others">Others</option>
-                </select>
+              {/* CATEGORY */}
+              <select
+                name="category"
+                value={editForm.category || ""}
+                onChange={handleEditChange}
+                className="w-full p-3 mb-3 bg-slate-700 text-white rounded"
+              >
+                <option value="">Select category</option>
+                <option value="Academic">Academic</option>
+                <option value="Sports">Sports</option>
+                <option value="Community Service">Community Service</option>
+                <option value="Others">Others</option>
+              </select>
 
-                <div className="grid grid-cols-2 gap-3 mb-3">
-
+              <div className="grid grid-cols-2 gap-3 mb-3">
                 {/* START DATE */}
                 <input
-                    type="date"
-                    name="start_date"
-                    value={editForm.start_date || ""}
-                    onChange={handleEditChange}
-                    className="w-full p-3 bg-slate-700 text-white rounded"
+                  type="date"
+                  name="start_date"
+                  value={editForm.start_date || ""}
+                  onChange={handleEditChange}
+                  className="w-full p-3 bg-slate-700 text-white rounded"
                 />
 
                 {/* END DATE */}
                 <input
-                    type="date"
-                    name="end_date"
-                    value={editForm.end_date || ""}
-                    onChange={handleEditChange}
-                    className="w-full p-3 bg-slate-700 text-white rounded"
+                  type="date"
+                  name="end_date"
+                  value={editForm.end_date || ""}
+                  onChange={handleEditChange}
+                  className="w-full p-3 bg-slate-700 text-white rounded"
                 />
+              </div>
 
-                </div>
+              {/* VENUE */}
+              <input
+                name="venue"
+                value={editForm.venue || ""}
+                onChange={handleEditChange}
+                className="w-full p-3 mb-3 bg-slate-700 text-white rounded"
+                placeholder="Venue"
+              />
 
-                {/* VENUE */}
-                <input
-                    name="venue"
-                    value={editForm.venue || ""}
-                    onChange={handleEditChange}
-                    className="w-full p-3 mb-3 bg-slate-700 text-white rounded"
-                    placeholder="Venue"
-                />
+              {/* BUDGET */}
+              <input
+                name="budget"
+                value={editForm.budget || ""}
+                onChange={handleEditChange}
+                className="w-full p-3 mb-4 bg-slate-700 text-white rounded"
+                placeholder="Budget"
+              />
 
-                {/* BUDGET */}
-                <input
-                    name="budget"
-                    value={editForm.budget || ""}
-                    onChange={handleEditChange}
-                    className="w-full p-3 mb-4 bg-slate-700 text-white rounded"
-                    placeholder="Budget"
-                />
+              {/* BUTTONS */}
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="bg-gray-500 hover:bg-gray-600 px-4 py-2 rounded text-white cursor-pointer"
+                >
+                  Cancel
+                </button>
 
-                {/* BUTTONS */}
-                <div className="flex justify-end gap-2">
-                    <button
-                    onClick={() => setShowEditModal(false)}
-                    className="bg-gray-500 hover:bg-gray-600 px-4 py-2 rounded text-white cursor-pointer"
-                    >
-                    Cancel
-                    </button>
+                <button
+                  onClick={handleUpdate}
+                  className="bg-green-500 hover:bg-green-600 px-4 py-2 rounded text-white cursor-pointer"
+                >
+                  Save
+                </button>
+              </div>
 
-                    <button
-                    onClick={handleUpdate}
-                    className="bg-green-500 hover:bg-green-600 px-4 py-2 rounded text-white cursor-pointer"
-                    >
-                    Save
-                    </button>
-                </div>
-
-                </div>
             </div>
-            
+          </div>
         )}
+
       </div>
     </main>
   )
