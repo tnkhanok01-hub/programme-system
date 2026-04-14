@@ -238,8 +238,6 @@ export default function ProgrammePage() {
             ))}
           </tbody>
         </table>
-      </div>
-
         {/* ================= MOBILE CARDS ================= */}
         <div className="md:hidden flex flex-col gap-4">
           {programmes.map((p) => (
@@ -278,7 +276,9 @@ export default function ProgrammePage() {
             </div>
           ))}
         </div>
+      </div>
 
+        
         {showEditModal && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
             <div className="bg-slate-800 p-7 rounded-xl w-full max-w-2xl shadow-md">
