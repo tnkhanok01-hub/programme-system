@@ -202,7 +202,7 @@ export default function ProgrammePage() {
                   <td className="p-3 border-b border-slate-700">{p.category}</td>
                   <td className="p-3 border-b border-slate-700">{p.start_date}</td>
                   <td className="p-3 border-b border-slate-700">{p.end_date}</td>
-                  <td className="p-3 border-b border-slate-700">{p.venue}</td>
+                  <td className="p-3 border-b border-slate-700 max-w-[250px] break-words">{p.venue}</td>
                   <td className="p-3 border-b border-slate-700">
                     RM {p.budget !== null ? Number(p.budget).toFixed(2) : "—"}
                   </td>

@@ -52,9 +52,9 @@ export async function POST(request: Request) {
     );
   }
 
-  if (budget !== undefined && budget !== null && parseFloat(budget) > 4999.00) {
+  if (budget !== undefined && budget !== null && parseFloat(budget) > 4999.99) {
     return NextResponse.json(
-      { error: 'Budget cannot exceed RM4,999.00.' },
+      { error: 'Budget cannot exceed RM4,999.99.' },
       { status: 400 }
     );
   }

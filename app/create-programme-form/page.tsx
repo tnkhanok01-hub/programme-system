@@ -22,16 +22,6 @@ export default function CreateProgrammePage() {
 
     const budgetValue = parseFloat(budget)
 
-    if (budgetValue > 5000) {
-      alert("Budget must be below RM 5000")
-      return
-    }
-
-    if (budgetValue <= 0) {
-      alert("Budget must be more than RM 0")
-      return
-    }
-
     const { data: { session } } = await supabase.auth.getSession()
 
     if (!session) {
