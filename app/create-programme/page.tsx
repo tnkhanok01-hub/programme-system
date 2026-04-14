@@ -11,6 +11,9 @@ export default function ProgrammePage() {
   const router = useRouter()
   const [showEditModal, setShowEditModal] = useState(false)
   const [editForm, setEditForm] = useState<any>({})
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null)
+  const [directorProgrammeIds, setDirectorProgrammeIds] = useState<string[]>([])
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -18,6 +21,11 @@ export default function ProgrammePage() {
   const getToken = async (): Promise<string | null> => {
     const { data: { session } } = await supabase.auth.getSession()
     return session?.access_token ?? null
+  }
+
+  const canEditOrDelete = (programmeId: string) => {
+    if (currentUserRole === "superadmin" || currentUserRole === "admin") return true
+    return directorProgrammeIds.includes(programmeId)
   }
 
   // ─── Open edit modal ───────────────────────────────────────────────────────
@@ -95,13 +103,32 @@ export default function ProgrammePage() {
       setError("")
 
       const { data: { session } } = await supabase.auth.getSession()
-
       if (!session) {
         setError("You must be logged in.")
         setLoading(false)
         return
       }
 
+      const userId = session.user.id
+      setCurrentUserId(userId)
+
+      // Fetch global role
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", userId)
+        .single()
+      setCurrentUserRole(profile?.role ?? null)
+
+      // Fetch which programmes this user is director of
+      const { data: roleRows } = await supabase
+        .from("programme_roles")
+        .select("programme_id")
+        .eq("user_id", userId)
+        .eq("role", "Programme Director")
+      setDirectorProgrammeIds(roleRows?.map((r: any) => r.programme_id) ?? [])
+
+      // Fetch programmes
       const { data, error } = await supabase
         .from("programmes")
         .select("*")
@@ -185,20 +212,24 @@ export default function ProgrammePage() {
 
                   {/* ACTIONS */}
                   <td className="p-3 border-b border-slate-700">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEdit(p)}
-                        className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md cursor-pointer"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(p.id)}
-                        className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md flex items-center justify-center cursor-pointer"
-                      >
-                        <Trash size={16} />
-                      </button>
-                    </div>
+                    {canEditOrDelete(p.id) ? (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEdit(p)}
+                          className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md cursor-pointer"
+                        >
+                          <Pencil size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(p.id)}
+                          className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md cursor-pointer"
+                        >
+                          <Trash size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-slate-500 text-sm">—</span>
+                    )}
                   </td>
                 </tr>
               ))
