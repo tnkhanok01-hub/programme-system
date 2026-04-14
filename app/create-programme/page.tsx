@@ -240,128 +240,169 @@ export default function ProgrammePage() {
         </table>
       </div>
 
-      {showEditModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-slate-800 p-7 rounded-xl w-full max-w-2xl shadow-md">
+        {/* ================= MOBILE CARDS ================= */}
+        <div className="md:hidden flex flex-col gap-4">
+          {programmes.map((p) => (
+            <div key={p.id} className="bg-slate-700 p-4 rounded-lg">
 
-            {/* HEADER */}
-            <h2 className="flex items-center gap-2 text-white text-xl font-semibold mb-6">
-              <Pencil size={20}/>
-              Edit Programme
-            </h2>
+              <h3 className="font-bold text-white">{p.name}</h3>
 
-            {/* FORM */}
-            <div className="grid grid-cols-2 gap-5">
+              <p className="text-sm text-slate-300">{p.category}</p>
 
-              {/* NAME */}
-              <div className="col-span-2">
-                <label className="block text-slate-300 mb-1 text-sm">
-                  Programme Name
-                </label>
-                <input
-                  name="name"
-                  value={editForm.name || ""}
-                  onChange={handleEditChange}
-                  className="w-full p-2 rounded-md bg-slate-700 text-white border border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+              <div className="text-sm mt-2 space-y-1">
+                <p>📅 {p.start_date} → {p.end_date}</p>
+                <p>📍 {p.venue}</p>
+                <p>💰 RM {p.budget ? Number(p.budget).toFixed(2) : "—"}</p>
               </div>
 
-              {/* CATEGORY */}
-              <div>
-                <label className="block text-slate-300 mb-1 text-sm">
-                  Category
-                </label>
-                <select
-                  name="category"
-                  value={editForm.category || ""}
-                  onChange={handleEditChange}
-                  className="w-full p-2 rounded-md bg-slate-700 text-white border border-slate-600"
-                >
-                  <option value="Academic">Academic</option>
-                  <option value="Sports">Sports</option>
-                  <option value="Community Service">Community Service</option>
-                  <option value="Others">Others</option>
-                </select>
+              <div className="mt-2">
+                <span className={`px-2 py-1 text-xs rounded ${getStatusStyle(p.status)}`}>
+                  {p.status}
+                </span>
               </div>
 
-              {/* BUDGET */}
-              <div>
-                <label className="block text-slate-300 mb-1 text-sm">
-                  Budget (RM)
-                </label>
-                <input
-                  type="number"
-                  name="budget"
-                  value={editForm.budget || ""}
-                  onChange={handleEditChange}
-                  className="w-full p-2 rounded-md bg-slate-700 text-white border border-slate-600"
-                />
-              </div>
-
-              {/* START DATE */}
-              <div>
-                <label className="block text-slate-300 mb-1 text-sm">
-                  Start Date
-                </label>
-                <input
-                  type="date"
-                  name="start_date"
-                  value={editForm.start_date || ""}
-                  onChange={handleEditChange}
-                  className="w-full p-2 rounded-md bg-slate-700 text-white border border-slate-600"
-                />
-              </div>
-
-              {/* END DATE */}
-              <div>
-                <label className="block text-slate-300 mb-1 text-sm">
-                  End Date
-                </label>
-                <input
-                  type="date"
-                  name="end_date"
-                  value={editForm.end_date || ""}
-                  onChange={handleEditChange}
-                  className="w-full p-2 rounded-md bg-slate-700 text-white border border-slate-600"
-                />
-              </div>
-
-              {/* VENUE */}
-              <div className="col-span-2">
-                <label className="block text-slate-300 mb-1 text-sm">
-                  Venue
-                </label>
-                <input
-                  name="venue"
-                  value={editForm.venue || ""}
-                  onChange={handleEditChange}
-                  className="w-full p-2 rounded-md bg-slate-700 text-white border border-slate-600"
-                />
-              </div>
+              {canEditOrDelete(p.id) && (
+                <div className="flex gap-2 mt-3">
+                  <button className="bg-blue-500 p-2 rounded">
+                    <Pencil size={16} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(p.id)}
+                    className="bg-red-500 p-2 rounded"
+                  >
+                    <Trash size={16} />
+                  </button>
+                </div>
+              )}
 
             </div>
+          ))}
+        </div>
 
-            {/* ACTIONS */}
-            <div className="flex justify-end gap-3 mt-7">
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="px-4 py-2 rounded-md bg-slate-600 hover:bg-slate-500 text-white flex items-center gap-2"
-              >
-                <CircleX size={16} />
-                Cancel
-              </button>
+        {showEditModal && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+            <div className="bg-slate-800 p-7 rounded-xl w-full max-w-2xl shadow-md">
 
-              <button
-                onClick={handleUpdate}
-                className="px-4 py-2 rounded-md bg-blue-500 hover:bg-blue-600 text-white flex items-center gap-2"
-              >
-                <Save size={16} />
-                Update
-              </button>
+              {/* HEADER */}
+              <h2 className="flex items-center gap-2 text-white text-xl font-semibold mb-6">
+                <Pencil size={20}/>
+                Edit Programme
+              </h2>
+
+              {/* FORM */}
+              <div className="grid grid-cols-2 gap-5">
+
+                {/* NAME */}
+                <div className="col-span-2">
+                  <label className="block text-slate-300 mb-1 text-sm">
+                    Programme Name
+                  </label>
+                  <input
+                    name="name"
+                    value={editForm.name || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-2 rounded-md bg-slate-700 text-white border border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* CATEGORY */}
+                <div>
+                  <label className="block text-slate-300 mb-1 text-sm">
+                    Category
+                  </label>
+                  <select
+                    name="category"
+                    value={editForm.category || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-2 rounded-md bg-slate-700 text-white border border-slate-600"
+                  >
+                    <option value="Academic">Academic</option>
+                    <option value="Sports">Sports</option>
+                    <option value="Community Service">Community Service</option>
+                    <option value="Others">Others</option>
+                  </select>
+                </div>
+
+                {/* BUDGET */}
+                <div>
+                  <label className="block text-slate-300 mb-1 text-sm">
+                    Budget (RM)
+                  </label>
+                  <input
+                    type="number"
+                    name="budget"
+                    value={editForm.budget || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-2 rounded-md bg-slate-700 text-white border border-slate-600"
+                  />
+                </div>
+
+                {/* START DATE */}
+                <div>
+                  <label className="block text-slate-300 mb-1 text-sm">
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    name="start_date"
+                    value={editForm.start_date || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-2 rounded-md bg-slate-700 text-white border border-slate-600"
+                  />
+                </div>
+
+                {/* END DATE */}
+                <div>
+                  <label className="block text-slate-300 mb-1 text-sm">
+                    End Date
+                  </label>
+                  <input
+                    type="date"
+                    name="end_date"
+                    value={editForm.end_date || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-2 rounded-md bg-slate-700 text-white border border-slate-600"
+                  />
+                </div>
+
+                {/* VENUE */}
+                <div className="col-span-2">
+                  <label className="block text-slate-300 mb-1 text-sm">
+                    Venue
+                  </label>
+                  <input
+                    name="venue"
+                    value={editForm.venue || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-2 rounded-md bg-slate-700 text-white border border-slate-600"
+                  />
+                </div>
+
+              </div>
+
+              {/* ACTIONS */}
+              <div className="flex justify-end gap-3 mt-7">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 rounded-md bg-slate-600 hover:bg-slate-500 text-white flex items-center gap-2"
+                >
+                  <CircleX size={16} />
+                  Cancel
+                </button>
+
+                <button
+                  onClick={handleUpdate}
+                  className="px-4 py-2 rounded-md bg-blue-500 hover:bg-blue-600 text-white flex items-center gap-2"
+                >
+                  <Save size={16} />
+                  Update
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+
     </main>
   )
 }
