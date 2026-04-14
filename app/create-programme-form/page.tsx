@@ -2,7 +2,7 @@
 import React, { useState } from "react"
 import { supabase } from '../../lib/supabaseClient'
 import { useRouter } from "next/navigation"
-import { CircleChevronLeft } from "lucide-react"
+import { CircleChevronLeft, CalendarPlus, CirclePlus } from "lucide-react"
 
 export default function CreateProgrammePage() {
   const router = useRouter()
@@ -72,7 +72,8 @@ export default function CreateProgrammePage() {
     <main className="min-h-screen flex items-center justify-center p-8 bg-slate-900">
       <div className="w-full max-w-[820px] bg-slate-800 rounded-xl shadow-md p-7">
 
-        <h1 className="text-white text-2xl mb-4 text-center">
+        <h1 className="flex items-center gap-2 text-white text-2xl mb-4 text-center">
+          <CalendarPlus size={28} />
           Create Programme
         </h1>
 
@@ -211,7 +212,7 @@ export default function CreateProgrammePage() {
             <button
               type="button"
               onClick={() => router.push("/create-programme")}
-              className=" flex items-center bg-slate-600 hover:bg-slate-500 text-white px-4 py-2 rounded-md cursor-pointer"
+              className=" flex items-center gap-2 bg-slate-600 hover:bg-slate-500 text-white px-4 py-2 rounded-md cursor-pointer"
             >
               <CircleChevronLeft size={30}/>
               Back  
@@ -219,8 +220,9 @@ export default function CreateProgrammePage() {
 
             <button
               type="submit"
-              className="bg-blue-500 hover:bg-blue-600 text-white font-bold px-4 py-2 rounded-md transition cursor-pointer"
+              className=" flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-bold px-4 py-2 rounded-md transition cursor-pointer"
             >
+              <CirclePlus size={25} />
               Create Programme
             </button>
           </div>

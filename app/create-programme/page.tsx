@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "../../lib/supabaseClient"
-import { Pencil, Trash } from "lucide-react"
+import { Pencil, Trash, CirclePlus, Table, Save, CircleX} from "lucide-react"
 
 export default function ProgrammePage() {
   const [programmes, setProgrammes] = useState<any[]>([])
@@ -158,12 +158,16 @@ export default function ProgrammePage() {
 
         {/* HEADER */}
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-white text-xl">Programme List</h2>
+          <h2 className="flex items-center gap-2 text-white text-xl">
+            <Table size={22} />
+            Programme List
+          </h2>
 
           <button
             onClick={() => router.push("/create-programme-form")}
-            className="bg-blue-500 hover:bg-blue-600 text-white font-bold px-4 py-2 rounded-md transition cursor-pointer"
+            className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-bold px-4 py-2 rounded-md transition cursor-pointer"
           >
+            <CirclePlus size={25} />
             Create Programme
           </button>
         </div>
@@ -242,7 +246,9 @@ export default function ProgrammePage() {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-slate-800 p-6 rounded-xl w-full max-w-[500px]">
 
-              <h2 className="text-white text-xl mb-4">Edit Programme</h2>
+              <h2 className="flex items-center gap-2 text-white text-xl mb-4">
+                <Pencil size={22} />
+                Edit Programme</h2>
 
               {/* NAME */}
               <input
@@ -309,15 +315,17 @@ export default function ProgrammePage() {
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setShowEditModal(false)}
-                  className="bg-gray-500 hover:bg-gray-600 px-4 py-2 rounded text-white cursor-pointer"
+                  className="flex items-center gap-2 bg-gray-500 hover:bg-gray-600 px-4 py-2 rounded text-white cursor-pointer"
                 >
+                  <CircleX size={20} />
                   Cancel
                 </button>
 
                 <button
                   onClick={handleUpdate}
-                  className="bg-green-500 hover:bg-green-600 px-4 py-2 rounded text-white cursor-pointer"
+                  className="flex items-center gap-2 bg-green-500 hover:bg-green-600 px-4 py-2 rounded text-white cursor-pointer"
                 >
+                  <Save size={20} />
                   Save
                 </button>
               </div>
