@@ -60,7 +60,7 @@ export default function ForgotPassword() {
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/update-password`,
-    });
+    });    //This sends a secure reset link to the user’s email. This ensures safe password recovery.
 
     if (error) {
       setMessage('❌ ' + error.message);
