@@ -27,7 +27,7 @@ export default function ProgrammePage() {
     return directorProgrammeIds.includes(programmeId)
   }
 
-  // ─── AUTH LISTENER (auto logout redirect) ──────────────────────
+  // ─── AUTH LISTENER ─────────────────────────────────────────────
   useEffect(() => {
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session) {
@@ -48,7 +48,6 @@ export default function ProgrammePage() {
 
       const { data: { session } } = await supabase.auth.getSession()
 
-      // ✅ Redirect if not logged in
       if (!session) {
         router.replace("/login")
         return
@@ -57,7 +56,6 @@ export default function ProgrammePage() {
       const userId = session.user.id
       setCurrentUserId(userId)
 
-      // Get role
       const { data: profile } = await supabase
         .from("profiles")
         .select("role")
@@ -66,7 +64,6 @@ export default function ProgrammePage() {
 
       setCurrentUserRole(profile?.role ?? null)
 
-      // Get programme roles
       const { data: roleRows } = await supabase
         .from("programme_roles")
         .select("programme_id")
@@ -75,7 +72,6 @@ export default function ProgrammePage() {
 
       setDirectorProgrammeIds(roleRows?.map((r: any) => r.programme_id) ?? [])
 
-      // Fetch programmes
       const { data, error } = await supabase
         .from("programmes")
         .select("*")
@@ -92,7 +88,11 @@ export default function ProgrammePage() {
 
   // ─── EDIT ──────────────────────────────────────────────────────
   const handleEdit = (programme: any) => {
-    setEditForm(programme)
+    setEditForm({
+      ...programme,
+      start_date: programme.start_date?.slice(0, 10),
+      end_date: programme.end_date?.slice(0, 10),
+    })
     setShowEditModal(true)
   }
 
@@ -163,7 +163,6 @@ export default function ProgrammePage() {
     return ""
   }
 
-  // ─── LOADING GUARD ─────────────────────────────────────────────
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-white">
@@ -172,7 +171,6 @@ export default function ProgrammePage() {
     )
   }
 
-  // ─── UI ────────────────────────────────────────────────────────
   return (
     <main className="min-h-screen flex items-center justify-center p-8 bg-slate-900">
       <div className="w-full max-w-[1400px] bg-slate-800 rounded-xl shadow-md p-7">
@@ -208,50 +206,161 @@ export default function ProgrammePage() {
           </thead>
 
           <tbody>
-            {programmes.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="p-3 text-slate-400">
-                  No programmes yet
+            {programmes.map((p) => (
+              <tr key={p.id} className="hover:bg-slate-700">
+                <td className="p-3 border-b border-slate-700">{p.name}</td>
+                <td className="p-3 border-b border-slate-700">{p.category}</td>
+                <td className="p-3 border-b border-slate-700">{p.start_date}</td>
+                <td className="p-3 border-b border-slate-700">{p.end_date}</td>
+                <td className="p-3 border-b border-slate-700">{p.venue}</td>
+                <td className="p-3 border-b border-slate-700">
+                  RM {p.budget ? Number(p.budget).toFixed(2) : "—"}
+                </td>
+                <td className="p-3 border-b border-slate-700">
+                  <span className={`px-3 py-1 rounded-full text-xs ${getStatusStyle(p.status)}`}>
+                    {p.status}
+                  </span>
+                </td>
+
+                <td className="p-3 border-b border-slate-700">
+                  {canEditOrDelete(p.id) && (
+                    <div className="flex gap-2">
+                      <button onClick={() => handleEdit(p)} className="bg-blue-500 p-2 rounded">
+                        <Pencil size={16} />
+                      </button>
+                      <button onClick={() => handleDelete(p.id)} className="bg-red-500 p-2 rounded">
+                        <Trash size={16} />
+                      </button>
+                    </div>
+                  )}
                 </td>
               </tr>
-            ) : (
-              programmes.map((p) => (
-                <tr key={p.id} className="hover:bg-slate-700">
-                  <td className="p-3 border-b border-slate-700 max-w-[250px] break-words">{p.name}</td>
-                  <td className="p-3 border-b border-slate-700">{p.category}</td>
-                  <td className="p-3 border-b border-slate-700">{p.start_date}</td>
-                  <td className="p-3 border-b border-slate-700">{p.end_date}</td>
-                  <td className="p-3 border-b border-slate-700 max-w-[250px] break-words">{p.venue}</td>
-                  <td className="p-3 border-b border-slate-700">
-                    RM {p.budget ? Number(p.budget).toFixed(2) : "—"}
-                  </td>
-                  <td className="p-3 border-b border-slate-700">
-                    <span className={`px-3 py-1 rounded-full text-xs ${getStatusStyle(p.status)}`}>
-                      {p.status}
-                    </span>
-                  </td>
-
-                  <td className="p-3 border-b border-slate-700">
-                    {canEditOrDelete(p.id) ? (
-                      <div className="flex gap-2">
-                        <button onClick={() => handleEdit(p)} className="bg-blue-500 p-2 rounded">
-                          <Pencil size={16} />
-                        </button>
-                        <button onClick={() => handleDelete(p.id)} className="bg-red-500 p-2 rounded">
-                          <Trash size={16} />
-                        </button>
-                      </div>
-                    ) : (
-                      <span className="text-slate-500">—</span>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
+            ))}
           </tbody>
         </table>
-
       </div>
+
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-slate-800 p-7 rounded-xl w-full max-w-2xl shadow-md">
+
+            {/* HEADER */}
+            <h2 className="text-white text-xl font-semibold mb-6">
+              Edit Programme
+            </h2>
+
+            {/* FORM */}
+            <div className="grid grid-cols-2 gap-5">
+
+              {/* NAME */}
+              <div className="col-span-2">
+                <label className="block text-slate-300 mb-1 text-sm">
+                  Programme Name
+                </label>
+                <input
+                  name="name"
+                  value={editForm.name || ""}
+                  onChange={handleEditChange}
+                  className="w-full p-2 rounded-md bg-slate-700 text-white border border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* CATEGORY */}
+              <div>
+                <label className="block text-slate-300 mb-1 text-sm">
+                  Category
+                </label>
+                <select
+                  name="category"
+                  value={editForm.category || ""}
+                  onChange={handleEditChange}
+                  className="w-full p-2 rounded-md bg-slate-700 text-white border border-slate-600"
+                >
+                  <option value="Academic">Academic</option>
+                  <option value="Sports">Sports</option>
+                  <option value="Community Service">Community Service</option>
+                  <option value="Others">Others</option>
+                </select>
+              </div>
+
+              {/* BUDGET */}
+              <div>
+                <label className="block text-slate-300 mb-1 text-sm">
+                  Budget (RM)
+                </label>
+                <input
+                  type="number"
+                  name="budget"
+                  value={editForm.budget || ""}
+                  onChange={handleEditChange}
+                  className="w-full p-2 rounded-md bg-slate-700 text-white border border-slate-600"
+                />
+              </div>
+
+              {/* START DATE */}
+              <div>
+                <label className="block text-slate-300 mb-1 text-sm">
+                  Start Date
+                </label>
+                <input
+                  type="date"
+                  name="start_date"
+                  value={editForm.start_date || ""}
+                  onChange={handleEditChange}
+                  className="w-full p-2 rounded-md bg-slate-700 text-white border border-slate-600"
+                />
+              </div>
+
+              {/* END DATE */}
+              <div>
+                <label className="block text-slate-300 mb-1 text-sm">
+                  End Date
+                </label>
+                <input
+                  type="date"
+                  name="end_date"
+                  value={editForm.end_date || ""}
+                  onChange={handleEditChange}
+                  className="w-full p-2 rounded-md bg-slate-700 text-white border border-slate-600"
+                />
+              </div>
+
+              {/* VENUE */}
+              <div className="col-span-2">
+                <label className="block text-slate-300 mb-1 text-sm">
+                  Venue
+                </label>
+                <input
+                  name="venue"
+                  value={editForm.venue || ""}
+                  onChange={handleEditChange}
+                  className="w-full p-2 rounded-md bg-slate-700 text-white border border-slate-600"
+                />
+              </div>
+
+            </div>
+
+            {/* ACTIONS */}
+            <div className="flex justify-end gap-3 mt-7">
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="px-4 py-2 rounded-md bg-slate-600 hover:bg-slate-500 text-white flex items-center gap-2"
+              >
+                <CircleX size={16} />
+                Cancel
+              </button>
+
+              <button
+                onClick={handleUpdate}
+                className="px-4 py-2 rounded-md bg-blue-500 hover:bg-blue-600 text-white flex items-center gap-2"
+              >
+                <Save size={16} />
+                Update
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
