@@ -193,7 +193,66 @@ export default function ProgrammePage() {
 
         {error && <p className="text-red-400">{error}</p>}
 
-        {/* TABLE */}
+        {/*------------------ MOBILE: card list — visible below md ---------------*/}
+        <div className="flex flex-col gap-3 md:hidden">
+          {programmes.map((p) => (
+            <div key={p.id} className="bg-slate-700 rounded-xl border border-slate-600 overflow-hidden">
+              {/* Card header */}
+              <div className="flex justify-between items-start p-4 border-b border-slate-600">
+                <p className="text-white font-medium text-sm flex-1 pr-2">{p.name}</p>
+                <span className={`px-2 py-1 rounded-full text-xs shrink-0 ${getStatusStyle(p.status)}`}>
+                  {p.status}
+                </span>
+              </div>
+
+              {/* Card body */}
+              <div className="grid grid-cols-2 gap-3 p-4">
+                <div>
+                  <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">Start</p>
+                  <p className="text-slate-200 text-sm">{p.start_date}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">End</p>
+                  <p className="text-slate-200 text-sm">{p.end_date}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">Venue</p>
+                  <p className="text-slate-200 text-sm">{p.venue}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">Budget</p>
+                  <p className="text-slate-200 text-sm">
+                    RM {p.budget ? Number(p.budget).toFixed(2) : "—"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Card footer */}
+              <div className="flex justify-between items-center px-4 pb-4">
+                <span className="text-xs text-slate-400 bg-slate-600 px-2 py-1 rounded">
+                  {p.category}
+                </span>
+                {canEditOrDelete(p.id) && (
+                  <div className="flex gap-2">
+                    <button onClick={() => handleEdit(p)} className="bg-blue-500 px-3 py-1.5 rounded-lg text-xs flex items-center gap-1">
+                      <Pencil size={12} /> Edit
+                    </button>
+                    <button onClick={() => handleDelete(p.id)} className="bg-red-500 px-3 py-1.5 rounded-lg text-xs flex items-center gap-1">
+                      <Trash size={12} /> Delete
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+
+
+
+
+        {/* ------------------------------------------TABLE DEKSTOP --------------------------------------------*/}
+        <div className="hidden md:block overflow-x-auto"></div>
         <table className="w-full mt-4 text-white border-collapse">
           <thead>
             <tr>
@@ -238,47 +297,10 @@ export default function ProgrammePage() {
             ))}
           </tbody>
         </table>
-        {/* ================= MOBILE CARDS ================= */}
-        <div className="md:hidden flex flex-col gap-4">
-          {programmes.map((p) => (
-            <div key={p.id} className="bg-slate-700 p-4 rounded-lg">
-
-              <h3 className="font-bold text-white">{p.name}</h3>
-
-              <p className="text-sm text-slate-300">{p.category}</p>
-
-              <div className="text-sm mt-2 space-y-1">
-                <p>📅 {p.start_date} → {p.end_date}</p>
-                <p>📍 {p.venue}</p>
-                <p>💰 RM {p.budget ? Number(p.budget).toFixed(2) : "—"}</p>
-              </div>
-
-              <div className="mt-2">
-                <span className={`px-2 py-1 text-xs rounded ${getStatusStyle(p.status)}`}>
-                  {p.status}
-                </span>
-              </div>
-
-              {canEditOrDelete(p.id) && (
-                <div className="flex gap-2 mt-3">
-                  <button className="bg-blue-500 p-2 rounded">
-                    <Pencil size={16} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(p.id)}
-                    className="bg-red-500 p-2 rounded"
-                  >
-                    <Trash size={16} />
-                  </button>
-                </div>
-              )}
-
-            </div>
-          ))}
-        </div>
       </div>
 
-        
+
+        {/* ── EDIT MODAL / BOTTOM SHEET ──────────────────────────── */}
         {showEditModal && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
             <div className="bg-slate-800 p-7 rounded-xl w-full max-w-2xl shadow-md">
