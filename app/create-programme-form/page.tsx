@@ -1,11 +1,13 @@
 "use client"
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { supabase } from '../../lib/supabaseClient'
 import { useRouter } from "next/navigation"
 import { CircleChevronLeft, CalendarPlus, CirclePlus } from "lucide-react"
 
 export default function CreateProgrammePage() {
   const router = useRouter()
+
+  const [loading, setLoading] = useState(true)
 
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
@@ -14,8 +16,36 @@ export default function CreateProgrammePage() {
   const [end_date, setEndDate] = useState("")
   const [budget, setBudget] = useState("")
   const [venue, setVenue] = useState("")
-
   const [budgetError, setBudgetError] = useState("")
+
+  // ✅ SESSION CHECK (on page load)
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (!session) {
+        router.replace("/login")
+        return
+      }
+
+      setLoading(false)
+    }
+
+    checkSession()
+  }, [])
+
+  // ✅ AUTH LISTENER (auto redirect on logout)
+  useEffect(() => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        router.replace("/login")
+      }
+    })
+
+    return () => {
+      listener.subscription.unsubscribe()
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -25,7 +55,7 @@ export default function CreateProgrammePage() {
     const { data: { session } } = await supabase.auth.getSession()
 
     if (!session) {
-      alert('You must be logged in')
+      router.replace("/login")
       return
     }
 
@@ -58,6 +88,15 @@ export default function CreateProgrammePage() {
     }
   }
 
+  // ✅ LOADING GUARD (prevents flicker)
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-white">
+        Loading...
+      </div>
+    )
+  }
+
   return (
     <main className="min-h-screen flex items-center justify-center p-8 bg-slate-900">
       <div className="w-full max-w-[820px] bg-slate-800 rounded-xl shadow-md p-7">
@@ -73,10 +112,9 @@ export default function CreateProgrammePage() {
           <label className="text-slate-200 text-sm">
             Programme Name
             <input
-              className="w-full mt-1 p-3 rounded-md bg-slate-700 text-white outline-none"
+              className="w-full mt-1 p-3 rounded-md bg-slate-700 text-white"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Badminton Competition"
             />
           </label>
 
@@ -84,136 +122,54 @@ export default function CreateProgrammePage() {
           <label className="text-slate-200 text-sm">
             Description
             <textarea
-              className="w-full mt-1 p-3 rounded-md bg-slate-700 text-white outline-none min-h-[100px]"
+              className="w-full mt-1 p-3 rounded-md bg-slate-700 text-white"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Short description"
             />
           </label>
 
           {/* CATEGORY */}
-          <label className="text-slate-200 text-sm">
-            Category
-            <select
-              className="w-full mt-1 p-3 rounded-md bg-slate-700 text-white outline-none"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            >
-              <option value="">Select category</option>
-              <option value="Academic">Academic</option>
-              <option value="Sports">Sports</option>
-              <option value="Community Service">Community Service</option>
-              <option value="Others">Others</option>
-            </select>
-          </label>
+          <select
+            className="w-full p-3 bg-slate-700 text-white rounded"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            <option value="">Select category</option>
+            <option value="Academic">Academic</option>
+            <option value="Sports">Sports</option>
+            <option value="Community Service">Community Service</option>
+            <option value="Others">Others</option>
+          </select>
 
           {/* DATES */}
-          <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
-            <label className="text-slate-200 text-sm">
-              Start Date
-              <input
-                type="date"
-                className="w-full mt-1 p-3 rounded-md bg-slate-700 text-white outline-none"
-                value={start_date}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </label>
-
-            <label className="text-slate-200 text-sm">
-              End Date
-              <input
-                type="date"
-                className="w-full mt-1 p-3 rounded-md bg-slate-700 text-white outline-none"
-                value={end_date}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-            </label>
+          <div className="grid grid-cols-2 gap-3">
+            <input type="date" value={start_date} onChange={(e) => setStartDate(e.target.value)} className="p-3 bg-slate-700 text-white rounded"/>
+            <input type="date" value={end_date} onChange={(e) => setEndDate(e.target.value)} className="p-3 bg-slate-700 text-white rounded"/>
           </div>
-          
+
           {/* BUDGET */}
-          <label className="text-slate-200 text-sm">
-            Budget (RM)
-            <input
-              type="text"
-              inputMode="decimal"
-              className="w-full mt-1 p-3 rounded-md bg-slate-700 text-white outline-none"
-              value={budget}
-              onChange={(e) => {
-                const value = e.target.value
+          <input
+            value={budget}
+            onChange={(e) => setBudget(e.target.value)}
+            className="p-3 bg-slate-700 text-white rounded"
+            placeholder="4999.99"
+          />
 
-                // allow only numbers + decimal
-                if (!/^\d*\.?\d*$/.test(value)) return
-
-                setBudget(value)
-
-                if (!value) {
-                  setBudgetError("")
-                  return
-                }
-
-                const num = Number(value)
-
-                // ❌ must be exactly 2 decimal places
-                if (!/^\d+(\.\d{2})$/.test(value)) {
-                  setBudgetError("Must be exactly 2 decimal places (e.g. 1000.00)")
-                  return
-                }
-
-                if (num >= 5000) {
-                  setBudgetError("Budget must be below RM 5000.00")
-                  return
-                }
-
-                if (num <= 0) {
-                  setBudgetError("Budget must be more than RM 0.00")
-                  return
-                }
-
-                setBudgetError("")
-              }}
-              onBlur={() => {
-                // auto format to 2 decimal places
-                if (budget && !isNaN(Number(budget))) {
-                  setBudget(Number(budget).toFixed(2))
-                }
-              }}
-              placeholder="e.g. 4999.99"
-            />
-
-            {budgetError && (
-              <p className="text-red-400 text-xs mt-1">
-                {budgetError}
-              </p>
-            )}
-          </label>
           {/* VENUE */}
-          <label className="text-slate-200 text-sm">
-            Venue
-            <input
-              className="w-full mt-1 p-3 rounded-md bg-slate-700 text-white outline-none"
-              value={venue}
-              onChange={(e) => setVenue(e.target.value)}
-              placeholder="e.g., Foyer Block A, KSJ"
-            />
-          </label>
+          <input
+            value={venue}
+            onChange={(e) => setVenue(e.target.value)}
+            className="p-3 bg-slate-700 text-white rounded"
+          />
 
           {/* ACTIONS */}
-          <div className="flex justify-between items-center mt-3">
-            <button
-              type="button"
-              onClick={() => router.push("/create-programme")}
-              className=" flex items-center gap-2 bg-slate-600 hover:bg-slate-500 text-white px-4 py-2 rounded-md cursor-pointer"
-            >
-              <CircleChevronLeft size={30}/>
-              Back  
+          <div className="flex justify-between mt-3">
+            <button onClick={() => router.push("/create-programme")} type="button" className="bg-slate-600 px-4 py-2 rounded text-white">
+              Back
             </button>
 
-            <button
-              type="submit"
-              className=" flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-bold px-4 py-2 rounded-md transition cursor-pointer"
-            >
-              <CirclePlus size={25} />
-              Create Programme
+            <button type="submit" className="bg-blue-500 px-4 py-2 rounded text-white">
+              Create
             </button>
           </div>
 

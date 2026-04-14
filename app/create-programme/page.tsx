@@ -2,22 +2,21 @@
 import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "../../lib/supabaseClient"
-import { Pencil, Trash, CirclePlus, Table, Save, CircleX} from "lucide-react"
+import { Pencil, Trash, CirclePlus, Table, Save, CircleX } from "lucide-react"
 
 export default function ProgrammePage() {
   const [programmes, setProgrammes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const router = useRouter()
+
   const [showEditModal, setShowEditModal] = useState(false)
   const [editForm, setEditForm] = useState<any>({})
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null)
   const [directorProgrammeIds, setDirectorProgrammeIds] = useState<string[]>([])
 
-  // ─── Helpers ──────────────────────────────────────────────────────────────
-
-  // Get the current session token to pass as Bearer to API routes
+  // ─── SESSION TOKEN ─────────────────────────────────────────────
   const getToken = async (): Promise<string | null> => {
     const { data: { session } } = await supabase.auth.getSession()
     return session?.access_token ?? null
@@ -28,7 +27,70 @@ export default function ProgrammePage() {
     return directorProgrammeIds.includes(programmeId)
   }
 
-  // ─── Open edit modal ───────────────────────────────────────────────────────
+  // ─── AUTH LISTENER (auto logout redirect) ──────────────────────
+  useEffect(() => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        router.replace("/login")
+      }
+    })
+
+    return () => {
+      listener.subscription.unsubscribe()
+    }
+  }, [])
+
+  // ─── FETCH DATA ────────────────────────────────────────────────
+  useEffect(() => {
+    const fetchProgrammes = async () => {
+      setLoading(true)
+      setError("")
+
+      const { data: { session } } = await supabase.auth.getSession()
+
+      // ✅ Redirect if not logged in
+      if (!session) {
+        router.replace("/login")
+        return
+      }
+
+      const userId = session.user.id
+      setCurrentUserId(userId)
+
+      // Get role
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", userId)
+        .single()
+
+      setCurrentUserRole(profile?.role ?? null)
+
+      // Get programme roles
+      const { data: roleRows } = await supabase
+        .from("programme_roles")
+        .select("programme_id")
+        .eq("user_id", userId)
+        .eq("role", "Programme Director")
+
+      setDirectorProgrammeIds(roleRows?.map((r: any) => r.programme_id) ?? [])
+
+      // Fetch programmes
+      const { data, error } = await supabase
+        .from("programmes")
+        .select("*")
+        .order("created_at", { ascending: false })
+
+      if (error) setError(error.message)
+      else setProgrammes(data || [])
+
+      setLoading(false)
+    }
+
+    fetchProgrammes()
+  }, [])
+
+  // ─── EDIT ──────────────────────────────────────────────────────
   const handleEdit = (programme: any) => {
     setEditForm(programme)
     setShowEditModal(true)
@@ -38,10 +100,9 @@ export default function ProgrammePage() {
     setEditForm({ ...editForm, [e.target.name]: e.target.value })
   }
 
-  // ─── Update (PUT /api/programmes/[id]) ────────────────────────────────────
   const handleUpdate = async () => {
     const token = await getToken()
-    if (!token) return alert("You must be logged in.")
+    if (!token) return router.replace("/login")
 
     const res = await fetch(`/api/programmes/${editForm.id}`, {
       method: "PUT",
@@ -64,7 +125,6 @@ export default function ProgrammePage() {
     if (!res.ok) {
       alert("Update failed: " + data.error)
     } else {
-      // Update UI instantly using the returned programme
       setProgrammes((prev) =>
         prev.map((p) => (p.id === editForm.id ? data.programme : p))
       )
@@ -72,20 +132,19 @@ export default function ProgrammePage() {
     }
   }
 
-  // ─── Delete (DELETE /api/programmes/[id]) ─────────────────────────────────
+  // ─── DELETE ────────────────────────────────────────────────────
   const handleDelete = async (id: string) => {
     const confirmDelete = confirm("Are you sure you want to delete this programme?")
     if (!confirmDelete) return
 
     const token = await getToken()
-    if (!token) return alert("You must be logged in.")
+    if (!token) return router.replace("/login")
 
     const res = await fetch(`/api/programmes/${id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     })
 
-    // Safely parse — some responses may have an empty body
     const text = await res.text()
     const data = text ? JSON.parse(text) : {}
 
@@ -96,62 +155,24 @@ export default function ProgrammePage() {
     }
   }
 
-  // ─── Fetch programmes on mount ────────────────────────────────────────────
-  useEffect(() => {
-    const fetchProgrammes = async () => {
-      setLoading(true)
-      setError("")
-
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        setError("You must be logged in.")
-        setLoading(false)
-        return
-      }
-
-      const userId = session.user.id
-      setCurrentUserId(userId)
-
-      // Fetch global role
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", userId)
-        .single()
-      setCurrentUserRole(profile?.role ?? null)
-
-      // Fetch which programmes this user is director of
-      const { data: roleRows } = await supabase
-        .from("programme_roles")
-        .select("programme_id")
-        .eq("user_id", userId)
-        .eq("role", "Programme Director")
-      setDirectorProgrammeIds(roleRows?.map((r: any) => r.programme_id) ?? [])
-
-      // Fetch programmes
-      const { data, error } = await supabase
-        .from("programmes")
-        .select("*")
-        .order("created_at", { ascending: false })
-
-      if (error) setError(error.message)
-      else setProgrammes(data || [])
-
-      setLoading(false)
-    }
-
-    fetchProgrammes()
-  }, [])
-
-  // ─── Status badge styles ──────────────────────────────────────────────────
+  // ─── STATUS STYLE ──────────────────────────────────────────────
   const getStatusStyle = (status: string) => {
-    if (status === "Pending")  return "text-yellow-400 bg-yellow-400/20"
+    if (status === "Pending") return "text-yellow-400 bg-yellow-400/20"
     if (status === "Approved") return "text-green-400 bg-green-400/20"
     if (status === "Rejected") return "text-red-400 bg-red-400/20"
     return ""
   }
 
-  // ─── UI ───────────────────────────────────────────────────────────────────
+  // ─── LOADING GUARD ─────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-white">
+        Loading...
+      </div>
+    )
+  }
+
+  // ─── UI ────────────────────────────────────────────────────────
   return (
     <main className="min-h-screen flex items-center justify-center p-8 bg-slate-900">
       <div className="w-full max-w-[1400px] bg-slate-800 rounded-xl shadow-md p-7">
@@ -165,15 +186,13 @@ export default function ProgrammePage() {
 
           <button
             onClick={() => router.push("/create-programme-form")}
-            className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-bold px-4 py-2 rounded-md transition cursor-pointer"
+            className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-bold px-4 py-2 rounded-md"
           >
             <CirclePlus size={25} />
             Create Programme
           </button>
         </div>
 
-        {/* STATES */}
-        {loading && <p className="text-slate-400">Loading...</p>}
         {error && <p className="text-red-400">{error}</p>}
 
         {/* TABLE */}
@@ -181,7 +200,7 @@ export default function ProgrammePage() {
           <thead>
             <tr>
               {["Name", "Category", "Start", "End", "Venue", "Budget", "Approval", "Actions"].map((h) => (
-                <th key={h} className="text-left text-slate-400 font-semibold p-3 border-b border-slate-700">
+                <th key={h} className="text-left text-slate-400 p-3 border-b border-slate-700">
                   {h}
                 </th>
               ))}
@@ -189,7 +208,7 @@ export default function ProgrammePage() {
           </thead>
 
           <tbody>
-            {!loading && programmes.length === 0 ? (
+            {programmes.length === 0 ? (
               <tr>
                 <td colSpan={8} className="p-3 text-slate-400">
                   No programmes yet
@@ -204,35 +223,26 @@ export default function ProgrammePage() {
                   <td className="p-3 border-b border-slate-700">{p.end_date}</td>
                   <td className="p-3 border-b border-slate-700 max-w-[250px] break-words">{p.venue}</td>
                   <td className="p-3 border-b border-slate-700">
-                    RM {p.budget !== null ? Number(p.budget).toFixed(2) : "—"}
+                    RM {p.budget ? Number(p.budget).toFixed(2) : "—"}
                   </td>
-
-                  {/* STATUS */}
-                  <td className="p-3 border-b border-slate-700 text-left">
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusStyle(p.status)}`}>
+                  <td className="p-3 border-b border-slate-700">
+                    <span className={`px-3 py-1 rounded-full text-xs ${getStatusStyle(p.status)}`}>
                       {p.status}
                     </span>
                   </td>
 
-                  {/* ACTIONS */}
                   <td className="p-3 border-b border-slate-700">
                     {canEditOrDelete(p.id) ? (
                       <div className="flex gap-2">
-                        <button
-                          onClick={() => handleEdit(p)}
-                          className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md cursor-pointer"
-                        >
+                        <button onClick={() => handleEdit(p)} className="bg-blue-500 p-2 rounded">
                           <Pencil size={16} />
                         </button>
-                        <button
-                          onClick={() => handleDelete(p.id)}
-                          className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md cursor-pointer"
-                        >
+                        <button onClick={() => handleDelete(p.id)} className="bg-red-500 p-2 rounded">
                           <Trash size={16} />
                         </button>
                       </div>
                     ) : (
-                      <span className="text-slate-500 text-sm">—</span>
+                      <span className="text-slate-500">—</span>
                     )}
                   </td>
                 </tr>
@@ -240,99 +250,6 @@ export default function ProgrammePage() {
             )}
           </tbody>
         </table>
-
-        {/* EDIT MODAL */}
-        {showEditModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-slate-800 p-6 rounded-xl w-full max-w-[500px]">
-
-              <h2 className="flex items-center gap-2 text-white text-xl mb-4">
-                <Pencil size={22} />
-                Edit Programme</h2>
-
-              {/* NAME */}
-              <input
-                name="name"
-                value={editForm.name || ""}
-                onChange={handleEditChange}
-                className="w-full p-3 mb-3 bg-slate-700 text-white rounded"
-                placeholder="Programme Name"
-              />
-
-              {/* CATEGORY */}
-              <select
-                name="category"
-                value={editForm.category || ""}
-                onChange={handleEditChange}
-                className="w-full p-3 mb-3 bg-slate-700 text-white rounded"
-              >
-                <option value="">Select category</option>
-                <option value="Academic">Academic</option>
-                <option value="Sports">Sports</option>
-                <option value="Community Service">Community Service</option>
-                <option value="Others">Others</option>
-              </select>
-
-              <div className="grid grid-cols-2 gap-3 mb-3">
-                {/* START DATE */}
-                <input
-                  type="date"
-                  name="start_date"
-                  value={editForm.start_date || ""}
-                  onChange={handleEditChange}
-                  className="w-full p-3 bg-slate-700 text-white rounded"
-                />
-
-                {/* END DATE */}
-                <input
-                  type="date"
-                  name="end_date"
-                  value={editForm.end_date || ""}
-                  onChange={handleEditChange}
-                  className="w-full p-3 bg-slate-700 text-white rounded"
-                />
-              </div>
-
-              {/* VENUE */}
-              <input
-                name="venue"
-                value={editForm.venue || ""}
-                onChange={handleEditChange}
-                className="w-full p-3 mb-3 bg-slate-700 text-white rounded"
-                placeholder="Venue"
-              />
-
-              {/* BUDGET */}
-              <input
-                name="budget"
-                value={editForm.budget || ""}
-                onChange={handleEditChange}
-                className="w-full p-3 mb-4 bg-slate-700 text-white rounded"
-                placeholder="Budget"
-              />
-
-              {/* BUTTONS */}
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setShowEditModal(false)}
-                  className="flex items-center gap-2 bg-gray-500 hover:bg-gray-600 px-4 py-2 rounded text-white cursor-pointer"
-                >
-                  <CircleX size={20} />
-                  Cancel
-                </button>
-
-                <button
-                  onClick={handleUpdate}
-                  className="flex items-center gap-2 bg-green-500 hover:bg-green-600 px-4 py-2 rounded text-white cursor-pointer"
-                >
-                  <Save size={20} />
-                  Save
-                </button>
-              </div>
-
-            </div>
-          </div>
-        )}
 
       </div>
     </main>

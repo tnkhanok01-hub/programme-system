@@ -7,20 +7,26 @@ type UserProfile = {
   name: string;
   email: string | null;
   id: string;
+  matric: string;
+  staff:string;
   role: string;
+  created_at: string | null;
+  phone: string | null;
 };
 
 export default function ProfilePage() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const isAdmin = user?.role === "admin" || user?.role === "superadmin";
 
   useEffect(() => {
     const getUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      const authUser = data.user;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const authUser = sessionData.session?.user;
 
       if (!authUser) {
         setLoading(false);
+        window.location.href = "/login";
         return;
       }
 
@@ -39,34 +45,47 @@ export default function ProfilePage() {
 
       const role = profile?.role ?? "student";
       let fullName = "User Profile";
+      let matricNum = null;
+      let staffNum = null;
+      let phoneNum = null;
 
       // 2. Query the right table based on role
       if (role === "student") {
         const { data: student, error } = await supabase
           .from("students")
-          .select("full_name")
+          .select("full_name, matric_number, phone")
           .eq("id", authUser.id)
           .single();
 
         if (error) console.error("Student fetch error:", error);
         fullName = student?.full_name ?? "Student";
+        matricNum = student?.matric_number ?? null;
+        phoneNum = student?.phone ?? null;
 
       } else if (role === "admin" || role === "superadmin") {
         const { data: admin, error } = await supabase
           .from("admins")
-          .select("full_name")
+          .select("full_name, staff_id, phone")
           .eq("id", authUser.id)
           .single();
 
         if (error) console.error("Admin fetch error:", error);
         fullName = admin?.full_name ?? "Admin";
+        staffNum = admin?.staff_id ?? null;
+        phoneNum = admin?.phone ?? null;
       }
+
+      const createdAt = authUser.created_at;
 
       setUser({
         name: fullName,
         email: authUser.email ?? null,
         id: authUser.id,
+        matric: matricNum ?? null,
+        staff: staffNum ?? null,
         role,
+        created_at: createdAt ?? null,
+        phone: phoneNum ?? null,
       });
 
       setLoading(false);
@@ -129,16 +148,36 @@ export default function ProfilePage() {
 
         <div className="flex flex-col gap-3 mb-5">
 
-          <div className="bg-slate-900 p-4 rounded-lg text-left">
-            <p className="text-slate-400 text-xs mb-1">Status</p>
-            <p className="text-white text-sm">
-              {user ? "Logged In" : "No user logged in"}
-            </p>
-          </div>
+          {!isAdmin ? (
+            <div className="bg-slate-900 p-4 rounded-lg text-left">
+              <p className="text-slate-400 text-xs mb-1">Matric Number</p>
+              <p className="text-white text-sm">{user?.matric ?? "N/A"}</p>
+            </div>
+          ):
+          (
+            <div className="bg-slate-900 p-4 rounded-lg text-left">
+              <p className="text-slate-400 text-xs mb-1">Staff ID</p>
+              <p className="text-white text-sm">{user?.staff ?? "N/A"}</p>
+            </div>
+          )}
 
           <div className="bg-slate-900 p-4 rounded-lg text-left">
             <p className="text-slate-400 text-xs mb-1">Email</p>
             <p className="text-white text-sm">{user?.email ?? "N/A"}</p>
+          </div>
+
+          <div className="bg-slate-900 p-4 rounded-lg text-left">
+            <p className="text-slate-400 text-xs mb-1">Phone Number</p>
+            <p className="text-white text-sm">{user?.phone ?? "N/A"}</p>
+          </div>
+
+          <div className="bg-slate-900 p-4 rounded-lg text-left">
+            <p className="text-slate-400 text-xs mb-1">Account Created</p>
+            <p className="text-white text-sm">
+              {user?.created_at
+                ? new Date(user.created_at).toLocaleDateString()
+                : "N/A"}
+            </p>
           </div>
 
         </div>

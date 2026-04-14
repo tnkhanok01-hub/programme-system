@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
 import { Mail, Send, ArrowLeft } from 'lucide-react';
 
@@ -10,27 +11,53 @@ export default function ForgotPassword() {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  const router = useRouter();
+
+  // ✅ Session check + redirect
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData.session?.user;
+
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile) return;
+
+      if (profile.role === 'superadmin') {
+        router.replace('/superadmin');
+      } else if (profile.role === 'admin') {
+        router.replace('/admin');
+      } else {
+        router.replace('/student');
+      }
+    };
+
+    checkSession();
+  }, []);
+
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage('');
     setIsLoading(true);
 
-    // Validation: Check if input is empty
     if (!email) {
       setMessage('⚠️ Please enter your email address.');
       setIsLoading(false);
       return;
     }
 
-    // Validation: Enforce UTM specific email domains
     if (!email.endsWith('@utm.my') && !email.endsWith('@graduate.utm.my')) {
       setMessage('❌ Only UTM email addresses are allowed.');
       setIsLoading(false);
       return;
     }
 
-    // Supabase Auth call: Sends a magic link to the user's email
-    // Redirects user to '/update-password' page upon clicking the link
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/update-password`,
     });
@@ -64,7 +91,7 @@ export default function ForgotPassword() {
             <input
               type="email"
               placeholder="e.g. ahmad@graduate.utm.my"
-              className="w-full p-3 rounded-md bg-slate-700 text-white outline-none focus:ring-2 focus:ring-blue-500 transition"
+              className="w-full p-3 rounded-md bg-slate-700 text-white outline-none focus:ring-2 focus:ring-blue-500"
               onChange={(e) => setEmail(e.target.value)}
               disabled={isLoading}
             />
@@ -72,7 +99,9 @@ export default function ForgotPassword() {
 
           {message && (
             <p className={`text-sm text-center px-2 py-2 rounded-md ${
-              message.startsWith('✅') ? 'text-green-400 bg-green-400/10' : 'text-red-400 bg-red-400/10'
+              message.startsWith('✅')
+                ? 'text-green-400 bg-green-400/10'
+                : 'text-red-400 bg-red-400/10'
             }`}>
               {message}
             </p>
@@ -81,7 +110,7 @@ export default function ForgotPassword() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-3 mt-2 rounded-md bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-base transition flex items-center justify-center gap-2"
+            className="w-full py-3 mt-2 rounded-md bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white font-bold flex items-center justify-center gap-2"
           >
             {isLoading ? 'Sending Link...' : (
               <>
@@ -93,7 +122,7 @@ export default function ForgotPassword() {
         </form>
 
         <div className="text-center mt-2">
-          <Link href="/login" className="text-slate-400 hover:text-white transition flex items-center justify-center gap-2 text-sm">
+          <Link href="/login" className="text-slate-400 hover:text-white flex items-center justify-center gap-2 text-sm">
             <ArrowLeft size={16} />
             Back to Login
           </Link>
