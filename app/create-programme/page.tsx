@@ -198,7 +198,7 @@ export default function ProgrammePage() {
             ) : (
               programmes.map((p) => (
                 <tr key={p.id} className="hover:bg-slate-700">
-                  <td className="p-3 border-b border-slate-700 whitespace-nowrap">{p.name}</td>
+                  <td className="p-3 border-b border-slate-700 max-w-[250px] break-words">{p.name}</td>
                   <td className="p-3 border-b border-slate-700">{p.category}</td>
                   <td className="p-3 border-b border-slate-700">{p.start_date}</td>
                   <td className="p-3 border-b border-slate-700">{p.end_date}</td>
