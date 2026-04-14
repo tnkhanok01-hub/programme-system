@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 @import "tailwindcss";
 
 :root {
@@ -33,3 +34,8 @@ input:-webkit-autofill:active {
   -webkit-text-fill-color: white !important;
   caret-color: white;
 }
+=======
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+>>>>>>> e63b8d8 (Updated auth pages, Tailwind UI, and Supabase fixes)
