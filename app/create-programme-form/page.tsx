@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react"
 import { supabase } from '../../lib/supabaseClient'
 import { useRouter } from "next/navigation"
-import { CircleChevronLeft, CalendarPlus, CirclePlus } from "lucide-react"
+import { CircleChevronLeft, CalendarPlus, CirclePlus, Circle } from "lucide-react"
 
 export default function CreateProgrammePage() {
   const router = useRouter()
@@ -114,7 +114,7 @@ export default function CreateProgrammePage() {
             <input
               className="w-full mt-1 p-3 rounded-md bg-slate-700 text-white"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => setName(e.target.value)} placeholder="eg. Badminton Competition"
             />
           </label>
 
@@ -124,7 +124,7 @@ export default function CreateProgrammePage() {
             <textarea
               className="w-full mt-1 p-3 rounded-md bg-slate-700 text-white"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => setDescription(e.target.value)} placeholder="Brief description about the programme"  
             />
           </label>
 
@@ -148,27 +148,83 @@ export default function CreateProgrammePage() {
           </div>
 
           {/* BUDGET */}
-          <input
-            value={budget}
-            onChange={(e) => setBudget(e.target.value)}
-            className="p-3 bg-slate-700 text-white rounded"
-            placeholder="4999.99"
-          />
+          <label className="text-slate-200 text-sm">
+            Budget (RM)
+
+            <input
+              type="text"
+              inputMode="decimal"
+              className="w-full mt-1 p-3 rounded-md bg-slate-700 text-white outline-none"
+              value={budget}
+              onChange={(e) => {
+                const value = e.target.value
+
+                // allow only numbers + decimal
+                if (!/^\d*\.?\d*$/.test(value)) return
+
+                setBudget(value)
+
+                if (!value) {
+                  setBudgetError("")
+                  return
+                }
+
+                const num = Number(value)
+
+                // ❌ must be exactly 2 decimal places
+                if (!/^\d+(\.\d{2})$/.test(value)) {
+                  setBudgetError("Must be exactly 2 decimal places (e.g. 2000.00)")
+                  return
+                }
+
+                if (num >= 5000) {
+                  setBudgetError("Budget must be below RM 5000.00")
+                  return
+                }
+
+                if (num <= 0) {
+                  setBudgetError("Budget must be more than RM 0.00")
+                  return
+                }
+
+                setBudgetError("")
+              }}
+              onBlur={() => {
+                // auto format to 2 decimal places
+                if (budget && !isNaN(Number(budget))) {
+                  setBudget(Number(budget).toFixed(2))
+                }
+              }}
+              placeholder="e.g. 4999.99"
+            />
+
+            {budgetError && (
+              <p className="text-red-400 text-xs mt-1">
+                {budgetError}
+              </p>
+            )}
+          </label>
 
           {/* VENUE */}
-          <input
-            value={venue}
-            onChange={(e) => setVenue(e.target.value)}
-            className="p-3 bg-slate-700 text-white rounded"
-          />
+          <label className="text-slate-200 text-sm">
+            Venue 
+            <input
+              value={venue}
+              onChange={(e) => setVenue(e.target.value)}
+              placeholder="e.g. Foyer Block A, KSJ"
+              className="w-full mt-1 p-3 bg-slate-700 text-white rounded-md outline-none"
+            />
+          </label>
 
           {/* ACTIONS */}
           <div className="flex justify-between mt-3">
-            <button onClick={() => router.push("/create-programme")} type="button" className="bg-slate-600 px-4 py-2 rounded text-white">
+            <button onClick={() => router.push("/create-programme")} type="button" className="flex items-center gap-2 bg-slate-600 px-4 py-2 rounded text-white">
+              <CircleChevronLeft size={18} />
               Back
             </button>
 
-            <button type="submit" className="bg-blue-500 px-4 py-2 rounded text-white">
+            <button type="submit" className=" flex items-center gap-2 bg-blue-500 px-4 py-2 rounded text-white">
+              <CirclePlus size={18} />
               Create
             </button>
           </div>

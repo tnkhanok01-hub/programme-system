@@ -245,7 +245,8 @@ export default function ProgrammePage() {
           <div className="bg-slate-800 p-7 rounded-xl w-full max-w-2xl shadow-md">
 
             {/* HEADER */}
-            <h2 className="text-white text-xl font-semibold mb-6">
+            <h2 className="flex items-center gap-2 text-white text-xl font-semibold mb-6">
+              <Pencil size={20}/>
               Edit Programme
             </h2>
 
