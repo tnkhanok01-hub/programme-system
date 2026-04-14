@@ -154,7 +154,7 @@ export default function ProgrammePage() {
   // ─── UI ───────────────────────────────────────────────────────────────────
   return (
     <main className="min-h-screen flex items-center justify-center p-8 bg-slate-900">
-      <div className="w-full max-w-[1200px] bg-slate-800 rounded-xl shadow-md p-7">
+      <div className="w-full max-w-[1400px] bg-slate-800 rounded-xl shadow-md p-7">
 
         {/* HEADER */}
         <div className="flex justify-between items-center mb-4">
