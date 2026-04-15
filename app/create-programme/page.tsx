@@ -34,7 +34,6 @@ export default function ProgrammePage() {
         router.replace("/login")
       }
     })
-
     return () => {
       listener.subscription.unsubscribe()
     }
@@ -165,18 +164,18 @@ export default function ProgrammePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-white">
+      <div className="min-h-screen flex items-center justify-center text-white bg-slate-900">
         Loading...
       </div>
     )
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-8 bg-slate-900">
-      <div className="w-full max-w-[1400px] bg-slate-800 rounded-xl shadow-md p-7">
+    <main className="min-h-screen flex items-start md:items-center justify-center p-4 md:p-8 bg-slate-900">
+      <div className="w-full max-w-[1400px] bg-slate-800 rounded-xl shadow-md p-4 md:p-7">
 
-        {/* HEADER */}
-        <div className="flex justify-between items-center mb-4">
+        {/* ── HEADER ─────────────────────────────────────────── */}
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
           <h2 className="flex items-center gap-2 text-white text-xl">
             <Table size={22} />
             Programme List
@@ -184,179 +183,263 @@ export default function ProgrammePage() {
 
           <button
             onClick={() => router.push("/create-programme-form")}
-            className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-bold px-4 py-2 rounded-md"
+            className="flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-bold px-4 py-2 rounded-md w-full sm:w-auto"
           >
-            <CirclePlus size={25} />
+            <CirclePlus size={20} />
             Create Programme
           </button>
         </div>
 
-        {error && <p className="text-red-400">{error}</p>}
+        {error && <p className="text-red-400 mb-3">{error}</p>}
 
-        {/* TABLE */}
-        <table className="w-full mt-4 text-white border-collapse">
-          <thead>
-            <tr>
-              {["Name", "Category", "Start", "End", "Venue", "Budget", "Approval", "Actions"].map((h) => (
-                <th key={h} className="text-left text-slate-400 p-3 border-b border-slate-700">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
+        {/* ── MOBILE: card list (visible below lg) ───────────── */}
+        <div className="flex flex-col gap-3 lg:hidden">
+          {programmes.length === 0 && (
+            <p className="text-slate-400 text-sm text-center py-8">No programmes found.</p>
+          )}
 
-          <tbody>
-            {programmes.map((p) => (
-              <tr key={p.id} className="hover:bg-slate-700">
-                <td className="p-3 border-b border-slate-700">{p.name}</td>
-                <td className="p-3 border-b border-slate-700">{p.category}</td>
-                <td className="p-3 border-b border-slate-700">{p.start_date}</td>
-                <td className="p-3 border-b border-slate-700">{p.end_date}</td>
-                <td className="p-3 border-b border-slate-700">{p.venue}</td>
-                <td className="p-3 border-b border-slate-700">
-                  RM {p.budget ? Number(p.budget).toFixed(2) : "—"}
-                </td>
-                <td className="p-3 border-b border-slate-700">
-                  <span className={`px-3 py-1 rounded-full text-xs ${getStatusStyle(p.status)}`}>
-                    {p.status}
-                  </span>
-                </td>
+          {programmes.map((p) => (
+            <div
+              key={p.id}
+              className="bg-slate-700 rounded-xl border border-slate-600 overflow-hidden"
+            >
+              {/* Card header */}
+              <div className="flex justify-between items-start p-4 border-b border-slate-600">
+                <p className="text-white font-medium text-sm leading-snug flex-1 pr-3">
+                  {p.name}
+                </p>
+                <span className={`px-2 py-1 rounded-full text-xs shrink-0 ${getStatusStyle(p.status)}`}>
+                  {p.status}
+                </span>
+              </div>
 
-                <td className="p-3 border-b border-slate-700">
-                  {canEditOrDelete(p.id) && (
-                    <div className="flex gap-2">
-                      <button onClick={() => handleEdit(p)} className="bg-blue-500 p-2 rounded">
-                        <Pencil size={16} />
-                      </button>
-                      <button onClick={() => handleDelete(p.id)} className="bg-red-500 p-2 rounded">
-                        <Trash size={16} />
-                      </button>
-                    </div>
-                  )}
-                </td>
+              {/* Card body */}
+              <div className="grid grid-cols-2 gap-3 p-4">
+                <div>
+                  <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">Start</p>
+                  <p className="text-slate-200 text-sm">{p.start_date || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">End</p>
+                  <p className="text-slate-200 text-sm">{p.end_date || "—"}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">Venue</p>
+                  <p className="text-slate-200 text-sm">{p.venue || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">Budget</p>
+                  <p className="text-slate-200 text-sm">
+                    RM {p.budget ? Number(p.budget).toFixed(2) : "—"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Card footer */}
+              <div className="flex justify-between items-center px-4 pb-4">
+                <span className="text-xs text-slate-400 bg-slate-600 px-2 py-1 rounded-md">
+                  {p.category}
+                </span>
+
+                {canEditOrDelete(p.id) && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEdit(p)}
+                      className="bg-blue-500 hover:bg-blue-600 px-3 py-1.5 rounded-lg text-xs text-white flex items-center gap-1.5"
+                    >
+                      <Pencil size={12} />
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(p.id)}
+                      className="bg-red-500 hover:bg-red-600 px-3 py-1.5 rounded-lg text-xs text-white flex items-center gap-1.5"
+                    >
+                      <Trash size={12} />
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── DESKTOP: original table (hidden below lg) ───────── */}
+        <div className="hidden lg:block overflow-x-auto">
+          <table className="w-full mt-4 text-white border-collapse">
+            <thead>
+              <tr>
+                {["Name", "Category", "Start", "End", "Venue", "Budget", "Approval", "Actions"].map((h) => (
+                  <th key={h} className="text-left text-slate-400 p-3 border-b border-slate-700">
+                    {h}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+
+            <tbody>
+              {programmes.map((p) => (
+                <tr key={p.id} className="hover:bg-slate-700">
+                  <td className="p-3 border-b border-slate-700">{p.name}</td>
+                  <td className="p-3 border-b border-slate-700">{p.category}</td>
+                  <td className="p-3 border-b border-slate-700">{p.start_date}</td>
+                  <td className="p-3 border-b border-slate-700">{p.end_date}</td>
+                  <td className="p-3 border-b border-slate-700">{p.venue}</td>
+                  <td className="p-3 border-b border-slate-700">
+                    RM {p.budget ? Number(p.budget).toFixed(2) : "—"}
+                  </td>
+                  <td className="p-3 border-b border-slate-700">
+                    <span className={`px-3 py-1 rounded-full text-xs ${getStatusStyle(p.status)}`}>
+                      {p.status}
+                    </span>
+                  </td>
+                  <td className="p-3 border-b border-slate-700">
+                    {canEditOrDelete(p.id) && (
+                      <div className="flex gap-2">
+                        <button onClick={() => handleEdit(p)} className="bg-blue-500 p-2 rounded">
+                          <Pencil size={16} />
+                        </button>
+                        <button onClick={() => handleDelete(p.id)} className="bg-red-500 p-2 rounded">
+                          <Trash size={16} />
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
+      {/* ── EDIT MODAL / BOTTOM SHEET ──────────────────────────── */}
       {showEditModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-slate-800 p-7 rounded-xl w-full max-w-2xl shadow-md">
+        <div
+          className="fixed inset-0 bg-black/60 flex items-end lg:items-center justify-center z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowEditModal(false)
+          }}
+        >
+          <div className="bg-slate-800 w-full lg:max-w-2xl lg:rounded-xl rounded-t-2xl shadow-md">
 
-            {/* HEADER */}
-            <h2 className="text-white text-xl font-semibold mb-6">
-              Edit Programme
-            </h2>
+            {/* Drag handle — mobile only */}
+            <div className="w-9 h-1 bg-slate-500 rounded-full mx-auto mt-3 lg:hidden" />
 
-            {/* FORM */}
-            <div className="grid grid-cols-2 gap-5">
+            <div className="p-5 lg:p-7">
+              {/* Modal header */}
+              <h2 className="flex items-center gap-2 text-white text-lg font-semibold mb-5">
+                <Pencil size={18} />
+                Edit Programme
+              </h2>
 
-              {/* NAME */}
-              <div className="col-span-2">
-                <label className="block text-slate-300 mb-1 text-sm">
-                  Programme Name
-                </label>
-                <input
-                  name="name"
-                  value={editForm.name || ""}
-                  onChange={handleEditChange}
-                  className="w-full p-2 rounded-md bg-slate-700 text-white border border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+              {/* Form grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                {/* NAME */}
+                <div className="col-span-1 sm:col-span-2">
+                  <label className="block text-slate-300 mb-1 text-sm">
+                    Programme Name
+                  </label>
+                  <input
+                    name="name"
+                    value={editForm.name || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-2.5 rounded-md bg-slate-700 text-white border border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* CATEGORY */}
+                <div>
+                  <label className="block text-slate-300 mb-1 text-sm">
+                    Category
+                  </label>
+                  <select
+                    name="category"
+                    value={editForm.category || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-2.5 rounded-md bg-slate-700 text-white border border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="Academic">Academic</option>
+                    <option value="Sports">Sports</option>
+                    <option value="Community Service">Community Service</option>
+                    <option value="Others">Others</option>
+                  </select>
+                </div>
+
+                {/* BUDGET */}
+                <div>
+                  <label className="block text-slate-300 mb-1 text-sm">
+                    Budget (RM)
+                  </label>
+                  <input
+                    type="number"
+                    name="budget"
+                    value={editForm.budget || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-2.5 rounded-md bg-slate-700 text-white border border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* START DATE */}
+                <div>
+                  <label className="block text-slate-300 mb-1 text-sm">
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    name="start_date"
+                    value={editForm.start_date || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-2.5 rounded-md bg-slate-700 text-white border border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* END DATE */}
+                <div>
+                  <label className="block text-slate-300 mb-1 text-sm">
+                    End Date
+                  </label>
+                  <input
+                    type="date"
+                    name="end_date"
+                    value={editForm.end_date || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-2.5 rounded-md bg-slate-700 text-white border border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* VENUE */}
+                <div className="col-span-1 sm:col-span-2">
+                  <label className="block text-slate-300 mb-1 text-sm">
+                    Venue
+                  </label>
+                  <input
+                    name="venue"
+                    value={editForm.venue || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-2.5 rounded-md bg-slate-700 text-white border border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
               </div>
 
-              {/* CATEGORY */}
-              <div>
-                <label className="block text-slate-300 mb-1 text-sm">
-                  Category
-                </label>
-                <select
-                  name="category"
-                  value={editForm.category || ""}
-                  onChange={handleEditChange}
-                  className="w-full p-2 rounded-md bg-slate-700 text-white border border-slate-600"
+              {/* Actions */}
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="flex-1 lg:flex-none px-4 py-2.5 rounded-md bg-slate-600 hover:bg-slate-500 text-white flex items-center justify-center gap-2"
                 >
-                  <option value="Academic">Academic</option>
-                  <option value="Sports">Sports</option>
-                  <option value="Community Service">Community Service</option>
-                  <option value="Others">Others</option>
-                </select>
+                  <CircleX size={16} />
+                  Cancel
+                </button>
+
+                <button
+                  onClick={handleUpdate}
+                  className="flex-1 lg:flex-none px-4 py-2.5 rounded-md bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center gap-2"
+                >
+                  <Save size={16} />
+                  Update
+                </button>
               </div>
-
-              {/* BUDGET */}
-              <div>
-                <label className="block text-slate-300 mb-1 text-sm">
-                  Budget (RM)
-                </label>
-                <input
-                  type="number"
-                  name="budget"
-                  value={editForm.budget || ""}
-                  onChange={handleEditChange}
-                  className="w-full p-2 rounded-md bg-slate-700 text-white border border-slate-600"
-                />
-              </div>
-
-              {/* START DATE */}
-              <div>
-                <label className="block text-slate-300 mb-1 text-sm">
-                  Start Date
-                </label>
-                <input
-                  type="date"
-                  name="start_date"
-                  value={editForm.start_date || ""}
-                  onChange={handleEditChange}
-                  className="w-full p-2 rounded-md bg-slate-700 text-white border border-slate-600"
-                />
-              </div>
-
-              {/* END DATE */}
-              <div>
-                <label className="block text-slate-300 mb-1 text-sm">
-                  End Date
-                </label>
-                <input
-                  type="date"
-                  name="end_date"
-                  value={editForm.end_date || ""}
-                  onChange={handleEditChange}
-                  className="w-full p-2 rounded-md bg-slate-700 text-white border border-slate-600"
-                />
-              </div>
-
-              {/* VENUE */}
-              <div className="col-span-2">
-                <label className="block text-slate-300 mb-1 text-sm">
-                  Venue
-                </label>
-                <input
-                  name="venue"
-                  value={editForm.venue || ""}
-                  onChange={handleEditChange}
-                  className="w-full p-2 rounded-md bg-slate-700 text-white border border-slate-600"
-                />
-              </div>
-
-            </div>
-
-            {/* ACTIONS */}
-            <div className="flex justify-end gap-3 mt-7">
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="px-4 py-2 rounded-md bg-slate-600 hover:bg-slate-500 text-white flex items-center gap-2"
-              >
-                <CircleX size={16} />
-                Cancel
-              </button>
-
-              <button
-                onClick={handleUpdate}
-                className="px-4 py-2 rounded-md bg-blue-500 hover:bg-blue-600 text-white flex items-center gap-2"
-              >
-                <Save size={16} />
-                Update
-              </button>
             </div>
           </div>
         </div>

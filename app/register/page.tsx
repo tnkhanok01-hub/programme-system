@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../../lib/supabaseClient';
 
+//This manages user input using React state.
 export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,6 +30,8 @@ export default function Register() {
     }
 
     // 2. UTM email check
+    //This ensures only UTM emails are allowed, improving security.
+    
     if (!email.endsWith('@utm.my') && !email.endsWith('@graduate.utm.my')) {
       setMessage('❌ Only UTM email allowed (@utm.my or @graduate.utm.my).');
       setIsLoading(false);
@@ -43,6 +46,7 @@ export default function Register() {
     }
 
     // 4. Password length check
+    //This ensures password strength
     if (password.length < 8) {
       setMessage('❌ Password must be at least 8 characters.');
       setIsLoading(false);
@@ -50,6 +54,7 @@ export default function Register() {
     }
 
     // 5. Sign up via Supabase Auth
+    //This sends user data to Supabase and creates a secure account.
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,

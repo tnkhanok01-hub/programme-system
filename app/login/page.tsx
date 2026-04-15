@@ -15,6 +15,7 @@ export default function Login() {
   const router = useRouter();
 
   // ✅ 1. SESSION CHECK (auto redirect if already logged in)
+  //This function verifies user credentials and logs them in
   useEffect(() => {
     const checkSession = async () => {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -63,7 +64,7 @@ export default function Login() {
       email,
       password,
     });
-
+//This displays error messages if login fails.
     if (error) {
       setMessage('❌ ' + error.message);
       setIsLoading(false);
@@ -71,6 +72,7 @@ export default function Login() {
     }
 
     // ✅ Get session AFTER login
+    //We also maintain session so the user stays logged in.
     const { data: sessionData } = await supabase.auth.getSession();
     const user = sessionData.session?.user;
 
