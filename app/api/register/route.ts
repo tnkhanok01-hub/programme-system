@@ -1,11 +1,9 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/utils/supabase/server';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  // Initialize server client for consistency
+  const supabase = await createClient();
 
   const body = await request.json();
   const { email, password, full_name, matric_number, phone } = body;
@@ -18,7 +16,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // Enforce UTM email domain server-side (cannot be bypassed unlike frontend check)
+  // Enforce UTM email domain server-side
   if (!email.endsWith('@utm.my') && !email.endsWith('@graduate.utm.my')) {
     return NextResponse.json(
       { error: 'Only UTM email addresses are allowed (@utm.my or @graduate.utm.my).' },
@@ -34,7 +32,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // Sign up — role is auto-set to 'student' by DB trigger, never accepted from request body
+  // Sign up user
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
@@ -51,7 +49,6 @@ export async function POST(request: Request) {
   }
 
   // Update profile with extra details if provided
-  // Profile row already created by DB trigger at this point
   if (authData.user && (full_name || matric_number || phone)) {
     await supabase
       .from('profiles')

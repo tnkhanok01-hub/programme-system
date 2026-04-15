@@ -3,9 +3,14 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { supabase } from '../../lib/supabaseClient';
+// Replace old supabase client with the new SSR-compatible browser client
+import { createClient } from '../../utils/supabase/client';
 
 export default function Register() {
+  // Initialize the Supabase client for the browser environment
+  // This client will automatically set authentication tokens into browser Cookies upon successful registration
+  const supabase = createClient();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

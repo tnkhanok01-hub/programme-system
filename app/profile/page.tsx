@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+// Replace old supabase client with the new SSR-compatible browser client
+import { createClient } from "@/utils/supabase/client";
 
 type UserProfile = {
   name: string;
@@ -10,11 +11,15 @@ type UserProfile = {
 };
 
 export default function ProfilePage() {
+  // Initialize the Supabase client for the browser environment
+  const supabase = createClient();
+  
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const getUser = async () => {
+      // Get user from the new SSR-compatible client (reads from Cookies)
       const { data } = await supabase.auth.getUser();
       const authUser = data.user;
 
@@ -23,7 +28,7 @@ export default function ProfilePage() {
         return;
       }
 
-      // 🔥 Fetch from students table
+      // Fetch from students table
       const { data: student, error } = await supabase
         .from("students")
         .select("full_name")
@@ -44,7 +49,7 @@ export default function ProfilePage() {
     };
 
     getUser();
-  }, []);
+  }, [supabase]); // Added supabase dependency
 
   if (loading) {
     return (
@@ -77,7 +82,7 @@ export default function ProfilePage() {
             "U"}
         </div>
 
-        {/* ✅ Name from DB */}
+        {/* Name from DB */}
         <h2 className="text-white mt-4 mb-5 text-xl">
           {user?.name}
         </h2>
@@ -109,6 +114,7 @@ export default function ProfilePage() {
         ) : (
           <button
             onClick={async () => {
+              // Sign out using the SSR-compatible client (clears Cookies automatically)
               await supabase.auth.signOut();
               window.location.href = "/login";
             }}

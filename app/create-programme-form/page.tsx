@@ -1,11 +1,15 @@
 "use client"
 import React, { useState } from "react"
-import { supabase } from '../../lib/supabaseClient'
+// Replace old supabase client with the new SSR-compatible browser client
+import { createClient } from '../../utils/supabase/client'
 import { useRouter } from "next/navigation"
 import { CircleChevronLeft } from "lucide-react"
 
 export default function CreateProgrammePage() {
   const router = useRouter()
+  
+  // Initialize the Supabase client for the browser environment
+  const supabase = createClient()
 
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
@@ -32,6 +36,7 @@ export default function CreateProgrammePage() {
       return
     }
 
+    // Get session from the new SSR-compatible client (reads from Cookies)
     const { data: { session } } = await supabase.auth.getSession()
 
     if (!session) {

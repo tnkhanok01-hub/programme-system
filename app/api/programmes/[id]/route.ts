@@ -1,13 +1,17 @@
-import { supabase } from "@/lib/supabaseClient";
+import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const programmeId = params.id;
+  const { id } = await params;
+  const programmeId = id;
 
-  // 1. Get current user
+  // Initialize server client that reads cookies
+  const supabase = await createClient();
+
+  // 1. Get current user from cookie session
   const {
     data: { user },
     error: authError,

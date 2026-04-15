@@ -1,35 +1,12 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/utils/supabase/server';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
+  // Initialize Supabase server client (automatically reads Next.js cookies)
+  const supabase = await createClient();
 
-  // 1. Get auth token from request header
-  const authHeader = request.headers.get('Authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return NextResponse.json(
-      { error: 'Unauthorized. Please log in.' },
-      { status: 401 }
-    );
-  }
-
-  const token = authHeader.replace('Bearer ', '');
-
-  // 2. Create a user-scoped client using their token
-  //    This makes all queries run AS the user, so RLS recognises them
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      global: {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      }
-    }
-  );
-
-  // 3. Verify the token and get user
-  const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+  // Verify session and get user directly from the cookie
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
 
   if (userError || !user) {
     return NextResponse.json(
@@ -40,11 +17,11 @@ export async function POST(request: Request) {
 
   const userId = user.id;
 
-  // 4. Parse request body
+  // Parse request body
   const body = await request.json();
   const { name, description, category, venue, start_date, end_date, budget } = body;
 
-  // 5. Validate required fields
+  // Validate required fields
   if (!name || !start_date || !end_date) {
     return NextResponse.json(
       { error: 'Name, start date, and end date are required.' },
@@ -66,7 +43,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // 6. Insert programme — RLS now recognises auth.uid() correctly
+  // Insert programme using the authenticated client
   const { data: programme, error: programmeError } = await supabase
     .from('programmes')
     .insert({
@@ -90,7 +67,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // 7. Auto-assign Programme Director role
+  // Auto-assign Programme Director role
   const { error: roleError } = await supabase
     .from('programme_roles')
     .insert({
@@ -106,7 +83,6 @@ export async function POST(request: Request) {
     );
   }
 
-  // 8. Return success
   return NextResponse.json(
     {
       message: 'Programme created successfully.',

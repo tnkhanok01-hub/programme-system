@@ -2,10 +2,14 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../../lib/supabaseClient';
+// Replace old supabase client with the new SSR-compatible browser client
+import { createClient } from '../../utils/supabase/client';
 import { KeyRound, CheckCircle } from 'lucide-react';
 
 export default function UpdatePassword() {
+  // Initialize the Supabase client for the browser environment
+  const supabase = createClient();
+  
   const [newPassword, setNewPassword] = useState('');
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -34,6 +38,7 @@ export default function UpdatePassword() {
       setMessage('✅ Password updated successfully! Redirecting to login...');
       
       // Security best practice: Sign out the user immediately after password change
+      // The SSR-compatible client will automatically clear auth cookies here
       await supabase.auth.signOut();
       
       // Delay redirection for 2 seconds to allow the user to read the success message

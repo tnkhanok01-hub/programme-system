@@ -1,34 +1,28 @@
-import { createClient } from '@supabase/supabase-js';
+// Import both SSR client for cookies and standard client for Service Role
+import { createClient as createServerClient } from '@/utils/supabase/server';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
-  // Service role client (for admin operations)
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-
   try {
-    // Verify Authorization Header
-    const authHeader = request.headers.get('Authorization');
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-
-    const {
-      data: { user },
-      error: userError
-    } = await supabase.auth.getUser(token);
+    // 1. Initialize user-scoped client to read cookies
+    const authSupabase = await createServerClient();
+    
+    // Check who is making this request via cookies
+    const { data: { user }, error: userError } = await authSupabase.auth.getUser();
 
     if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
     }
 
+    // 2. Initialize Service Role client for administrative tasks (bypasses RLS)
+    const adminSupabase = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
     // Check role (must be superadmin)
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile, error: profileError } = await adminSupabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
@@ -43,7 +37,8 @@ export async function POST(request: Request) {
 
     // Parse body
     const body = await request.json();
-    let { email, password, full_name, phone } = body;
+    const { password } = body; 
+    let { email, full_name, phone } = body;
 
     // Normalize input
     email = email?.toLowerCase().trim();
@@ -52,32 +47,19 @@ export async function POST(request: Request) {
 
     // Validate input
     if (!email || !password) {
-      return NextResponse.json(
-        { error: 'Email and password are required.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 });
     }
 
-    if (
-      !email.endsWith('@utm.my') &&
-      !email.endsWith('@graduate.utm.my')
-    ) {
-      return NextResponse.json(
-        { error: 'Only UTM email addresses are allowed.' },
-        { status: 400 }
-      );
+    if (!email.endsWith('@utm.my') && !email.endsWith('@graduate.utm.my')) {
+      return NextResponse.json({ error: 'Only UTM email addresses are allowed.' }, { status: 400 });
     }
 
     if (password.length < 8) {
-      return NextResponse.json(
-        { error: 'Password must be at least 8 characters.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Password must be at least 8 characters.' }, { status: 400 });
     }
 
-    // Create user (Auth)
-    const { data: newUser, error: createError } =
-      await supabase.auth.admin.createUser({
+    // Create new admin user in Auth
+    const { data: newUser, error: createError } = await adminSupabase.auth.admin.createUser({
         email,
         password,
         email_confirm: true,
@@ -85,23 +67,17 @@ export async function POST(request: Request) {
       });
 
     if (createError) {
-      return NextResponse.json(
-        { error: createError.message },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: createError.message }, { status: 400 });
     }
 
     if (!newUser?.user) {
-      return NextResponse.json(
-        { error: 'User creation failed unexpectedly.' },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: 'User creation failed unexpectedly.' }, { status: 500 });
     }
 
     const userId = newUser.user.id;
 
-    // 6. Upsert profile (handles trigger timing safely)
-    const { error: profileUpsertError } = await supabase
+    // Upsert profile (handles trigger timing safely)
+    const { error: profileUpsertError } = await adminSupabase
       .from('profiles')
       .upsert({
         id: userId,
@@ -111,54 +87,42 @@ export async function POST(request: Request) {
       });
 
     if (profileUpsertError) {
-      // rollback user
-      await supabase.auth.admin.deleteUser(userId);
-
-      return NextResponse.json(
-        { error: 'Profile update failed: ' + profileUpsertError.message },
-        { status: 500 }
-      );
+      // Rollback user creation
+      await adminSupabase.auth.admin.deleteUser(userId);
+      return NextResponse.json({ error: 'Profile update failed: ' + profileUpsertError.message }, { status: 500 });
     }
 
     // Remove student record (if exists)
-    const { error: studentDeleteError } = await supabase
+    const { error: studentDeleteError } = await adminSupabase
       .from('students')
       .delete()
       .eq('id', userId);
 
-    // (non-critical, so no rollback)
     if (studentDeleteError) {
       console.warn('Student deletion warning:', studentDeleteError.message);
     }
 
     // Insert into admins table
-    const { error: adminInsertError } = await supabase
+    const { error: adminInsertError } = await adminSupabase
       .from('admins')
-      .insert({
-        id: userId,
-        full_name,
-        phone
-      });
+      .insert({ id: userId, full_name, phone });
 
     if (adminInsertError) {
       // FULL rollback
-      await supabase.auth.admin.deleteUser(userId);
-
-      return NextResponse.json(
-        { error: 'Admin creation failed. User rolled back.' },
-        { status: 500 }
-      );
+      await adminSupabase.auth.admin.deleteUser(userId);
+      return NextResponse.json({ error: 'Admin creation failed. User rolled back.' }, { status: 500 });
     }
 
-    // Success
     return NextResponse.json(
       { message: `Admin account created successfully for ${email}.` },
       { status: 201 }
     );
 
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+    
     return NextResponse.json(
-      { error: 'Internal Server Error: ' + err.message },
+      { error: 'Internal Server Error: ' + errorMessage },
       { status: 500 }
     );
   }

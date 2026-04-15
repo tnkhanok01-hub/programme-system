@@ -2,10 +2,14 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { supabase } from '../../lib/supabaseClient';
+// Replace old supabase client with the new SSR-compatible browser client
+import { createClient } from '../../utils/supabase/client';
 import { Mail, Send, ArrowLeft } from 'lucide-react';
 
 export default function ForgotPassword() {
+  // Initialize the Supabase client for the browser environment
+  const supabase = createClient();
+  
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);

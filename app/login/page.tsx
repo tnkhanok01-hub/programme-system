@@ -3,10 +3,15 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { supabase } from '../../lib/supabaseClient';
+// Replace old supabase client with the new SSR-compatible browser client
+import { createClient } from '../../utils/supabase/client';
 import { Mail, Lock, LogIn } from 'lucide-react';
 
 export default function Login() {
+  // Initialize the Supabase client for the browser environment
+  // This client will automatically set authentication tokens into browser Cookies
+  const supabase = createClient();
+
   // State management for form inputs and feedback
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

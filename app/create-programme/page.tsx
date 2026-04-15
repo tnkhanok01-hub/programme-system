@@ -1,10 +1,14 @@
 "use client"
 import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { supabase } from "../../lib/supabaseClient"
+// Replace old supabase client with the new SSR-compatible browser client
+import { createClient } from "../../utils/supabase/client"
 import { Pencil, Trash } from "lucide-react"
 
 export default function ProgrammePage() {
+  // Initialize the Supabase client for the browser environment
+  const supabase = createClient()
+
   const [programmes, setProgrammes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -13,59 +17,61 @@ export default function ProgrammePage() {
   const [editForm, setEditForm] = useState<any>({})
 
   const handleEdit = (programme: any) => {
-  setEditForm(programme)
-  setShowEditModal(true)
-    }
+    setEditForm(programme)
+    setShowEditModal(true)
+  }
   
-    const handleEditChange = (e: any) => {
-  setEditForm({ ...editForm, [e.target.name]: e.target.value })
-    }
+  const handleEditChange = (e: any) => {
+    setEditForm({ ...editForm, [e.target.name]: e.target.value })
+  }
 
   const handleUpdate = async () => {
-  const { error } = await supabase
-    .from("programmes")
-    .update({
-      name: editForm.name,
-      category: editForm.category,
-      venue: editForm.venue,
-      budget: editForm.budget
-    })
-    .eq("id", editForm.id)
+    // Perform database update using the SSR-compatible client
+    const { error } = await supabase
+      .from("programmes")
+      .update({
+        name: editForm.name,
+        category: editForm.category,
+        venue: editForm.venue,
+        budget: editForm.budget
+      })
+      .eq("id", editForm.id)
 
-  if (error) {
-    alert("Update failed: " + error.message)
-  } else {
-    // update UI instantly
-    setProgrammes((prev) =>
-      prev.map((p) => (p.id === editForm.id ? editForm : p))
-    )
-
-    setShowEditModal(false)
-  }
+    if (error) {
+      alert("Update failed: " + error.message)
+    } else {
+      // update UI instantly
+      setProgrammes((prev) =>
+        prev.map((p) => (p.id === editForm.id ? editForm : p))
+      )
+      setShowEditModal(false)
     }
+  }
 
   const handleDelete = async (id: string) => {
-        const confirmDelete = confirm("Are you sure you want to delete this programme?")
-        if (!confirmDelete) return
+    const confirmDelete = confirm("Are you sure you want to delete this programme?")
+    if (!confirmDelete) return
 
-        const { error } = await supabase
-            .from("programmes")
-            .delete()
-            .eq("id", id)
+    // Perform database deletion using the SSR-compatible client
+    const { error } = await supabase
+        .from("programmes")
+        .delete()
+        .eq("id", id)
 
-        if (error) {
-            alert("Failed to delete: " + error.message)
-        } else {
-            // ✅ update UI instantly (no refresh)
-            setProgrammes((prev) => prev.filter((p) => p.id !== id))
-        }
+    if (error) {
+        alert("Failed to delete: " + error.message)
+    } else {
+        // update UI instantly (no refresh)
+        setProgrammes((prev) => prev.filter((p) => p.id !== id))
     }
+  }
 
   useEffect(() => {
     const fetchProgrammes = async () => {
       setLoading(true)
       setError("")
 
+      // Fetch session directly from the SSR-compatible client
       const { data: { session } } = await supabase.auth.getSession()
 
       if (!session) {
@@ -74,6 +80,7 @@ export default function ProgrammePage() {
         return
       }
 
+      // Fetch records using the SSR-compatible client
       const { data, error } = await supabase
         .from("programmes")
         .select("*")
@@ -86,7 +93,7 @@ export default function ProgrammePage() {
     }
 
     fetchProgrammes()
-  }, [])
+  }, [supabase]) // Added supabase dependency
 
   const getStatusStyle = (status: string) => {
     if (status === "Pending")
@@ -166,7 +173,10 @@ export default function ProgrammePage() {
                         >
                         <Pencil size={16} />
                       </button>
-                      <button className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md flex items-center justify-center cursor-pointer">
+                      <button 
+                        onClick={() => handleDelete(p.id)}
+                        className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md flex items-center justify-center cursor-pointer"
+                      >
                         <Trash size={16} />
                       </button>
                     </div>
