@@ -192,8 +192,8 @@ export default function ProgrammePage() {
 
         {error && <p className="text-red-400 mb-3">{error}</p>}
 
-        {/* ── MOBILE: card list (visible below md) ───────────── */}
-        <div className="flex flex-col gap-3 md:hidden">
+        {/* ── MOBILE: card list (visible below lg) ───────────── */}
+        <div className="flex flex-col gap-3 lg:hidden">
           {programmes.length === 0 && (
             <p className="text-slate-400 text-sm text-center py-8">No programmes found.</p>
           )}
@@ -264,8 +264,8 @@ export default function ProgrammePage() {
           ))}
         </div>
 
-        {/* ── DESKTOP: original table (hidden below md) ───────── */}
-        <div className="hidden md:block overflow-x-auto">
+        {/* ── DESKTOP: original table (hidden below lg) ───────── */}
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full mt-4 text-white border-collapse">
             <thead>
               <tr>
@@ -315,17 +315,17 @@ export default function ProgrammePage() {
       {/* ── EDIT MODAL / BOTTOM SHEET ──────────────────────────── */}
       {showEditModal && (
         <div
-          className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50"
+          className="fixed inset-0 bg-black/60 flex items-end lg:items-center justify-center z-50"
           onClick={(e) => {
             if (e.target === e.currentTarget) setShowEditModal(false)
           }}
         >
-          <div className="bg-slate-800 w-full md:max-w-2xl md:rounded-xl rounded-t-2xl shadow-md">
+          <div className="bg-slate-800 w-full lg:max-w-2xl lg:rounded-xl rounded-t-2xl shadow-md">
 
             {/* Drag handle — mobile only */}
-            <div className="w-9 h-1 bg-slate-500 rounded-full mx-auto mt-3 md:hidden" />
+            <div className="w-9 h-1 bg-slate-500 rounded-full mx-auto mt-3 lg:hidden" />
 
-            <div className="p-5 md:p-7">
+            <div className="p-5 lg:p-7">
               {/* Modal header */}
               <h2 className="flex items-center gap-2 text-white text-lg font-semibold mb-5">
                 <Pencil size={18} />
@@ -426,7 +426,7 @@ export default function ProgrammePage() {
               <div className="flex justify-end gap-3 mt-6">
                 <button
                   onClick={() => setShowEditModal(false)}
-                  className="flex-1 sm:flex-none px-4 py-2.5 rounded-md bg-slate-600 hover:bg-slate-500 text-white flex items-center justify-center gap-2"
+                  className="flex-1 lg:flex-none px-4 py-2.5 rounded-md bg-slate-600 hover:bg-slate-500 text-white flex items-center justify-center gap-2"
                 >
                   <CircleX size={16} />
                   Cancel
@@ -434,7 +434,7 @@ export default function ProgrammePage() {
 
                 <button
                   onClick={handleUpdate}
-                  className="flex-1 sm:flex-none px-4 py-2.5 rounded-md bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center gap-2"
+                  className="flex-1 lg:flex-none px-4 py-2.5 rounded-md bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center gap-2"
                 >
                   <Save size={16} />
                   Update
