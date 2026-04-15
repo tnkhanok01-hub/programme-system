@@ -14,41 +14,36 @@ export default function Login() {
 
   const router = useRouter();
 
-  // ✅ 1. SESSION CHECK (auto redirect if already logged in)
-  //This function verifies user credentials and logs them in
+  // ✅ SESSION CHECK
   useEffect(() => {
     const checkSession = async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const user = sessionData.session?.user;
+      const { data } = await supabase.auth.getSession();
+      const user = data.session?.user;
 
       if (!user) return;
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
+      // 🔥 get role from API (session-based)
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+      });
 
-      if (!profile) return;
+      const result = await res.json();
 
-      redirectByRole(profile.role);
+      if (!res.ok || !result.role) return;
+
+      redirectByRole(result.role);
     };
 
     checkSession();
   }, []);
 
-  // ✅ Helper function (cleaner routing logic)
   const redirectByRole = (role: string) => {
-    if (role === 'superadmin') {
-      router.replace('/superadmin');
-    } else if (role === 'admin') {
-      router.replace('/admin');
-    } else {
-      router.replace('/student');
-    }
+    if (role === 'superadmin') router.replace('/superadmin');
+    else if (role === 'admin') router.replace('/admin');
+    else router.replace('/student');
   };
 
-  // ✅ 2. LOGIN HANDLER (session-based)
+  // ✅ LOGIN HANDLER (FIXED)
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage('');
@@ -60,43 +55,33 @@ export default function Login() {
       return;
     }
 
+    // ✅ LOGIN WITH SUPABASE CLIENT
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-//This displays error messages if login fails.
+
     if (error) {
       setMessage('❌ ' + error.message);
       setIsLoading(false);
       return;
     }
 
-    // ✅ Get session AFTER login
-    //We also maintain session so the user stays logged in.
-    const { data: sessionData } = await supabase.auth.getSession();
-    const user = sessionData.session?.user;
+    // ✅ GET ROLE AFTER LOGIN
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+    });
 
-    if (!user) {
-      setMessage('❌ Failed to get session.');
-      setIsLoading(false);
-      return;
-    }
+    const result = await res.json();
 
-    // ✅ Fetch role
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (profileError || !profile) {
-      setMessage('❌ Failed to fetch user role.');
+    if (!res.ok) {
+      setMessage('❌ Failed to fetch role');
       setIsLoading(false);
       return;
     }
 
     setMessage('✅ Login successful! Redirecting...');
-    redirectByRole(profile.role);
+    redirectByRole(result.role);
   };
 
   return (
@@ -144,11 +129,13 @@ export default function Login() {
 
           {/* Message */}
           {message && (
-            <p className={`text-sm text-center px-2 py-2 rounded-md ${
-              message.startsWith('✅')
-                ? 'text-green-400 bg-green-400/10'
-                : 'text-red-400 bg-red-400/10'
-            }`}>
+            <p
+              className={`text-sm text-center px-2 py-2 rounded-md ${
+                message.startsWith('✅')
+                  ? 'text-green-400 bg-green-400/10'
+                  : 'text-red-400 bg-red-400/10'
+              }`}
+            >
               {message}
             </p>
           )}
@@ -176,7 +163,10 @@ export default function Login() {
               Register here
             </Link>
           </p>
-          <Link href="/forgot-password" className="text-blue-400 hover:text-blue-300">
+          <Link
+            href="/forgot-password"
+            className="text-blue-400 hover:text-blue-300"
+          >
             Forgot Password?
           </Link>
         </div>

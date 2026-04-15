@@ -15,14 +15,13 @@ export default function Home() {
         return
       }
 
-      // Get role from profiles table
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
+      const { data } = await supabase
+        .from("users")
+        .select("role:roles(name)")
         .eq("id", session.user.id)
         .single()
 
-      const role = profile?.role
+      const role = data?.role[0].name
 
       if (role === "superadmin") {
         router.push("/superadmin")
@@ -36,5 +35,5 @@ export default function Home() {
     checkSession()
   }, [])
 
-  return null  // nothing to render, just redirecting
+  return null
 }

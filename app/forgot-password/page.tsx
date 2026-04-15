@@ -15,7 +15,6 @@ export default function ForgotPassword() {
 
   const router = useRouter();
 
-  // Redirect if already logged in
   useEffect(() => {
     const checkSession = async () => {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -38,7 +37,6 @@ export default function ForgotPassword() {
     checkSession();
   }, []);
 
-  // Cooldown countdown timer
   useEffect(() => {
     if (cooldown <= 0) return;
     const timer = setTimeout(() => setCooldown((c) => c - 1), 1000);
@@ -62,12 +60,11 @@ export default function ForgotPassword() {
     if (!res.ok) {
       setIsError(true);
       setMessage(data.error);
-      // Start cooldown if rate limited
       if (res.status === 429) setCooldown(60);
     } else {
       setIsError(false);
       setMessage(data.message);
-      setCooldown(60); // prevent double-sending on success too
+      setCooldown(60);
     }
 
     setIsLoading(false);
@@ -99,7 +96,6 @@ export default function ForgotPassword() {
             />
           </label>
 
-          {/* Message */}
           {message && (
             <p className={`text-sm text-center px-2 py-2 rounded-md ${
               isError
@@ -110,7 +106,6 @@ export default function ForgotPassword() {
             </p>
           )}
 
-          {/* Cooldown notice */}
           {cooldown > 0 && (
             <p className="text-yellow-400 bg-yellow-400/10 text-sm text-center px-2 py-2 rounded-md">
               ⏳ You can resend in {cooldown}s

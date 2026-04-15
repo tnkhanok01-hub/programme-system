@@ -2,13 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 type UserProfile = {
   name: string;
   email: string | null;
   id: string;
-  matric: string;
-  staff:string;
+  matric: string | null;
+  staff: string | null;
   role: string;
   created_at: string | null;
   phone: string | null;
@@ -17,7 +21,13 @@ type UserProfile = {
 export default function ProfilePage() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const isAdmin = user?.role === "admin" || user?.role === "superadmin";
+  const [isEditing, setIsEditing] = useState(false);
+
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+
+  const isAdmin =
+    user?.role === "admin" || user?.role === "superadmin";
 
   useEffect(() => {
     const getUser = async () => {
@@ -25,74 +35,68 @@ export default function ProfilePage() {
       const authUser = sessionData.session?.user;
 
       if (!authUser) {
-        setLoading(false);
         window.location.href = "/login";
         return;
       }
 
-      // 1. Get role from profiles table
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("role")
+      const { data, error } = await supabase
+        .from("users")
+        .select(`
+          full_name,
+          phone,
+          matric_number,
+          staff_number,
+          created_at,
+          role:roles(name)
+        `)
         .eq("id", authUser.id)
         .single();
 
-      if (profileError) {
-        console.error("Profile fetch error:", profileError);
-        setLoading(false);
+      if (error || !data) {
+        console.error(error);
         return;
       }
 
-      const role = profile?.role ?? "student";
-      let fullName = "User Profile";
-      let matricNum = null;
-      let staffNum = null;
-      let phoneNum = null;
-
-      // 2. Query the right table based on role
-      if (role === "student") {
-        const { data: student, error } = await supabase
-          .from("students")
-          .select("full_name, matric_number, phone")
-          .eq("id", authUser.id)
-          .single();
-
-        if (error) console.error("Student fetch error:", error);
-        fullName = student?.full_name ?? "Student";
-        matricNum = student?.matric_number ?? null;
-        phoneNum = student?.phone ?? null;
-
-      } else if (role === "admin" || role === "superadmin") {
-        const { data: admin, error } = await supabase
-          .from("admins")
-          .select("full_name, staff_id, phone")
-          .eq("id", authUser.id)
-          .single();
-
-        if (error) console.error("Admin fetch error:", error);
-        fullName = admin?.full_name ?? "Admin";
-        staffNum = admin?.staff_id ?? null;
-        phoneNum = admin?.phone ?? null;
-      }
-
-      const createdAt = authUser.created_at;
+      const role = data.role?.name ?? "student";
 
       setUser({
-        name: fullName,
+        name: data.full_name ?? "User",
         email: authUser.email ?? null,
         id: authUser.id,
-        matric: matricNum ?? null,
-        staff: staffNum ?? null,
+        matric: data.matric_number ?? null,
+        staff: data.staff_number ?? null,
         role,
-        created_at: createdAt ?? null,
-        phone: phoneNum ?? null,
+        created_at: data.created_at ?? null,
+        phone: data.phone ?? null,
       });
 
+      setName(data.full_name ?? "");
+      setPhone(data.phone ?? "");
       setLoading(false);
     };
 
     getUser();
   }, []);
+
+  const handleSave = async () => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from("users")
+      .update({
+        full_name: name,
+        phone: phone,
+      })
+      .eq("id", user.id);
+
+    if (error) {
+      alert("Failed to update profile");
+      return;
+    }
+
+    setUser({ ...user, name, phone });
+    setIsEditing(false);
+  };
 
   if (loading) {
     return (
@@ -102,106 +106,86 @@ export default function ProfilePage() {
     );
   }
 
-  // Role badge style
-  const getRoleBadge = (role: string) => {
-    if (role === "superadmin") return "bg-purple-500/20 text-purple-400"
-    if (role === "admin") return "bg-blue-500/20 text-blue-400"
-    return "bg-green-500/20 text-green-400"
-  }
-
-  const getRoleLabel = (role: string) => {
-    if (role === "superadmin") return "Super Admin"
-    if (role === "admin") return "Admin"
-    return "Student"
-  }
-
   return (
-    <div className="min-h-screen bg-[#0b1220] flex flex-col items-center justify-center p-5 font-sans">
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
+      <Card className="w-full max-w-md rounded-2xl shadow-xl">
+        <CardContent className="p-6 flex flex-col gap-5">
 
-      {/* Header */}
-      <div className="text-center mb-5">
-        <h1 className="text-white text-[18px] font-bold">
-          UTM Smart Programme Management System
-        </h1>
-        <p className="text-slate-400 text-sm font-semibold">(UTM-SPMS)</p>
-      </div>
-
-      {/* Card */}
-      <div className="bg-[#111c33] w-full max-w-[420px] rounded-2xl p-8 text-center shadow-lg border border-white/5">
-
-        {/* Avatar */}
-        <div className="w-20 h-20 rounded-full bg-slate-800 text-white flex items-center justify-center text-2xl font-bold mx-auto">
-          {user?.name?.charAt(0)?.toUpperCase() ||
-            user?.email?.charAt(0)?.toUpperCase() ||
-            "U"}
-        </div>
-
-        {/* Name */}
-        <h2 className="text-white mt-4 text-xl">{user?.name}</h2>
-
-        {/* Role badge */}
-        {user?.role && (
-          <span className={`inline-block mt-2 mb-5 px-3 py-1 rounded-full text-xs font-semibold ${getRoleBadge(user.role)}`}>
-            {getRoleLabel(user.role)}
-          </span>
-        )}
-
-        <div className="flex flex-col gap-3 mb-5">
-
-          {!isAdmin ? (
-            <div className="bg-slate-900 p-4 rounded-lg text-left">
-              <p className="text-slate-400 text-xs mb-1">Matric Number</p>
-              <p className="text-white text-sm">{user?.matric ?? "N/A"}</p>
-            </div>
-          ):
-          (
-            <div className="bg-slate-900 p-4 rounded-lg text-left">
-              <p className="text-slate-400 text-xs mb-1">Staff ID</p>
-              <p className="text-white text-sm">{user?.staff ?? "N/A"}</p>
-            </div>
-          )}
-
-          <div className="bg-slate-900 p-4 rounded-lg text-left">
-            <p className="text-slate-400 text-xs mb-1">Email</p>
-            <p className="text-white text-sm">{user?.email ?? "N/A"}</p>
+          {/* Header */}
+          <div className="text-center">
+            <h2 className="text-xl font-semibold">{user?.name}</h2>
+            <Badge className="mt-2 capitalize">{user?.role}</Badge>
           </div>
 
-          <div className="bg-slate-900 p-4 rounded-lg text-left">
-            <p className="text-slate-400 text-xs mb-1">Phone Number</p>
-            <p className="text-white text-sm">{user?.phone ?? "N/A"}</p>
+          {/* Name */}
+          <div>
+            <p className="text-sm text-muted-foreground mb-1">Full Name</p>
+            {isEditing ? (
+              <Input value={name} onChange={(e) => setName(e.target.value)} />
+            ) : (
+              <p>{user?.name}</p>
+            )}
           </div>
 
-          <div className="bg-slate-900 p-4 rounded-lg text-left">
-            <p className="text-slate-400 text-xs mb-1">Account Created</p>
-            <p className="text-white text-sm">
-              {user?.created_at
-                ? new Date(user.created_at).toLocaleDateString()
-                : "N/A"}
+          {/* Phone */}
+          <div>
+            <p className="text-sm text-muted-foreground mb-1">Phone</p>
+            {isEditing ? (
+              <Input value={phone ?? ""} onChange={(e) => setPhone(e.target.value)} />
+            ) : (
+              <p>{user?.phone || "N/A"}</p>
+            )}
+          </div>
+
+          {/* Email */}
+          <div>
+            <p className="text-sm text-muted-foreground mb-1">Email</p>
+            <p>{user?.email}</p>
+          </div>
+
+          {/* Matric / Staff */}
+          <div>
+            <p className="text-sm text-muted-foreground mb-1">
+              {isAdmin ? "Staff ID" : "Matric Number"}
             </p>
+            <p>{isAdmin ? user?.staff : user?.matric}</p>
           </div>
 
-        </div>
+          {/* Buttons */}
+          <div className="flex gap-2 pt-2">
+            {!isEditing ? (
+              <Button className="w-full" onClick={() => setIsEditing(true)}>
+                Edit Profile
+              </Button>
+            ) : (
+              <>
+                <Button className="w-full" onClick={handleSave}>
+                  Save
+                </Button>
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  onClick={() => setIsEditing(false)}
+                >
+                  Cancel
+                </Button>
+              </>
+            )}
+          </div>
 
-        {!user ? (
-          <button
-            onClick={() => (window.location.href = "/login")}
-            className="w-full py-3 rounded-lg bg-blue-500 text-white font-semibold"
-          >
-            Login
-          </button>
-        ) : (
-          <button
+          {/* Logout */}
+          <Button
+            variant="destructive"
             onClick={async () => {
               await supabase.auth.signOut();
               window.location.href = "/login";
             }}
-            className="w-full py-3 rounded-lg bg-red-500 hover:bg-red-600 text-white font-semibold transition-colors"
           >
             Logout
-          </button>
-        )}
+          </Button>
 
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
