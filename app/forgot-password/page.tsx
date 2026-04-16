@@ -22,16 +22,18 @@ export default function ForgotPassword() {
       const user = sessionData.session?.user;
       if (!user) return;
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
+      const { data: userData } = await supabase
+        .from('users')
+        .select('roles(name)')
         .eq('id', user.id)
         .single();
 
-      if (!profile) return;
+      const role = (userData?.roles as any)?.name;
 
-      if (profile.role === 'superadmin') router.replace('/superadmin');
-      else if (profile.role === 'admin') router.replace('/admin');
+      if (!role) return;
+
+      if (role === 'superadmin') router.replace('/superadmin');
+      else if (role === 'admin') router.replace('/admin');
       else router.replace('/student');
     };
 

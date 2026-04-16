@@ -1,108 +1,106 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { supabase } from '../../lib/supabaseClient';
-import { Mail, Lock, LogIn } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { supabase } from "../../lib/supabaseClient";
+import { Mail, Lock, LogIn } from "lucide-react";
 
 export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [message, setMessage] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const router = useRouter();
 
-  // ✅ 1. SESSION CHECK (auto redirect if already logged in)
-  //This function verifies user credentials and logs them in
+  // ✅ SESSION CHECK (if already logged in)
   useEffect(() => {
+    let isMounted = true;
+
     const checkSession = async () => {
       const { data: sessionData } = await supabase.auth.getSession();
       const user = sessionData.session?.user;
 
       if (!user) return;
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
+      const { data: userData } = await supabase
+        .from("users")
+        .select("roles(name)")
+        .eq("id", user.id)
         .single();
 
-      if (!profile) return;
+      const role = (userData?.roles as any)?.name;
 
-      redirectByRole(profile.role);
+      if (!role) return;
+
+      if (isMounted) {
+        redirectByRole(role);
+      }
     };
 
     checkSession();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  // ✅ Helper function (cleaner routing logic)
+  // ✅ Role redirect helper
   const redirectByRole = (role: string) => {
-    if (role === 'superadmin') {
-      router.replace('/superadmin');
-    } else if (role === 'admin') {
-      router.replace('/admin');
-    } else {
-      router.replace('/student');
+    const path = window.location.pathname;
+
+    if (role === "superadmin" && path !== "/superadmin") {
+      router.replace("/superadmin");
+    } else if (role === "admin" && path !== "/admin") {
+      router.replace("/admin");
+    } else if (role !== "admin" && role !== "superadmin" && path !== "/student") {
+      router.replace("/student");
     }
   };
 
-  // ✅ 2. LOGIN HANDLER (session-based)
+  // ✅ FIXED LOGIN HANDLER (uses Supabase client)
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setMessage('');
+    setMessage("");
     setIsLoading(true);
 
-    if (!email || !password) {
-      setMessage('⚠️ Please enter both email and password.');
-      setIsLoading(false);
-      return;
-    }
-
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-//This displays error messages if login fails.
+
     if (error) {
-      setMessage('❌ ' + error.message);
+      setMessage("❌ " + error.message);
       setIsLoading(false);
       return;
     }
 
-    // ✅ Get session AFTER login
-    //We also maintain session so the user stays logged in.
-    const { data: sessionData } = await supabase.auth.getSession();
-    const user = sessionData.session?.user;
+    const user = data.user;
 
-    if (!user) {
-      setMessage('❌ Failed to get session.');
-      setIsLoading(false);
-      return;
-    }
-
-    // ✅ Fetch role
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
+    // 🔄 Fetch role AFTER login
+    const { data: userData } = await supabase
+      .from("users")
+      .select("roles(name)")
+      .eq("id", user.id)
       .single();
 
-    if (profileError || !profile) {
-      setMessage('❌ Failed to fetch user role.');
+    const role = (userData?.roles as any)?.name;
+
+    if (!role) {
+      setMessage("❌ Account not found");
       setIsLoading(false);
       return;
     }
 
-    setMessage('✅ Login successful! Redirecting...');
-    redirectByRole(profile.role);
+    setMessage("✅ Login successful! Redirecting...");
+    redirectByRole(role);
   };
 
   return (
     <main className="min-h-screen flex items-center justify-center p-8 bg-slate-900">
       <div className="w-full max-w-[400px] bg-slate-800 rounded-xl shadow-md p-7 flex flex-col gap-6">
-        
+
         {/* Header */}
         <div className="text-center">
           <h2 className="text-white text-2xl font-bold">Login</h2>

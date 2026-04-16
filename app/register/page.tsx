@@ -3,7 +3,6 @@ import { Mail, Lock, User, Eye, EyeOff } from "lucide-react";
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { supabase } from '../../lib/supabaseClient';
 
 //This manages user input using React state.
 export default function Register() {
@@ -22,74 +21,56 @@ export default function Register() {
     setMessage('');
     setIsLoading(true);
 
-    // 1. Validate required fields
     if (!email || !password || !confirmPassword || !fullName || !matricNumber) {
       setMessage('⚠️ Please fill in all required fields.');
       setIsLoading(false);
       return;
     }
 
-    // 2. UTM email check
-    //This ensures only UTM emails are allowed, improving security.
-    
     if (!email.endsWith('@utm.my') && !email.endsWith('@graduate.utm.my')) {
-      setMessage('❌ Only UTM email allowed (@utm.my or @graduate.utm.my).');
+      setMessage('❌ Only UTM email allowed.');
       setIsLoading(false);
       return;
     }
 
-    // 3. Password match check
     if (password !== confirmPassword) {
       setMessage('❌ Passwords do not match.');
       setIsLoading(false);
       return;
     }
 
-    // 4. Password length check
-    //This ensures password strength
     if (password.length < 8) {
       setMessage('❌ Password must be at least 8 characters.');
       setIsLoading(false);
       return;
     }
 
-    // 5. Sign up via Supabase Auth
-    //This sends user data to Supabase and creates a secure account.
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
+    const res = await fetch('/api/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email,
+        password,
+        full_name: fullName,
+        matric_number: matricNumber,
+        phone,
+      }),
     });
 
-    if (authError) {
-      if (authError.message.includes('rate limit')) {
-        setMessage('⚠️ Too many attempts. Please wait a moment.');
-      } else {
-        setMessage('❌ ' + authError.message);
-      }
+    const data = await res.json();
+
+    console.log("REGISTER RESPONSE:", data);
+
+    if (!res.ok) {
+      setMessage('❌ ' + data.error);
       setIsLoading(false);
       return;
     }
 
-    // 6. Update students table with full details
-    // Profile row is auto-created by DB trigger, students row too
-    if (authData.user) {
-      const { error: studentError } = await supabase
-        .from('students')
-        .update({
-          full_name: fullName,
-          matric_number: matricNumber,
-          phone: phone || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', authData.user.id);
+    setMessage('✅ Registration successful! Please check your email.');
 
-      if (studentError) {
-        // Non-fatal — auth account created, just profile update failed
-        console.error('Student profile update failed:', studentError.message);
-      }
-    }
-
-    setMessage('✅ Registration successful! Please check your email to confirm your account.');
     setIsLoading(false);
   };
 

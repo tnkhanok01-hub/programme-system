@@ -3,16 +3,19 @@ import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "../lib/supabaseClient"
 
+
 export default function Home() {
   const router = useRouter()
 
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session } } = await supabase.auth.getSession();
 
       if (!session) {
-        router.push("/login")
-        return
+        setTimeout(() => {
+          router.replace("/login");
+        }, 100);
+        return;
       }
 
       // Get role from profiles table
