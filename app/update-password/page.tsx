@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 
@@ -10,8 +10,55 @@ export default function UpdatePassword() {
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [ready, setReady] = useState(false); // 🔥 wait until session is set
 
   const router = useRouter();
+
+  // 🔥 Handle Supabase reset token from URL hash
+  useEffect(() => {
+    const handleSession = async () => {
+      try {
+        const hash = window.location.hash;
+
+        if (!hash) {
+          setIsError(true);
+          setMessage("Invalid or expired reset link.");
+          return;
+        }
+
+        const params = new URLSearchParams(hash.replace("#", ""));
+        const access_token = params.get("access_token");
+        const refresh_token = params.get("refresh_token");
+
+        if (!access_token || !refresh_token) {
+          setIsError(true);
+          setMessage("Invalid reset token.");
+          return;
+        }
+
+        const { error } = await supabase.auth.setSession({
+          access_token,
+          refresh_token,
+        });
+
+        if (error) {
+          setIsError(true);
+          setMessage(error.message);
+          return;
+        }
+
+        // Optional: clean URL (remove hash)
+        window.history.replaceState({}, document.title, "/update-password");
+
+        setReady(true); // ✅ allow form usage
+      } catch (err) {
+        setIsError(true);
+        setMessage("Something went wrong. Please try again.");
+      }
+    };
+
+    handleSession();
+  }, []);
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,42 +117,50 @@ export default function UpdatePassword() {
           </p>
         </div>
 
-        <form onSubmit={handleUpdatePassword} className="flex flex-col gap-4">
+        {!ready ? (
+          <p className="text-yellow-400 text-center">
+            Validating reset link...
+          </p>
+        ) : (
+          <form onSubmit={handleUpdatePassword} className="flex flex-col gap-4">
 
-          <input
-            type="password"
-            placeholder="New Password"
-            className="p-3 rounded-md bg-slate-700 text-white outline-none"
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={isLoading}
-          />
+            <input
+              type="password"
+              placeholder="New Password"
+              className="p-3 rounded-md bg-slate-700 text-white outline-none"
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={isLoading}
+            />
 
-          <input
-            type="password"
-            placeholder="Confirm Password"
-            className="p-3 rounded-md bg-slate-700 text-white outline-none"
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            disabled={isLoading}
-          />
+            <input
+              type="password"
+              placeholder="Confirm Password"
+              className="p-3 rounded-md bg-slate-700 text-white outline-none"
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              disabled={isLoading}
+            />
 
-          {message && (
-            <p className={`text-sm text-center px-2 py-2 rounded-md ${
-              isError
-                ? "text-red-400 bg-red-400/10"
-                : "text-green-400 bg-green-400/10"
-            }`}>
-              {message}
-            </p>
-          )}
+            {message && (
+              <p
+                className={`text-sm text-center px-2 py-2 rounded-md ${
+                  isError
+                    ? "text-red-400 bg-red-400/10"
+                    : "text-green-400 bg-green-400/10"
+                }`}
+              >
+                {message}
+              </p>
+            )}
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full py-3 rounded-md bg-blue-500 hover:bg-blue-600 text-white font-bold"
-          >
-            {isLoading ? "Updating..." : "Update Password"}
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-3 rounded-md bg-blue-500 hover:bg-blue-600 text-white font-bold"
+            >
+              {isLoading ? "Updating..." : "Update Password"}
+            </button>
+          </form>
+        )}
 
       </div>
     </main>
