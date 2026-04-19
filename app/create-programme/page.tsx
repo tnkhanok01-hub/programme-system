@@ -4,7 +4,9 @@ import { useRouter } from "next/navigation"
 import { supabase } from "../../lib/supabaseClient"
 import { Pencil, Trash, CirclePlus, Table, Save, CircleX } from "lucide-react"
 
-function getLifecycle(start_date: string, end_date: string) {
+function getLifecycle(start_date: string | null, end_date: string | null) {
+  if (!start_date || !end_date) return "N/A"
+
   const today = new Date()
   const start = new Date(start_date)
   const end = new Date(end_date)
@@ -299,7 +301,9 @@ export default function ProgrammePage() {
       ? "bg-blue-500"
       : getLifecycle(p.start_date, p.end_date) === "During"
       ? "bg-green-500"
-      : "bg-gray-500"
+      : getLifecycle(p.start_date, p.end_date) === "Post"
+      ? "bg-gray-500"
+      : "bg-yellow-500"
   }`}>
     {getLifecycle(p.start_date, p.end_date)}
   </span>
