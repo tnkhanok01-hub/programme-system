@@ -189,7 +189,28 @@ export default function AdminHomepage() {
           {navItems.map(item => {
             const Icon = item.icon; const isActive = activeNav === item.id
             return (
-              <button key={item.id} onClick={() => setActiveNav(item.id)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: isActive ? 'rgba(124,58,237,0.15)' : 'transparent', color: isActive ? '#a78bfa' : '#6b7280', fontSize: '13px', fontWeight: isActive ? 500 : 400, marginBottom: '2px', textAlign: 'left', transition: 'all 0.12s' }}>
+              <button key={item.id} 
+              onClick={() => {
+                setActiveNav(item.id)
+
+                if (item.id === "dashboard") {
+                  router.push("/admin") // your admin homepage
+                }
+
+                if (item.id === "programmes") {
+                  router.push("/create-programme")
+                }
+
+                if (item.id === "users") {
+                  router.push("") // create later if not exist
+                }
+
+                if (item.id === "settings") {
+                  router.push("/profile")
+                }
+              }}
+              
+              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: isActive ? 'rgba(124,58,237,0.15)' : 'transparent', color: isActive ? '#a78bfa' : '#6b7280', fontSize: '13px', fontWeight: isActive ? 500 : 400, marginBottom: '2px', textAlign: 'left', transition: 'all 0.12s' }}>
                 <Icon size={15} />{item.label}
                 {isActive && <div style={{ marginLeft: 'auto', width: '4px', height: '4px', borderRadius: '50%', background: '#7c3aed' }} />}
               </button>
