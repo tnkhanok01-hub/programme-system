@@ -4,6 +4,17 @@ import { useRouter } from "next/navigation"
 import { supabase } from "../../lib/supabaseClient"
 import { Pencil, Trash, CirclePlus, Table, Save, CircleX } from "lucide-react"
 
+function getLifecycle(start_date: string | null, end_date: string | null) {
+  if (!start_date || !end_date) return "N/A"
+
+  const today = new Date()
+  const start = new Date(start_date)
+  const end = new Date(end_date)
+
+  if (today < start) return "Pre"
+  if (today >= start && today <= end) return "During"
+  return "Post"
+}
 export default function ProgrammePage() {
   const [programmes, setProgrammes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -269,7 +280,7 @@ export default function ProgrammePage() {
           <table className="w-full mt-4 text-white border-collapse">
             <thead>
               <tr>
-                {["Name", "Category", "Start", "End", "Venue", "Budget", "Approval", "Actions"].map((h) => (
+                {["Name", "Category", "Start", "End", "Lifecycle", "Venue", "Budget", "Approval", "Actions"].map((h) => (
                   <th key={h} className="text-left text-slate-400 p-3 border-b border-slate-700">
                     {h}
                   </th>
@@ -284,6 +295,19 @@ export default function ProgrammePage() {
                   <td className="p-3 border-b border-slate-700">{p.category}</td>
                   <td className="p-3 border-b border-slate-700">{p.start_date}</td>
                   <td className="p-3 border-b border-slate-700">{p.end_date}</td>
+                  <td className="p-3 border-b border-slate-700">
+  <span className={`px-2 py-1 rounded text-xs ${
+    getLifecycle(p.start_date, p.end_date) === "Pre"
+      ? "bg-blue-500"
+      : getLifecycle(p.start_date, p.end_date) === "During"
+      ? "bg-green-500"
+      : getLifecycle(p.start_date, p.end_date) === "Post"
+      ? "bg-gray-500"
+      : "bg-yellow-500"
+  }`}>
+    {getLifecycle(p.start_date, p.end_date)}
+  </span>
+</td>
                   <td className="p-3 border-b border-slate-700">{p.venue}</td>
                   <td className="p-3 border-b border-slate-700">
                     RM {p.budget ? Number(p.budget).toFixed(2) : "—"}
