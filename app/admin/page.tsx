@@ -53,8 +53,6 @@ export default function AdminHomepage() {
         .single()
 
       if (profileError || !profileData) {
-        // Don't redirect on profile fetch failure — just show empty state
-        console.error('Profile fetch error:', profileError)
         setLoading(false)
         return
       }
