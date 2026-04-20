@@ -6,6 +6,8 @@ import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
 import { Mail, Lock, LogIn } from "lucide-react";
 
+import { useSearchParams } from 'next/navigation';
+
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -14,7 +16,8 @@ export default function Login() {
 
   const router = useRouter();
 
-  // ✅ SESSION CHECK (if already logged in)
+  const searchParams = useSearchParams();
+
   useEffect(() => {
     let isMounted = true;
 
@@ -38,6 +41,13 @@ export default function Login() {
         redirectByRole(role);
       }
     };
+
+    if (searchParams.get('confirmed') === 'true') {
+      setMessage('✅ Email confirmed! You can now log in.');
+    }
+    if (searchParams.get('error') === 'confirmation_failed') {
+      setMessage('❌ Confirmation link is invalid or has expired.');
+    }
 
     checkSession();
 

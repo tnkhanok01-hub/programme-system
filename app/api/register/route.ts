@@ -13,7 +13,7 @@ export async function POST(request: Request) {
 
     const emailNormalized = email?.toLowerCase();
 
-    // ✅ Validation
+    // 1. Validate
     if (!emailNormalized || !password) {
       return NextResponse.json(
         { error: 'Email and password are required.' },
@@ -38,72 +38,42 @@ export async function POST(request: Request) {
       );
     }
 
-    // 🔥 1. Create auth user
-    const { data: authData, error: authError } =
-      await supabase.auth.signUp({
-        email: emailNormalized,
-        password,
-      });
+    // 2. Create auth user only — NO users table insert yet
+    //    users table insert happens in /auth/confirm after email verified
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: emailNormalized,
+      password,
+      options: {
+        // Store extra data in auth metadata temporarily
+        // until email is confirmed
+        data: {
+          full_name: full_name || '',
+          matric_number: matric_number || null,
+          phone: phone || null,
+        }
+      }
+    });
 
-    console.log("AUTH ERROR:", authError);
-
-    // ❌ Handle auth error properly
     if (authError) {
-      if (authError.message.includes("already registered")) {
+      if (authError.message.includes('already registered')) {
         return NextResponse.json(
-          { error: "Email already registered. Please login." },
+          { error: 'Email already registered. Please login.' },
           { status: 400 }
         );
       }
-
       return NextResponse.json(
         { error: authError.message },
         { status: 400 }
       );
     }
 
-    const userId = authData.user?.id;
-
-    // ⚠️ Handle email confirmation mode
-    if (!userId) {
-      return NextResponse.json(
-        { message: "Check your email to confirm your account." },
-        { status: 200 }
-      );
-    }
-
-    // 🔥 2. INSERT USER (skip role query to avoid failure)
-    const { error: userError } = await supabase
-      .from('users')
-      .insert([
-        {
-          id: userId,
-          full_name: full_name || '',
-          phone: phone || null,
-          matric_number: matric_number || null,
-          staff_number: null,
-          role_id: 'b2b294d9-15e6-4608-b922-7d8f8eaf90d2',
-        },
-      ]);
-
-    console.log("USER INSERT ERROR:", userError);
-
-    if (userError) {
-      return NextResponse.json(
-        { error: userError.message },
-        { status: 500 }
-      );
-    }
-
-    // ✅ SUCCESS RESPONSE (IMPORTANT)
     return NextResponse.json(
-      { message: 'Registration successful! Please check your email.' },
+      { message: 'Registration successful! Please check your email to confirm your account.' },
       { status: 201 }
     );
 
   } catch (err) {
     console.error('REGISTER ERROR:', err);
-
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

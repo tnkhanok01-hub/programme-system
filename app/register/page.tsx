@@ -69,9 +69,12 @@ export default function Register() {
       return;
     }
 
-    setMessage('✅ Registration successful! Please check your email.');
-
+    setMessage('✅ Registration successful! Redirecting to login...');
     setIsLoading(false);
+
+    setTimeout(() => {
+      router.push('/login');
+    }, 1500);
   };
 
   return (
