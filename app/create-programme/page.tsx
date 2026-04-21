@@ -198,6 +198,7 @@ export default function ProgrammePage() {
                   <td className="p-3">{p.category}</td>
                   <td className="p-3">{p.start_date}</td>
                   <td className="p-3">{p.end_date}</td>
+
                   <td className="p-3">
                     <span className={`px-2 py-1 rounded ${getLifecycle(p.start_date, p.end_date) === "Pre"
                         ? "bg-blue-500"
@@ -208,6 +209,7 @@ export default function ProgrammePage() {
                       {getLifecycle(p.start_date, p.end_date)}
                     </span>
                   </td>
+
                   <td className="p-3">{p.venue}</td>
                   <td className="p-3">RM {p.budget ? Number(p.budget).toFixed(2) : "—"}</td>
                   <td className="p-3">
