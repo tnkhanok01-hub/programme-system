@@ -202,7 +202,7 @@ export default function AdminHomepage() {
                 }
 
                 if (item.id === "users") {
-                  router.push("") // create later if not exist
+                  router.push("/admin/users") // create later if not exist
                 }
 
                 if (item.id === "settings") {

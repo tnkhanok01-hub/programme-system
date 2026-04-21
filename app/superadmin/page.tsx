@@ -93,8 +93,8 @@ export default function SuperAdminPage() {
 
                   if (item.id === "dashboard") router.push("/superadmin")
                   if (item.id === "programmes") router.push("/create-programme")
-                  if (item.id === "createAdmin") router.push("/create-admin")
-                  if (item.id === "exchangeAdmin") router.push("/exchange-admin")
+                  if (item.id === "createAdmin") router.push("/superadmin/create-admin")
+                  if (item.id === "exchangeAdmin") router.push("/superadmin/exchange-admin")
                   if (item.id === "settings") router.push("/profile")
                 }}
                 className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm mb-1 transition
