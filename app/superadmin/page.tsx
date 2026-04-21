@@ -89,7 +89,7 @@ export default function SuperAdminPage() {
               <button
                 key={item.id}
                 onClick={() => {
-                  setActiveNav(item.id)
+                  setActiveNav(item.id as any)
 
                   if (item.id === "dashboard") router.push("/superadmin")
                   if (item.id === "programmes") router.push("/create-programme")
