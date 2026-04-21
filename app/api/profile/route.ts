@@ -44,8 +44,8 @@ export async function GET(req: Request) {
     }
 
     const role = Array.isArray(data.roles)
-    ? data.roles[0]?.name
-    : data.roles?.name ?? "student";
+  ? (data.roles[0] as any)?.name
+  : (data.roles as any)?.name ?? "student";
 
     return NextResponse.json({
       id: user.id,
