@@ -16,7 +16,7 @@ export default function Login() {
 
   const router = useRouter();
 
-  const searchParams = useSearchParams();
+  const searchParams = typeof window !== "undefined" ? useSearchParams() : null;
 
   useEffect(() => {
     let isMounted = true;
@@ -42,10 +42,10 @@ export default function Login() {
       }
     };
 
-    if (searchParams.get('confirmed') === 'true') {
+    if (searchParams?.get('confirmed') === 'true') {
       setMessage('✅ Email confirmed! You can now log in.');
     }
-    if (searchParams.get('error') === 'confirmation_failed') {
+    if (searchParams?.get('error') === 'confirmation_failed') {
       setMessage('❌ Confirmation link is invalid or has expired.');
     }
 
