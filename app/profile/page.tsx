@@ -20,6 +20,28 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  const handleBack = async () => {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) {
+    router.replace("/login")
+    return
+  }
+
+  const res = await fetch("/api/profile", {
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
+  })
+
+  const data = await res.json()
+
+  if (!res.ok) return
+
+  if (data.role === "superadmin") router.push("/superadmin")
+  else if (data.role === "admin") router.push("/admin")
+  else router.push("/student")
+}
+
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
 
   useEffect(() => {
@@ -94,7 +116,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-[#0b1220] flex flex-col items-center justify-center p-5 font-sans">
-
+      
       <div className="text-center mb-5">
         <h1 className="text-white text-[18px] font-bold">
           UTM Smart Programme Management System
@@ -103,6 +125,16 @@ export default function ProfilePage() {
       </div>
 
       <div className="bg-[#111c33] w-full max-w-[420px] rounded-2xl p-8 text-center shadow-lg border border-white/5">
+        <div className="w-full max-w-[420px] mb-4">
+          <button
+            onClick={handleBack}
+            style={{ display: "flex", alignItems: "center", gap: "7px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "8px", padding: "9px 15px", color: "#94a3b8", fontSize: "14px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "color 0.15s" }}
+                  onMouseEnter={e => (e.currentTarget.style.color = "#e2e8f0")}
+                  onMouseLeave={e => (e.currentTarget.style.color = "#94a3b8")}
+          >
+            ← Back
+          </button>
+        </div>
 
         <div className="w-20 h-20 rounded-full bg-slate-800 text-white flex items-center justify-center text-2xl font-bold mx-auto">
           {user?.name?.charAt(0)?.toUpperCase() ||
