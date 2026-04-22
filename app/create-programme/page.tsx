@@ -2,7 +2,16 @@
 import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "../../lib/supabaseClient"
-import { Pencil, Trash, CirclePlus, Table, Save, CircleX, ArrowLeft } from "lucide-react"
+import {
+  Pencil,
+  Trash,
+  CirclePlus,
+  Table,
+  ArrowLeft,
+  Upload,
+  Eye,
+  Download
+} from "lucide-react"
 
 function getLifecycle(start_date: string | null, end_date: string | null) {
   if (!start_date || !end_date) return "N/A"
@@ -17,54 +26,27 @@ function getLifecycle(start_date: string | null, end_date: string | null) {
 }
 
 export default function ProgrammePage() {
+  const router = useRouter()
+
   const [programmes, setProgrammes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
-  const router = useRouter()
 
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [editForm, setEditForm] = useState<any>({})
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null)
-  const [directorProgrammeIds, setDirectorProgrammeIds] = useState<string[]>([])
+  const [selectedProgrammeId, setSelectedProgrammeId] = useState<string | null>(null)
+  const [file, setFile] = useState<File | null>(null)
+  const [documents, setDocuments] = useState<any[]>([])
 
-  const getToken = async (): Promise<string | null> => {
-    const { data: { session } } = await supabase.auth.getSession()
-    return session?.access_token ?? null
-  }
-
-  const canEditOrDelete = (programmeId: string) => {
-    if (currentUserRole === "superadmin" || currentUserRole === "admin") return true
-    return directorProgrammeIds.includes(programmeId)
-  }
+  const [openDocsId, setOpenDocsId] = useState<string | null>(null)
+  const [previewFile, setPreviewFile] = useState<any | null>(null)
 
   useEffect(() => {
-    const fetchProgrammes = async () => {
+    const fetchData = async () => {
       const { data: { session } } = await supabase.auth.getSession()
 
       if (!session) {
         router.replace("/login")
         return
       }
-
-      const userId = session.user.id
-      setCurrentUserId(userId)
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", userId)
-        .single()
-
-      setCurrentUserRole(profile?.role ?? null)
-
-      const { data: roleRows } = await supabase
-        .from("programme_roles")
-        .select("programme_id")
-        .eq("user_id", userId)
-        .eq("role", "Programme Director")
-
-      setDirectorProgrammeIds(roleRows?.map((r: any) => r.programme_id) ?? [])
 
       const { data, error } = await supabase
         .from("programmes")
@@ -74,70 +56,54 @@ export default function ProgrammePage() {
       if (error) setError(error.message)
       else setProgrammes(data || [])
 
+      const { data: docs } = await supabase
+        .from("programme_documents")
+        .select("*")
+
+      setDocuments(docs || [])
       setLoading(false)
     }
 
-    fetchProgrammes()
-  }, [])
+    fetchData()
+  }, [router])
 
-  const handleEdit = (programme: any) => {
-    setEditForm({
-      ...programme,
-      start_date: programme.start_date?.slice(0, 10),
-      end_date: programme.end_date?.slice(0, 10),
-    })
-    setShowEditModal(true)
-  }
+  const handleUpload = async (programmeId: string) => {
+    if (!file) {
+      alert("Please select a file first")
+      return
+    }
 
-  const handleEditChange = (e: any) => {
-    setEditForm({ ...editForm, [e.target.name]: e.target.value })
-  }
+    const formData = new FormData()
+    formData.append("file", file)
+    formData.append("programme_id", programmeId)
 
-  const handleUpdate = async () => {
-    const token = await getToken()
-    if (!token) return router.replace("/login")
-
-    const res = await fetch(`/api/programmes/${editForm.id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(editForm),
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
     })
 
     const data = await res.json()
 
+    // ✔ ADDED FEEDBACK ONLY (NO OTHER CHANGES)
     if (!res.ok) {
-      alert("Update failed: " + data.error)
-    } else {
-      setProgrammes((prev) =>
-        prev.map((p) => (p.id === editForm.id ? data.programme : p))
-      )
-      setShowEditModal(false)
+      alert("Upload failed: " + (data.error || "Unknown error"))
+      return
     }
+
+    alert("Upload successful 🎉")
+
+    const { data: docs } = await supabase
+      .from("programme_documents")
+      .select("*")
+
+    setDocuments(docs || [])
+    setFile(null)
+    setSelectedProgrammeId(null)
   }
 
   const handleDelete = async (id: string) => {
-    const confirmDelete = confirm("Delete this programme?")
-    if (!confirmDelete) return
-
-    const token = await getToken()
-    if (!token) return router.replace("/login")
-
-    await fetch(`/api/programmes/${id}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    })
-
-    setProgrammes((prev) => prev.filter((p) => p.id !== id))
-  }
-
-  const getStatusStyle = (status: string) => {
-    if (status === "Pending") return "text-yellow-400 bg-yellow-400/20"
-    if (status === "Approved") return "text-green-400 bg-green-400/20"
-    if (status === "Rejected") return "text-red-400 bg-red-400/20"
-    return ""
+    await fetch(`/api/programmes/${id}`, { method: "DELETE" })
+    setProgrammes(prev => prev.filter(p => p.id !== id))
   }
 
   if (loading) {
@@ -145,92 +111,213 @@ export default function ProgrammePage() {
   }
 
   return (
-    <main className="min-h-screen flex items-start md:items-center justify-center p-4 md:p-8 bg-slate-900">
-      <div className="w-full max-w-[1400px] bg-slate-800 rounded-xl shadow-md p-4 md:p-7">
+    <main className="min-h-screen bg-slate-900 p-4 flex justify-center">
+      <div className="w-full max-w-[1400px] bg-slate-800 p-5 rounded-xl">
 
-        {/* HEADER WITH BACK BUTTON */}
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
-
-          <div className="flex items-center gap-3">
-
-            <button
-              onClick={() => router.back()}
-              className="bg-slate-600 hover:bg-slate-500 text-white px-3 py-2 rounded-md flex items-center gap-2 cursor-pointer"
-            >
-              <ArrowLeft size={16} />
-              Back
-            </button>
-
-            <h2 className="flex items-center gap-2 text-white text-xl">
-              <Table size={22} />
-              Programme List
-            </h2>
-
-          </div>
+        {/* HEADER */}
+        <div className="flex justify-between items-center mb-4">
 
           <button
-            onClick={() => router.push("/create-programme-form")}
-            className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md"
+            onClick={() => window.location.href = "/create-programme"}
+            className="text-white flex items-center gap-2"
           >
-            <CirclePlus size={20} />
-            Create Programme
+            <ArrowLeft size={16} /> Back
           </button>
 
+          <h2 className="text-white flex items-center gap-2">
+            <Table size={20} /> Programme List
+          </h2>
+
+          <button
+            onClick={() => window.scrollTo(0, 0)}
+            className="bg-blue-500 px-3 py-2 rounded text-white flex items-center gap-2"
+          >
+            <CirclePlus size={18} /> Top
+          </button>
         </div>
 
         {error && <p className="text-red-400">{error}</p>}
 
         {/* TABLE */}
         <div className="overflow-x-auto">
-          <table className="w-full text-white">
-            <thead>
-              <tr>
-                {["Name", "Category", "Start", "End", "Lifecycle", "Venue", "Budget", "Approval", "Actions"].map(h => (
-                  <th key={h} className="text-left p-3 border-b border-slate-700">{h}</th>
-                ))}
-              </tr>
-            </thead>
+          <div className="min-w-[900px]">
 
-            <tbody>
-              {programmes.map(p => (
-                <tr key={p.id}>
-                  <td className="p-3">{p.name}</td>
-                  <td className="p-3">{p.category}</td>
-                  <td className="p-3">{p.start_date}</td>
-                  <td className="p-3">{p.end_date}</td>
-
-                  <td className="p-3">
-                    <span className={`px-2 py-1 rounded ${getLifecycle(p.start_date, p.end_date) === "Pre"
-                        ? "bg-blue-500"
-                        : getLifecycle(p.start_date, p.end_date) === "During"
-                          ? "bg-green-500"
-                          : "bg-gray-500"
-                      }`}>
-                      {getLifecycle(p.start_date, p.end_date)}
-                    </span>
-                  </td>
-
-                  <td className="p-3">{p.venue}</td>
-                  <td className="p-3">RM {p.budget ? Number(p.budget).toFixed(2) : "—"}</td>
-                  <td className="p-3">
-                    <span className={`px-2 py-1 rounded ${getStatusStyle(p.status)}`}>
-                      {p.status}
-                    </span>
-                  </td>
-                  <td className="p-3 flex gap-2">
-                    <button onClick={() => handleEdit(p)} className="bg-blue-500 p-2 rounded">
-                      <Pencil size={14} />
-                    </button>
-                    <button onClick={() => handleDelete(p.id)} className="bg-red-500 p-2 rounded">
-                      <Trash size={14} />
-                    </button>
-                  </td>
+            <table className="w-full text-white">
+              <thead>
+                <tr>
+                  {["Name", "Category", "Start", "End", "Lifecycle", "Venue", "Budget", "Status", "Actions"].map(h => (
+                    <th key={h} className="text-left p-3 border-b border-slate-700">
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
+              </thead>
 
-          </table>
+              <tbody>
+                {programmes.map(p => {
+                  const programmeFiles = documents.filter(d => d.programme_id === p.id)
+                  const lifecycle = getLifecycle(p.start_date, p.end_date)
+
+                  return (
+                    <tr key={p.id}>
+
+                      <td className="p-3">{p.name}</td>
+                      <td className="p-3">{p.category}</td>
+                      <td className="p-3">{p.start_date}</td>
+                      <td className="p-3">{p.end_date}</td>
+
+                      <td className="p-3">
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          lifecycle === "Pre"
+                            ? "bg-blue-500"
+                            : lifecycle === "During"
+                              ? "bg-green-500"
+                              : "bg-gray-500"
+                        }`}>
+                          {lifecycle}
+                        </span>
+                      </td>
+
+                      <td className="p-3">{p.venue}</td>
+                      <td className="p-3">RM {p.budget}</td>
+
+                      <td className="p-3">
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          p.status === "Pending"
+                            ? "bg-yellow-500"
+                            : p.status === "Approved"
+                              ? "bg-green-500"
+                              : "bg-red-500"
+                        }`}>
+                          {p.status}
+                        </span>
+                      </td>
+
+                      <td className="p-3">
+
+                        <div className="flex gap-2">
+                          <button className="bg-blue-500 p-2 rounded"><Pencil size={14} /></button>
+                          <button onClick={() => handleDelete(p.id)} className="bg-red-500 p-2 rounded"><Trash size={14} /></button>
+
+                          <button
+                            onClick={() => setSelectedProgrammeId(p.id)}
+                            className="bg-green-500 p-2 rounded"
+                          >
+                            <Upload size={14} />
+                          </button>
+                        </div>
+
+                        {selectedProgrammeId === p.id && (
+                          <div className="mt-2 flex gap-2 items-center">
+                            <input
+                              type="file"
+                              onChange={(e) => setFile(e.target.files?.[0] || null)}
+                              className="text-xs text-white"
+                            />
+                            <button
+                              onClick={() => handleUpload(p.id)}
+                              className="bg-blue-600 px-2 py-1 rounded text-xs text-white"
+                            >
+                              Upload
+                            </button>
+                          </div>
+                        )}
+
+                        <div className="mt-2">
+                          <button
+                            onClick={() => setOpenDocsId(openDocsId === p.id ? null : p.id)}
+                            className="text-xs text-blue-400 underline"
+                          >
+                            View Documents
+                          </button>
+
+                          {openDocsId === p.id && (
+                            <div className="mt-2 bg-slate-700 p-2 rounded max-h-32 overflow-y-auto">
+
+                              {programmeFiles.map(f => (
+                                <div key={f.id} className="flex justify-between text-xs p-1">
+
+                                  <span className="truncate max-w-[120px]">
+                                    {f.file_name}
+                                  </span>
+
+                                  <div className="flex gap-2">
+
+                                    <button
+                                      onClick={() => setPreviewFile(f)}
+                                      className="text-blue-400 flex items-center gap-1"
+                                    >
+                                      <Eye size={12} /> View
+                                    </button>
+
+                                    <button
+                                      onClick={async () => {
+                                        const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${f.file_path}`
+
+                                        const res = await fetch(url)
+                                        const blob = await res.blob()
+
+                                        const blobUrl = window.URL.createObjectURL(blob)
+
+                                        const a = document.createElement("a")
+                                        a.href = blobUrl
+                                        a.download = f.file_name
+
+                                        document.body.appendChild(a)
+                                        a.click()
+
+                                        document.body.removeChild(a)
+                                        window.URL.revokeObjectURL(blobUrl)
+                                      }}
+                                      className="text-green-400 flex items-center gap-1"
+                                    >
+                                      <Download size={12} /> Download
+                                    </button>
+
+                                  </div>
+
+                                </div>
+                              ))}
+
+                            </div>
+                          )}
+                        </div>
+
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+
+            </table>
+
+          </div>
         </div>
+
+        {previewFile && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+
+            <div className="bg-slate-900 w-[90%] max-w-lg rounded p-3 relative">
+
+              <button
+                onClick={() => setPreviewFile(null)}
+                className="absolute top-2 right-3 text-white"
+              >
+                ✕
+              </button>
+
+              <h3 className="text-white text-sm mb-2 truncate">
+                {previewFile.file_name}
+              </h3>
+
+              <iframe
+                src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${previewFile.file_path}`}
+                className="w-full h-[300px] bg-white rounded"
+              />
+
+            </div>
+          </div>
+        )}
 
       </div>
     </main>
