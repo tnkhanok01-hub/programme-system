@@ -16,9 +16,9 @@ interface Programme {
 }
 
 const statusConfig: Record<string, { color: string; bg: string; border: string; icon: React.ElementType }> = {
-  Pending:  { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  border: 'rgba(245,158,11,0.2)',  icon: AlertCircle },
-  Approved: { color: '#10b981', bg: 'rgba(16,185,129,0.1)',  border: 'rgba(16,185,129,0.2)',  icon: CheckCircle },
-  Rejected: { color: '#ef4444', bg: 'rgba(239,68,68,0.1)',   border: 'rgba(239,68,68,0.2)',   icon: XCircle     },
+  Pending: { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.2)', icon: AlertCircle },
+  Approved: { color: '#10b981', bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.2)', icon: CheckCircle },
+  Rejected: { color: '#ef4444', bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.2)', icon: XCircle },
 }
 
 export default function ProgrammeDetailPage() {
@@ -28,6 +28,7 @@ export default function ProgrammeDetailPage() {
 
   const [programme, setProgramme] = useState<Programme | null>(null)
   const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<'pre' | 'during' | 'post'>('pre');
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [isOwner, setIsOwner] = useState(false)
@@ -57,12 +58,12 @@ export default function ProgrammeDetailPage() {
       setProgramme(prog)
       setIsOwner(!!data.isDirector)
       setForm({
-        name:        prog.name        ?? '',
-        category:    prog.category    ?? '',
-        venue:       prog.venue       ?? '',
-        budget:      prog.budget != null ? String(prog.budget) : '',
-        start_date:  prog.start_date  ? prog.start_date.slice(0, 10) : '',
-        end_date:    prog.end_date    ? prog.end_date.slice(0, 10)   : '',
+        name: prog.name ?? '',
+        category: prog.category ?? '',
+        venue: prog.venue ?? '',
+        budget: prog.budget != null ? String(prog.budget) : '',
+        start_date: prog.start_date ? prog.start_date.slice(0, 10) : '',
+        end_date: prog.end_date ? prog.end_date.slice(0, 10) : '',
         description: prog.description ?? '',
       })
       setLoading(false)
@@ -155,11 +156,11 @@ export default function ProgrammeDetailPage() {
           <h2 style={{ margin: '0 0 16px', fontSize: '13px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Programme Details</h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             {[
-              { label: 'Category',   value: programme.category || '—',  icon: BookOpen  },
-              { label: 'Venue',      value: programme.venue    || '—',  icon: MapPin    },
+              { label: 'Category', value: programme.category || '—', icon: BookOpen },
+              { label: 'Venue', value: programme.venue || '—', icon: MapPin },
               { label: 'Start Date', value: programme.start_date ? new Date(programme.start_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' }) : '—', icon: Calendar },
-              { label: 'End Date',   value: programme.end_date   ? new Date(programme.end_date).toLocaleDateString('en-MY',   { day: 'numeric', month: 'long', year: 'numeric' }) : '—', icon: Calendar },
-              { label: 'Budget',     value: programme.budget != null ? `RM ${Number(programme.budget).toLocaleString('en-MY', { minimumFractionDigits: 2 })}` : '—', icon: DollarSign },
+              { label: 'End Date', value: programme.end_date ? new Date(programme.end_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' }) : '—', icon: Calendar },
+              { label: 'Budget', value: programme.budget != null ? `RM ${Number(programme.budget).toLocaleString('en-MY', { minimumFractionDigits: 2 })}` : '—', icon: DollarSign },
             ].map(f => {
               const Icon = f.icon
               return (
@@ -183,6 +184,139 @@ export default function ProgrammeDetailPage() {
           )}
         </div>
 
+        {/* Programme Lifecycle Section */}
+        <div style={{ marginBottom: '20px' }}>
+
+          {/* Tab Buttons */}
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+            {['pre', 'during', 'post'].map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab as any)}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: activeTab === tab ? '#6366f1' : 'transparent',
+                  color: activeTab === tab ? 'white' : '#94a3b8',
+                  cursor: 'pointer',
+                  fontSize: '12px'
+                }}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          {/* ================= PRE PHASE ================= */}
+          {/* This section is shown when 'Pre' tab is selected */}
+          {activeTab === 'pre' && (
+            <div>
+              <h3>Pre Phase</h3>
+              <div style={{
+                border: '1px dashed rgba(255,255,255,0.2)',
+                borderRadius: '10px',
+                padding: '20px',
+                textAlign: 'center',
+                background: 'rgba(255,255,255,0.02)'
+              }}>
+                <p style={{ marginBottom: '10px', fontSize: '13px', color: '#94a3b8' }}>
+                  📄 Upload paperwork & poster
+                </p>
+
+                <label style={{
+                  display: 'inline-block',
+                  padding: '8px 16px',
+                  background: '#6366f1',
+                  color: 'white',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  transition: '0.2s'
+                }}
+                  onMouseOver={(e) => (e.currentTarget.style.background = '#4f46e5')}
+                  onMouseOut={(e) => (e.currentTarget.style.background = '#6366f1')}
+                >
+                  Upload File
+                  <input type="file" style={{ display: 'none' }} />
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* ================= DURING PHASE ================= */}
+          {/* This section is shown when 'During' tab is selected */}
+          {activeTab === 'during' && (
+            <div>
+              <h3>During Phase</h3>
+              <div style={{
+                border: '1px dashed rgba(255,255,255,0.2)',
+                borderRadius: '10px',
+                padding: '20px',
+                textAlign: 'center',
+                background: 'rgba(255,255,255,0.02)'
+              }}>
+                <p style={{ marginBottom: '10px', fontSize: '13px', color: '#94a3b8' }}>
+                  📄 Upload paperwork & poster
+                </p>
+
+                <label style={{
+                  display: 'inline-block',
+                  padding: '8px 16px',
+                  background: '#6366f1',
+                  color: 'white',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  transition: '0.2s'
+                }}
+                  onMouseOver={(e) => (e.currentTarget.style.background = '#4f46e5')}
+                  onMouseOut={(e) => (e.currentTarget.style.background = '#6366f1')}
+                >
+                  Upload File
+                  <input type="file" style={{ display: 'none' }} />
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* ================= POST PHASE ================= */}
+          {/* This section is shown when 'Post' tab is selected */}
+          {activeTab === 'post' && (
+            <div>
+              <h3>Post Phase</h3>
+              <div style={{
+                border: '1px dashed rgba(255,255,255,0.2)',
+                borderRadius: '10px',
+                padding: '20px',
+                textAlign: 'center',
+                background: 'rgba(255,255,255,0.02)'
+              }}>
+                <p style={{ marginBottom: '10px', fontSize: '13px', color: '#94a3b8' }}>
+                  📄 Upload paperwork & poster
+                </p>
+
+                <label style={{
+                  display: 'inline-block',
+                  padding: '8px 16px',
+                  background: '#6366f1',
+                  color: 'white',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  transition: '0.2s'
+                }}
+                  onMouseOver={(e) => (e.currentTarget.style.background = '#4f46e5')}
+                  onMouseOut={(e) => (e.currentTarget.style.background = '#6366f1')}
+                >
+                  Upload File
+                  <input type="file" style={{ display: 'none' }} />
+                </label>
+              </div>
+            </div>
+          )}
+
+        </div>
         {/* Resubmit form — only shown if Rejected and is owner */}
         {canResubmit && (
           <div style={{ background: '#0c1526', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '14px', padding: '24px' }}>
@@ -195,11 +329,11 @@ export default function ProgrammeDetailPage() {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
               {[
-                { label: 'Programme Name', key: 'name',       type: 'text',   span: 2 },
-                { label: 'Venue',          key: 'venue',      type: 'text',   span: 2 },
-                { label: 'Start Date',     key: 'start_date', type: 'date',   span: 1 },
-                { label: 'End Date',       key: 'end_date',   type: 'date',   span: 1 },
-                { label: 'Budget (RM)',    key: 'budget',     type: 'number', span: 1 },
+                { label: 'Programme Name', key: 'name', type: 'text', span: 2 },
+                { label: 'Venue', key: 'venue', type: 'text', span: 2 },
+                { label: 'Start Date', key: 'start_date', type: 'date', span: 1 },
+                { label: 'End Date', key: 'end_date', type: 'date', span: 1 },
+                { label: 'Budget (RM)', key: 'budget', type: 'number', span: 1 },
               ].map(f => (
                 <div key={f.key} style={{ gridColumn: `span ${f.span}` }}>
                   <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>{f.label}</label>
