@@ -28,10 +28,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+    const origin = new URL(request.url).origin;
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${siteUrl}/update-password`,
+      redirectTo: `${origin}/update-password`,
     });
 
     if (error) {
