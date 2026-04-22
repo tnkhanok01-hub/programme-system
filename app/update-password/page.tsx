@@ -14,12 +14,17 @@ export default function UpdatePassword() {
 
   const router = useRouter();
 
-  // 🔥 Handle Supabase reset token from URL hash
   useEffect(() => {
     const handleSession = async () => {
       try {
-        const hash = window.location.hash;
+    
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData.session) {
+          setReady(true);
+          return;
+        }
 
+        const hash = window.location.hash;
         if (!hash) {
           setIsError(true);
           setMessage("Invalid or expired reset link.");
@@ -36,22 +41,16 @@ export default function UpdatePassword() {
           return;
         }
 
-        const { error } = await supabase.auth.setSession({
-          access_token,
-          refresh_token,
-        });
-
+        const { error } = await supabase.auth.setSession({ access_token, refresh_token });
         if (error) {
           setIsError(true);
           setMessage(error.message);
           return;
         }
 
-        // Optional: clean URL (remove hash)
         window.history.replaceState({}, document.title, "/update-password");
-
-        setReady(true); // ✅ allow form usage
-      } catch (err) {
+        setReady(true);
+      } catch {
         setIsError(true);
         setMessage("Something went wrong. Please try again.");
       }
@@ -99,9 +98,11 @@ export default function UpdatePassword() {
     setIsError(false);
     setMessage("✅ Password updated successfully!");
 
+    await supabase.auth.signOut();
+
     setTimeout(() => {
       router.push("/login");
-    }, 2000);
+    }, 900);
 
     setIsLoading(false);
   };
