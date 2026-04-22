@@ -7,7 +7,7 @@ import {
   LayoutDashboard, BookOpen, Users, Settings, LogOut, Bell,
   CirclePlus, Pencil, Trash, Save, CircleX, TrendingUp, Clock,
   CheckCircle, XCircle, AlertCircle, Search, Shield, Calendar,
-  MapPin, DollarSign, Activity,
+  MapPin, DollarSign, Activity,Eye
 } from 'lucide-react'
 
 interface Programme {
@@ -413,6 +413,7 @@ export default function AdminHomepage() {
                             <>
                               <button onClick={() => handleEdit(prog)} style={{ background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.15)', borderRadius: '6px', padding: '5px 7px', cursor: 'pointer', color: '#a78bfa' }}><Pencil size={13} /></button>
                               <button onClick={() => handleDelete(prog.id)} style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.12)', borderRadius: '6px', padding: '5px 7px', cursor: 'pointer', color: '#ef4444' }}><Trash size={13} /></button>
+                              <button onClick={() => router.push(`/programmes/${prog.id}`)} style={{ background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.15)', borderRadius: '6px', padding: '5px 7px', cursor: 'pointer', color: '#38bdf8' }}><Eye size={13} /></button>
                             </>
                           )}
                         </div>
