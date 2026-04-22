@@ -10,6 +10,7 @@ import {
   MapPin, DollarSign, Activity, ArrowRightLeft, Crown, Eye
 } from 'lucide-react'
 
+/* ─── TYPES ──────────────────────────────────────────────────────────────── */
 interface Programme {
   id: string; name: string; category: string; venue: string
   budget: number; start_date: string; end_date: string; status: string; created_at: string
@@ -17,7 +18,7 @@ interface Programme {
 interface Profile { id: string; full_name: string; email: string; roles: { name: string } | null }
 type NavItem = 'dashboard' | 'programmes' | 'createAdmin' | 'exchangeAdmin' | 'settings'
 
-// Superadmin accent tokens — amber/gold to differentiate from admin purple
+/* ─── SUPERADMIN TOKENS ──────────────────────────────────────────────────── */
 const SA = {
   accent:       '#f59e0b',
   accentBg:     'rgba(245,158,11,0.12)',
@@ -28,6 +29,352 @@ const SA = {
   gradientLogo: 'linear-gradient(135deg, #92400e, #d97706)',
 }
 
+/* ─── HELPERS ────────────────────────────────────────────────────────────── */
+const getInitials = (name: string) =>
+  name?.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'SA'
+
+function getStatusConfig(status: string) {
+  switch (status) {
+    case 'Approved': return { bg: 'rgba(16,185,129,0.12)',  color: '#10b981', icon: CheckCircle }
+    case 'Rejected': return { bg: 'rgba(239,68,68,0.12)',   color: '#ef4444', icon: XCircle }
+    case 'Pending':  return { bg: 'rgba(245,158,11,0.12)',  color: '#f59e0b', icon: AlertCircle }
+    default:         return { bg: 'rgba(148,163,184,0.12)', color: '#94a3b8', icon: Clock }
+  }
+}
+
+/* ─── STAT CARDS ─────────────────────────────────────────────────────────── */
+function StatCards({ stats, userCount, adminCount, isMobile }: {
+  stats: { total: number; pending: number; approved: number; rejected: number; totalBudget: number }
+  userCount: number; adminCount: number; isMobile: boolean
+}) {
+  const cards = [
+    { label: 'Total Programmes', value: stats.total,    icon: BookOpen,    color: SA.accentText, bg: SA.accentBg,              border: SA.accentBorder },
+    { label: 'Pending Review',   value: stats.pending,  icon: AlertCircle, color: '#fb923c',     bg: 'rgba(251,146,60,0.1)',   border: 'rgba(251,146,60,0.15)' },
+    { label: 'Approved',         value: stats.approved, icon: CheckCircle, color: '#10b981',     bg: 'rgba(16,185,129,0.1)',   border: 'rgba(16,185,129,0.15)' },
+    { label: 'Rejected',         value: stats.rejected, icon: XCircle,     color: '#ef4444',     bg: 'rgba(239,68,68,0.1)',    border: 'rgba(239,68,68,0.15)' },
+    { label: 'Total Users',      value: userCount,      icon: Users,       color: '#38bdf8',     bg: 'rgba(56,189,248,0.1)',   border: 'rgba(56,189,248,0.15)' },
+    { label: 'Admins',           value: adminCount,     icon: Crown,       color: SA.accentText, bg: SA.accentBg,              border: SA.accentBorder },
+  ]
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(6, 1fr)', gap: '10px', marginBottom: '20px' }}>
+      {cards.map((card, i) => {
+        const Icon = card.icon
+        return (
+          <div key={i} style={{ background: '#0b1118', border: `1px solid ${card.border}`, borderRadius: '10px', padding: isMobile ? '12px' : '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icon size={14} color={card.color} />
+              </div>
+              <TrendingUp size={11} color="#374151" />
+            </div>
+            <p style={{ margin: 0, fontSize: isMobile ? '20px' : '24px', fontWeight: 700, color: '#f1f5f9', letterSpacing: '-0.03em' }}>{card.value}</p>
+            <p style={{ margin: '3px 0 0', fontSize: '10px', color: '#4b5563' }}>{card.label}</p>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ─── BUDGET BANNER ──────────────────────────────────────────────────────── */
+function BudgetBanner({ stats, isMobile }: {
+  stats: { total: number; approved: number; totalBudget: number }; isMobile: boolean
+}) {
+  return (
+    <div style={{ background: 'linear-gradient(135deg, rgba(180,83,9,0.12), rgba(217,119,6,0.05))', border: `1px solid ${SA.accentBorder}`, borderRadius: '12px', padding: isMobile ? '14px' : '16px 20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+      <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: SA.accentBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <DollarSign size={16} color={SA.accentText} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ margin: 0, fontSize: '10px', color: '#6b7280' }}>Total Budget (Approved & Pending Only)</p>
+        <p style={{ margin: '2px 0 0', fontSize: isMobile ? '18px' : '22px', fontWeight: 700, color: SA.accentText, letterSpacing: '-0.03em' }}>
+          RM {stats.totalBudget.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </p>
+      </div>
+      <div style={{ display: 'flex', gap: isMobile ? '16px' : '24px', flexShrink: 0 }}>
+        {[
+          { label: 'Avg per programme', value: stats.total > 0 ? `RM ${Math.round(stats.totalBudget / stats.total).toLocaleString()}` : 'RM 0' },
+          { label: 'Approval rate',     value: stats.total > 0 ? `${Math.round((stats.approved / stats.total) * 100)}%` : '0%' },
+        ].map((kpi, i) => (
+          <div key={i} style={{ textAlign: 'right' }}>
+            <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#fcd34d' }}>{kpi.value}</p>
+            <p style={{ margin: '1px 0 0', fontSize: '10px', color: '#4b5563' }}>{kpi.label}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ─── EDIT MODAL ─────────────────────────────────────────────────────────── */
+function EditModal({ show, isMobile, editForm, actionLoading, onClose, onChange, onUpdate }: {
+  show: boolean; isMobile: boolean; editForm: Partial<Programme>; actionLoading: boolean
+  onClose: () => void; onChange: (f: Partial<Programme>) => void; onUpdate: () => void
+}) {
+  if (!show) return null
+  return (
+    <div onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '16px' }}>
+      <div style={{ background: '#0f1a24', border: `1px solid ${SA.accentBorder}`, borderRadius: '14px', padding: '24px', width: '100%', maxWidth: '540px', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Pencil size={15} color={SA.accentText} />Edit Programme
+          </h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280' }}><CircleX size={18} /></button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px' }}>
+          {[
+            { label: 'Programme Name', name: 'name',       type: 'text',   span: isMobile ? 1 : 2 },
+            { label: 'Venue',          name: 'venue',      type: 'text',   span: isMobile ? 1 : 2 },
+            { label: 'Budget (RM)',    name: 'budget',     type: 'number', span: 1 },
+            { label: 'Start Date',     name: 'start_date', type: 'date',   span: 1 },
+            { label: 'End Date',       name: 'end_date',   type: 'date',   span: 1 },
+          ].map(field => (
+            <div key={field.name} style={{ gridColumn: `span ${field.span}` }}>
+              <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>{field.label}</label>
+              <input type={field.type} value={(editForm as any)[field.name] || ''}
+                onChange={e => onChange({ ...editForm, [field.name]: e.target.value })}
+                style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+          ))}
+          <div>
+            <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Category</label>
+            <select value={editForm.category || ''} onChange={e => onChange({ ...editForm, category: e.target.value })}
+              style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: '#0b1118', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none' }}>
+              {['Academic', 'Sports', 'Community Service', 'Others'].map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+          <button onClick={onClose} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: '#6b7280', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+            <CircleX size={14} />Cancel
+          </button>
+          <button onClick={onUpdate} disabled={actionLoading}
+            style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: SA.gradientBtn, color: 'white', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: actionLoading ? 0.7 : 1 }}>
+            <Save size={14} />{actionLoading ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ─── REVIEW MODAL ───────────────────────────────────────────────────────── */
+function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoading, onClose, onCommentChange, onApprove, onReject }: {
+  prog: Programme | null; isMobile: boolean; rejectComment: string
+  actionLoading: boolean; rejectLoading: boolean
+  onClose: () => void; onCommentChange: (v: string) => void; onApprove: () => void; onReject: () => void
+}) {
+  if (!prog) return null
+  return (
+    <div onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, backdropFilter: 'blur(4px)', padding: '16px' }}>
+      <div style={{ background: '#0f1a24', border: `1px solid ${SA.accentBorder}`, borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '560px', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Shield size={15} color={SA.accentText} />Review Programme
+          </h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280' }}><CircleX size={18} /></button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '10px', marginBottom: '18px' }}>
+          {[
+            { label: 'Programme Name', value: prog.name, span: isMobile ? 1 : 2 },
+            { label: 'Category',  value: prog.category || '—', span: 1 },
+            { label: 'Venue',     value: prog.venue || '—',    span: 1 },
+            { label: 'Start Date', value: prog.start_date ? new Date(prog.start_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' }) : '—', span: 1 },
+            { label: 'End Date',   value: prog.end_date   ? new Date(prog.end_date).toLocaleDateString('en-MY',   { day: 'numeric', month: 'long', year: 'numeric' }) : '—', span: 1 },
+            { label: 'Budget',    value: prog.budget ? `RM ${Number(prog.budget).toLocaleString('en-MY', { minimumFractionDigits: 2 })}` : '—', span: 1 },
+            { label: 'Submitted', value: prog.created_at ? new Date(prog.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }) : '—', span: 1 },
+          ].map(f => (
+            <div key={f.label} style={{ gridColumn: `span ${f.span}`, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '10px 13px' }}>
+              <p style={{ margin: 0, fontSize: '10px', color: '#6b7280', fontWeight: 500, marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{f.label}</p>
+              <p style={{ margin: 0, fontSize: '13px', color: '#e2e8f0', fontWeight: 500 }}>{f.value}</p>
+            </div>
+          ))}
+        </div>
+        <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', marginBottom: '18px' }} />
+        <div style={{ marginBottom: '18px' }}>
+          <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', fontWeight: 500, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Rejection Comment <span style={{ color: '#ef4444' }}>*</span>
+            <span style={{ color: '#374151', fontWeight: 400, textTransform: 'none', letterSpacing: 0, marginLeft: '6px' }}>(required only when rejecting)</span>
+          </label>
+          <textarea value={rejectComment} onChange={e => onCommentChange(e.target.value)}
+            placeholder="Explain why this programme is being rejected so the director can revise and resubmit..." rows={3}
+            style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${rejectComment.trim() ? 'rgba(239,68,68,0.35)' : 'rgba(255,255,255,0.08)'}`, color: '#e2e8f0', fontSize: '13px', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.6 }} />
+        </div>
+        <div style={{ display: 'flex', gap: '8px', flexDirection: isMobile ? 'column' : 'row' }}>
+          <button onClick={onClose} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: '#6b7280', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+            <CircleX size={14} />Cancel
+          </button>
+          <button onClick={onReject} disabled={rejectLoading || !rejectComment.trim()}
+            style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: rejectComment.trim() ? 'rgba(239,68,68,0.85)' : 'rgba(239,68,68,0.25)', color: 'white', fontSize: '13px', fontWeight: 500, cursor: rejectComment.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: rejectLoading ? 0.7 : 1 }}>
+            <XCircle size={14} />{rejectLoading ? 'Rejecting...' : 'Reject'}
+          </button>
+          <button onClick={onApprove} disabled={actionLoading}
+            style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #059669, #10b981)', color: 'white', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: actionLoading ? 0.7 : 1 }}>
+            <CheckCircle size={14} />{actionLoading ? 'Approving...' : 'Approve'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ─── LOADING OVERLAY ────────────────────────────────────────────────────── */
+function LoadingOverlay({ actionLoading, rejectLoading, deleteLoading, rejectComment }: {
+  actionLoading: boolean; rejectLoading: boolean; deleteLoading: boolean; rejectComment: string
+}) {
+  if (!actionLoading && !rejectLoading && !deleteLoading) return null
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,10,20,0.75)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 100, backdropFilter: 'blur(6px)', gap: '16px' }}>
+      <div style={{ width: '48px', height: '48px', borderRadius: '50%', border: `3px solid ${SA.accentBg}`, borderTopColor: SA.accent, animation: 'spin 0.75s linear infinite' }} />
+      <p style={{ color: SA.accentText, fontSize: '14px', fontWeight: 500, margin: 0 }}>
+        {deleteLoading ? 'Deleting programme...' : rejectLoading ? 'Rejecting programme...' : !rejectComment ? 'Approving programme...' : 'Saving changes...'}
+      </p>
+    </div>
+  )
+}
+
+/* ─── MOBILE PROGRAMME CARDS ─────────────────────────────────────────────── */
+function MobileProgrammeCards({ filtered, onEdit, onDelete, onReview, onView }: {
+  filtered: Programme[]
+  onEdit: (p: Programme) => void
+  onDelete: (id: string) => void
+  onReview: (p: Programme) => void
+  onView: (id: string) => void
+}) {
+  if (filtered.length === 0) {
+    return <div style={{ textAlign: 'center', padding: '40px 16px', color: '#374151', fontSize: '13px' }}>No programmes found</div>
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {filtered.map(prog => {
+        const sc = getStatusConfig(prog.status)
+        const StatusIcon = sc.icon
+        const sd = prog.start_date ? new Date(prog.start_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' }) : '—'
+        const ed = prog.end_date   ? new Date(prog.end_date).toLocaleDateString('en-MY',   { day: 'numeric', month: 'short', year: '2-digit' }) : ''
+        return (
+          <div key={prog.id} style={{ background: '#0b1118', border: `1px solid rgba(245,158,11,0.08)`, borderRadius: '10px', padding: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <p style={{ margin: 0, fontWeight: 600, color: '#f1f5f9', fontSize: '13px', lineHeight: 1.3, flex: 1, marginRight: '8px' }}>{prog.name}</p>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 500, background: sc.bg, color: sc.color, padding: '3px 7px', borderRadius: '4px', flexShrink: 0 }}>
+                <StatusIcon size={10} />{prog.status || 'Pending'}
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+              {prog.category && (
+                <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: SA.accentBg, color: SA.accentText, fontWeight: 500 }}>{prog.category}</span>
+              )}
+              <span style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '10px', color: '#6b7280' }}>
+                <Calendar size={9} />{sd}{ed ? ` → ${ed}` : ''}
+              </span>
+              {prog.venue && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '10px', color: '#6b7280' }}>
+                  <MapPin size={9} />{prog.venue}
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: `1px solid rgba(245,158,11,0.06)`, paddingTop: '8px' }}>
+              <span style={{ fontSize: '12px', fontWeight: 500, color: SA.accentText }}>
+                {prog.budget ? `RM ${Number(prog.budget).toLocaleString('en-MY', { minimumFractionDigits: 2 })}` : '—'}
+              </span>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                {prog.status === 'Pending' && (
+                  <button onClick={() => onReview(prog)} style={{ background: SA.accentBg, border: `1px solid ${SA.accentBorder}`, borderRadius: '5px', padding: '5px 8px', cursor: 'pointer', color: SA.accentText, display: 'flex', alignItems: 'center', gap: '3px', fontSize: '10px', fontWeight: 500 }}>
+                    <Shield size={11} />Review
+                  </button>
+                )}
+                {prog.status !== 'Approved' && (
+                  <>
+                    <button onClick={() => onEdit(prog)} style={{ background: SA.accentBg, border: `1px solid ${SA.accentBorder}`, borderRadius: '5px', padding: '5px 7px', cursor: 'pointer', color: SA.accentText }}><Pencil size={12} /></button>
+                    <button onClick={() => onDelete(prog.id)} style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.12)', borderRadius: '5px', padding: '5px 7px', cursor: 'pointer', color: '#ef4444' }}><Trash size={12} /></button>
+                  </>
+                )}
+                <button onClick={() => onView(prog.id)} style={{ background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.15)', borderRadius: '5px', padding: '5px 7px', cursor: 'pointer', color: '#38bdf8' }}><Eye size={12} /></button>
+              </div>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ─── DESKTOP TABLE ──────────────────────────────────────────────────────── */
+function DesktopTable({ filtered, onEdit, onDelete, onReview, onView }: {
+  filtered: Programme[]
+  onEdit: (p: Programme) => void
+  onDelete: (id: string) => void
+  onReview: (p: Programme) => void
+  onView: (id: string) => void
+}) {
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+        <thead>
+          <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+            {['Programme', 'Category', 'Dates', 'Venue', 'Budget', 'Status', 'Actions'].map(h => (
+              <th key={h} style={{ padding: '11px 14px', textAlign: 'left', color: '#374151', fontWeight: 500, fontSize: '11px', letterSpacing: '0.04em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {filtered.length === 0 ? (
+            <tr><td colSpan={7} style={{ padding: '48px', textAlign: 'center', color: '#374151' }}><p style={{ margin: 0, fontSize: '13px' }}>No programmes found</p></td></tr>
+          ) : filtered.map((prog, i) => {
+            const sc = getStatusConfig(prog.status)
+            const StatusIcon = sc.icon
+            return (
+              <tr key={prog.id}
+                style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)', transition: 'background 0.1s' }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = SA.accentSoft}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)'}>
+                <td style={{ padding: '12px 14px', maxWidth: '200px' }}><p style={{ margin: 0, fontWeight: 500, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prog.name}</p></td>
+                <td style={{ padding: '12px 14px' }}><span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '5px', background: SA.accentBg, color: SA.accentText, fontWeight: 500 }}>{prog.category || '—'}</span></td>
+                <td style={{ padding: '12px 14px', color: '#6b7280', whiteSpace: 'nowrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px' }}>
+                    <Calendar size={11} />
+                    {prog.start_date ? new Date(prog.start_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' }) : '—'}
+                    {prog.end_date && <> → {new Date(prog.end_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: '2-digit' })}</>}
+                  </div>
+                </td>
+                <td style={{ padding: '12px 14px', color: '#6b7280', maxWidth: '140px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><MapPin size={11} />{prog.venue || '—'}</div>
+                </td>
+                <td style={{ padding: '12px 14px', color: '#e2e8f0', whiteSpace: 'nowrap' }}>{prog.budget ? `RM ${Number(prog.budget).toLocaleString('en-MY', { minimumFractionDigits: 2 })}` : '—'}</td>
+                <td style={{ padding: '12px 14px' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 500, background: sc.bg, color: sc.color, padding: '4px 9px', borderRadius: '5px' }}>
+                    <StatusIcon size={11} />{prog.status || 'Pending'}
+                  </span>
+                </td>
+                <td style={{ padding: '12px 14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    {prog.status === 'Pending' && (
+                      <button onClick={() => onReview(prog)} style={{ background: SA.accentBg, border: `1px solid ${SA.accentBorder}`, borderRadius: '6px', padding: '5px 10px', cursor: 'pointer', color: SA.accentText, display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 500 }}>
+                        <Shield size={12} />Review
+                      </button>
+                    )}
+                    {prog.status !== 'Approved' && (
+                      <>
+                        <button onClick={() => onEdit(prog)} style={{ background: SA.accentBg, border: `1px solid ${SA.accentBorder}`, borderRadius: '6px', padding: '5px 7px', cursor: 'pointer', color: SA.accentText }}><Pencil size={13} /></button>
+                        <button onClick={() => onDelete(prog.id)} style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.12)', borderRadius: '6px', padding: '5px 7px', cursor: 'pointer', color: '#ef4444' }}><Trash size={13} /></button>
+                      </>
+                    )}
+                    <button onClick={() => onView(prog.id)} style={{ background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.15)', borderRadius: '6px', padding: '5px 7px', cursor: 'pointer', color: '#38bdf8' }}><Eye size={13} /></button>
+                  </div>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MAIN COMPONENT
+═══════════════════════════════════════════════════════════════════════════ */
 export default function SuperAdminDashboard() {
   const router = useRouter()
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -47,6 +394,16 @@ export default function SuperAdminDashboard() {
   const [rejectLoading, setRejectLoading] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
+  // null = not yet measured — prevents desktop flash on mobile
+  const [isMobile, setIsMobile] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000)
     return () => clearInterval(timer)
@@ -58,17 +415,13 @@ export default function SuperAdminDashboard() {
       if (sessionError || !session) { router.replace('/login'); return }
 
       const { data: profileData, error: profileError } = await supabase
-        .from('users')
-        .select('id, full_name, roles(name)')
-        .eq('id', session.user.id)
-        .single()
+        .from('users').select('id, full_name, roles(name)').eq('id', session.user.id).single()
 
       if (profileError || !profileData) { setLoading(false); return }
 
       const role = (profileData.roles as any)?.name?.toLowerCase?.() ?? ''
       if (role !== 'superadmin') {
-        router.replace(role === 'admin' ? '/admin' : role === 'student' ? '/student' : '/login')
-        return
+        router.replace(role === 'admin' ? '/admin' : role === 'student' ? '/student' : '/login'); return
       }
 
       setProfile(profileData as any)
@@ -96,10 +449,7 @@ export default function SuperAdminDashboard() {
     return session?.access_token ?? null
   }
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.replace('/login')
-  }
+  const handleLogout = async () => { await supabase.auth.signOut(); router.replace('/login') }
 
   const handleEdit = (prog: Programme) => {
     setEditForm({ ...prog, start_date: prog.start_date?.slice(0, 10), end_date: prog.end_date?.slice(0, 10) })
@@ -135,17 +485,11 @@ export default function SuperAdminDashboard() {
     const token = await getToken()
     if (!token) return
     setActionLoading(true)
-    const res = await fetch(`/api/programmes/${reviewProg.id}/approve`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    const res = await fetch(`/api/programmes/${reviewProg.id}/approve`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
     if (res.ok) {
       setProgrammes(prev => prev.map(p => p.id === reviewProg.id ? { ...p, status: 'Approved' } : p))
       setReviewProg(null)
-    } else {
-      const data = await res.json()
-      alert(data.error ?? 'Failed to approve programme.')
-    }
+    } else { const d = await res.json(); alert(d.error ?? 'Failed to approve.') }
     setActionLoading(false)
   }
 
@@ -162,39 +506,24 @@ export default function SuperAdminDashboard() {
     })
     if (res.ok) {
       setProgrammes(prev => prev.map(p => p.id === reviewProg.id ? { ...p, status: 'Rejected' } : p))
-      setReviewProg(null)
-      setRejectComment('')
-    } else {
-      const data = await res.json()
-      alert(data.error ?? 'Failed to reject programme.')
-    }
+      setReviewProg(null); setRejectComment('')
+    } else { const d = await res.json(); alert(d.error ?? 'Failed to reject.') }
     setRejectLoading(false)
   }
 
-  const getInitials = (name: string) => name?.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'SA'
-
   const stats = {
-    total: programmes.length,
-    pending: programmes.filter(p => p.status === 'Pending').length,
-    approved: programmes.filter(p => p.status === 'Approved').length,
-    rejected: programmes.filter(p => p.status === 'Rejected').length,
+    total:       programmes.length,
+    pending:     programmes.filter(p => p.status === 'Pending').length,
+    approved:    programmes.filter(p => p.status === 'Approved').length,
+    rejected:    programmes.filter(p => p.status === 'Rejected').length,
     totalBudget: programmes.filter(p => p.status !== 'Rejected').reduce((sum, p) => sum + (Number(p.budget) || 0), 0),
   }
 
   const filtered = programmes.filter(p => {
     const q = searchQuery.toLowerCase()
-    const matchSearch = p.name?.toLowerCase().includes(q) || p.category?.toLowerCase().includes(q) || p.venue?.toLowerCase().includes(q)
-    return matchSearch && (filterStatus === 'All' || p.status === filterStatus)
+    return (p.name?.toLowerCase().includes(q) || p.category?.toLowerCase().includes(q) || p.venue?.toLowerCase().includes(q))
+      && (filterStatus === 'All' || p.status === filterStatus)
   })
-
-  const getStatusConfig = (status: string) => {
-    switch (status) {
-      case 'Approved': return { bg: 'rgba(16,185,129,0.12)',  color: '#10b981', icon: CheckCircle }
-      case 'Rejected': return { bg: 'rgba(239,68,68,0.12)',   color: '#ef4444', icon: XCircle }
-      case 'Pending':  return { bg: 'rgba(245,158,11,0.12)',  color: '#f59e0b', icon: AlertCircle }
-      default:         return { bg: 'rgba(148,163,184,0.12)', color: '#94a3b8', icon: Clock }
-    }
-  }
 
   const navItems: { id: NavItem; icon: React.ElementType; label: string; path: string }[] = [
     { id: 'dashboard',     icon: LayoutDashboard, label: 'Dashboard',      path: '/superadmin' },
@@ -204,6 +533,20 @@ export default function SuperAdminDashboard() {
     { id: 'settings',      icon: Settings,         label: 'Settings',       path: '/profile' },
   ]
 
+  const handleNavClick = (item: typeof navItems[0]) => {
+    setActiveNav(item.id)
+    router.push(item.path)
+  }
+
+  const tableProps = {
+    filtered,
+    onEdit:   handleEdit,
+    onDelete: handleDelete,
+    onReview: (p: Programme) => { setReviewProg(p); setRejectComment('') },
+    onView:   (id: string) => router.push(`/programmes/${id}`),
+  }
+
+  /* ── Loading ── */
   if (loading) return (
     <div style={{ minHeight: '100vh', background: '#080f1a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '16px' }}>
       <div style={{ width: '44px', height: '44px', borderRadius: '50%', border: `3px solid ${SA.accentBg}`, borderTopColor: SA.accent, animation: 'spin 0.8s linear infinite' }} />
@@ -212,13 +555,151 @@ export default function SuperAdminDashboard() {
     </div>
   )
 
+  /* ── Wait for viewport measurement ── */
+  if (isMobile === null) return <div style={{ minHeight: '100vh', background: '#080f1a' }} />
+
+  /* ══════════════════════════════════════════════════════
+     MOBILE LAYOUT
+  ══════════════════════════════════════════════════════ */
+  if (isMobile) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#080f1a', color: '#e2e8f0', fontFamily: "'Inter', -apple-system, sans-serif", paddingBottom: '70px' }}>
+        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+
+        {/* Sticky top bar */}
+        <div style={{ background: '#0b1118', borderBottom: `1px solid rgba(245,158,11,0.08)`, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: SA.gradientLogo, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+              <Shield size={12} color="white" />
+              <Crown size={7} color="#fef3c7" style={{ position: 'absolute', top: '-3px', right: '-3px' }} />
+            </div>
+            <div>
+              <p style={{ fontWeight: 700, fontSize: '13px', margin: 0, color: '#f1f5f9', letterSpacing: '-0.02em' }}>UTM-SPMS</p>
+              <p style={{ fontSize: '9px', color: SA.accent, margin: 0, fontWeight: 600, letterSpacing: '0.06em' }}>SUPERADMIN</p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button style={{ position: 'relative', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '8px', width: '34px', height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280' }}>
+              <Bell size={14} />
+              {stats.pending > 0 && <span style={{ position: 'absolute', top: '7px', right: '7px', width: '6px', height: '6px', borderRadius: '50%', background: SA.accent, border: '1.5px solid #080f1a' }} />}
+            </button>
+            <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: SA.gradientLogo, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 600, color: 'white' }}>
+              {getInitials(profile?.full_name || '')}
+            </div>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div style={{ padding: '16px' }}>
+
+          {/* Header */}
+          <div style={{ marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '2px' }}>
+              <h1 style={{ fontSize: '17px', fontWeight: 700, margin: 0, letterSpacing: '-0.02em', color: '#f8fafc' }}>Superadmin Dashboard</h1>
+              <span style={{ fontSize: '9px', fontWeight: 600, background: SA.accentBg, color: SA.accentText, border: `1px solid ${SA.accentBorder}`, padding: '2px 6px', borderRadius: '20px', letterSpacing: '0.06em', flexShrink: 0 }}>ELEVATED</span>
+            </div>
+            <p style={{ fontSize: '11px', color: '#4b5563', margin: 0 }}>
+              {currentTime.toLocaleDateString('en-MY', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </p>
+          </div>
+
+          <StatCards stats={stats} userCount={userCount} adminCount={adminCount} isMobile={true} />
+          <BudgetBanner stats={stats} isMobile={true} />
+
+          {/* Superadmin quick-access cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
+            {[
+              { icon: CirclePlus,     label: 'Create Admin',   desc: 'Register new admin', path: '/superadmin/create-admin' },
+              { icon: ArrowRightLeft, label: 'Exchange Admin',  desc: 'Transfer privileges', path: '/superadmin/exchange-admin' },
+            ].map((item, i) => {
+              const Icon = item.icon
+              return (
+                <button key={i} onClick={() => router.push(item.path)}
+                  style={{ background: '#0b1118', border: `1px solid ${SA.accentBorder}`, borderRadius: '10px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '6px', cursor: 'pointer', textAlign: 'left' }}>
+                  <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: SA.accentBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Icon size={14} color={SA.accentText} />
+                  </div>
+                  <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: '#f1f5f9' }}>{item.label}</p>
+                  <p style={{ margin: 0, fontSize: '10px', color: '#4b5563' }}>{item.desc}</p>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Programme section */}
+          <div style={{ background: '#0b1118', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', overflow: 'hidden' }}>
+            <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Activity size={13} color={SA.accent} />Programme Management
+                  </h2>
+                  <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#4b5563' }}>{filtered.length} of {programmes.length} programmes</p>
+                </div>
+                <button onClick={() => router.push('/create-programme-form')}
+                  style={{ display: 'flex', alignItems: 'center', gap: '5px', background: SA.gradientBtn, border: 'none', borderRadius: '7px', padding: '7px 12px', color: 'white', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}>
+                  <CirclePlus size={12} />New
+                </button>
+              </div>
+              <div style={{ position: 'relative', marginBottom: '8px' }}>
+                <Search size={12} style={{ position: 'absolute', left: '9px', top: '50%', transform: 'translateY(-50%)', color: '#4b5563' }} />
+                <input type="text" placeholder="Search programmes..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                  style={{ width: '100%', padding: '8px 10px 8px 28px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '7px', color: '#e2e8f0', fontSize: '12px', outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ display: 'flex', gap: '4px', overflowX: 'auto', paddingBottom: '2px' }}>
+                {(['All', 'Pending', 'Approved', 'Rejected'] as const).map(s => (
+                  <button key={s} onClick={() => setFilterStatus(s)}
+                    style={{ padding: '5px 10px', borderRadius: '5px', border: 'none', cursor: 'pointer', fontSize: '10px', fontWeight: 500, whiteSpace: 'nowrap', flexShrink: 0, background: filterStatus === s ? SA.accentBg : 'rgba(255,255,255,0.04)', color: filterStatus === s ? SA.accentText : '#6b7280' }}>
+                    {s}{s !== 'All' && ` (${s === 'Pending' ? stats.pending : s === 'Approved' ? stats.approved : stats.rejected})`}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ padding: '12px' }}>
+              <MobileProgrammeCards {...tableProps} />
+            </div>
+          </div>
+        </div>
+
+        {/* Fixed bottom tab bar */}
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#0b1118', borderTop: `1px solid rgba(245,158,11,0.08)`, display: 'flex', zIndex: 20 }}>
+          {navItems.map(item => {
+            const Icon = item.icon
+            const isActive = activeNav === item.id
+            return (
+              <button key={item.id} onClick={() => handleNavClick(item)}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px 4px', cursor: 'pointer', gap: '3px', border: 'none', background: 'transparent' }}>
+                <Icon size={15} color={isActive ? SA.accentText : '#4b5563'} />
+                <span style={{ fontSize: '8px', fontWeight: 500, color: isActive ? SA.accentText : '#4b5563', textAlign: 'center', lineHeight: 1.1 }}>{item.label}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        <EditModal
+          show={showEditModal} isMobile={true} editForm={editForm} actionLoading={actionLoading}
+          onClose={() => setShowEditModal(false)} onChange={setEditForm} onUpdate={handleUpdate}
+        />
+        <ReviewModal
+          prog={reviewProg} isMobile={true} rejectComment={rejectComment}
+          actionLoading={actionLoading} rejectLoading={rejectLoading}
+          onClose={() => { setReviewProg(null); setRejectComment('') }}
+          onCommentChange={setRejectComment} onApprove={handleApprove} onReject={handleReject}
+        />
+        <LoadingOverlay actionLoading={actionLoading} rejectLoading={rejectLoading} deleteLoading={deleteLoading} rejectComment={rejectComment} />
+      </div>
+    )
+  }
+
+  /* ══════════════════════════════════════════════════════
+     DESKTOP LAYOUT  (unchanged from original)
+  ══════════════════════════════════════════════════════ */
   return (
     <div style={{ minHeight: '100vh', background: '#080f1a', display: 'flex', fontFamily: "'Inter', -apple-system, sans-serif", color: '#e2e8f0' }}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
 
-      {/* ── SIDEBAR ── */}
+      {/* SIDEBAR */}
       <aside style={{ width: '220px', background: '#0b1118', borderRight: `1px solid rgba(245,158,11,0.07)`, display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 20 }}>
-
-        {/* Logo */}
         <div style={{ padding: '24px 20px', borderBottom: `1px solid rgba(245,158,11,0.07)` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: '34px', height: '34px', borderRadius: '9px', background: SA.gradientLogo, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
@@ -231,28 +712,24 @@ export default function SuperAdminDashboard() {
             </div>
           </div>
         </div>
-
-        {/* Nav */}
         <nav style={{ padding: '14px 10px', flex: 1 }}>
           <p style={{ fontSize: '9px', fontWeight: 600, color: '#374151', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0 10px', marginBottom: '6px' }}>Navigation</p>
           {navItems.slice(0, 2).map(item => {
             const Icon = item.icon; const isActive = activeNav === item.id
             return (
-              <button key={item.id} onClick={() => { setActiveNav(item.id); router.push(item.path) }}
+              <button key={item.id} onClick={() => handleNavClick(item)}
                 style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: isActive ? SA.accentBg : 'transparent', color: isActive ? SA.accentText : '#6b7280', fontSize: '13px', fontWeight: isActive ? 500 : 400, marginBottom: '2px', textAlign: 'left', transition: 'all 0.12s' }}>
                 <Icon size={15} />{item.label}
                 {isActive && <div style={{ marginLeft: 'auto', width: '4px', height: '4px', borderRadius: '50%', background: SA.accent }} />}
               </button>
             )
           })}
-
-          {/* Superadmin-exclusive section */}
           <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: `1px solid rgba(245,158,11,0.07)` }}>
             <p style={{ fontSize: '9px', fontWeight: 600, color: SA.accent, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0 10px', marginBottom: '6px', opacity: 0.6 }}>Superadmin Only</p>
             {navItems.slice(2, 4).map(item => {
               const Icon = item.icon; const isActive = activeNav === item.id
               return (
-                <button key={item.id} onClick={() => { setActiveNav(item.id); router.push(item.path) }}
+                <button key={item.id} onClick={() => handleNavClick(item)}
                   style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: isActive ? SA.accentBg : 'transparent', color: isActive ? SA.accentText : '#6b7280', fontSize: '13px', fontWeight: isActive ? 500 : 400, marginBottom: '2px', textAlign: 'left', transition: 'all 0.12s' }}>
                   <Icon size={15} />{item.label}
                   {isActive && <div style={{ marginLeft: 'auto', width: '4px', height: '4px', borderRadius: '50%', background: SA.accent }} />}
@@ -260,13 +737,11 @@ export default function SuperAdminDashboard() {
               )
             })}
           </div>
-
-          {/* Settings + Quick Actions */}
           <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
             {navItems.slice(4).map(item => {
               const Icon = item.icon; const isActive = activeNav === item.id
               return (
-                <button key={item.id} onClick={() => { setActiveNav(item.id); router.push(item.path) }}
+                <button key={item.id} onClick={() => handleNavClick(item)}
                   style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: isActive ? SA.accentBg : 'transparent', color: isActive ? SA.accentText : '#6b7280', fontSize: '13px', fontWeight: isActive ? 500 : 400, marginBottom: '2px', textAlign: 'left', transition: 'all 0.12s' }}>
                   <Icon size={15} />{item.label}
                   {isActive && <div style={{ marginLeft: 'auto', width: '4px', height: '4px', borderRadius: '50%', background: SA.accent }} />}
@@ -274,7 +749,6 @@ export default function SuperAdminDashboard() {
               )
             })}
           </div>
-
           <div style={{ marginTop: '12px' }}>
             <button onClick={() => router.push('/superadmin/create-admin')}
               style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: SA.accentSoft, color: SA.accentText, fontSize: '13px', fontWeight: 500, textAlign: 'left' }}>
@@ -282,8 +756,6 @@ export default function SuperAdminDashboard() {
             </button>
           </div>
         </nav>
-
-        {/* User footer */}
         <div style={{ padding: '14px', borderTop: `1px solid rgba(245,158,11,0.07)` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '9px', borderRadius: '9px', background: SA.accentSoft }}>
             <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: SA.gradientLogo, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 600, color: 'white', flexShrink: 0 }}>
@@ -300,10 +772,8 @@ export default function SuperAdminDashboard() {
         </div>
       </aside>
 
-      {/* ── MAIN ── */}
+      {/* MAIN */}
       <main style={{ flex: 1, marginLeft: '220px', padding: '28px 32px', overflowX: 'hidden' }}>
-
-        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
@@ -324,50 +794,10 @@ export default function SuperAdminDashboard() {
           </div>
         </div>
 
-        {/* STAT CARDS — 6 columns (admin has 5, superadmin adds Admins count) */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '12px', marginBottom: '28px' }}>
-          {[
-            { label: 'Total Programmes', value: stats.total,    icon: BookOpen,    color: SA.accentText,  bg: SA.accentBg, border: SA.accentBorder },
-            { label: 'Pending Review',   value: stats.pending,  icon: AlertCircle, color: '#fb923c',      bg: 'rgba(251,146,60,0.1)',  border: 'rgba(251,146,60,0.15)' },
-            { label: 'Approved',         value: stats.approved, icon: CheckCircle, color: '#10b981',      bg: 'rgba(16,185,129,0.1)',  border: 'rgba(16,185,129,0.15)' },
-            { label: 'Rejected',         value: stats.rejected, icon: XCircle,     color: '#ef4444',      bg: 'rgba(239,68,68,0.1)',   border: 'rgba(239,68,68,0.15)' },
-            { label: 'Total Users',      value: userCount,      icon: Users,       color: '#38bdf8',      bg: 'rgba(56,189,248,0.1)',  border: 'rgba(56,189,248,0.15)' },
-            { label: 'Admins',           value: adminCount,     icon: Crown,       color: SA.accentText,  bg: SA.accentBg, border: SA.accentBorder },
-          ].map((card, i) => { const Icon = card.icon; return (
-            <div key={i} style={{ background: '#0b1118', border: `1px solid ${card.border}`, borderRadius: '12px', padding: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                <div style={{ width: '34px', height: '34px', borderRadius: '9px', background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon size={16} color={card.color} /></div>
-                <TrendingUp size={12} color="#374151" />
-              </div>
-              <p style={{ margin: 0, fontSize: '24px', fontWeight: 700, color: '#f1f5f9', letterSpacing: '-0.03em' }}>{card.value}</p>
-              <p style={{ margin: '3px 0 0', fontSize: '11px', color: '#4b5563' }}>{card.label}</p>
-            </div>
-          )})}
-        </div>
+        <StatCards stats={stats} userCount={userCount} adminCount={adminCount} isMobile={false} />
+        <BudgetBanner stats={stats} isMobile={false} />
 
-        {/* BUDGET BANNER */}
-        <div style={{ background: `linear-gradient(135deg, rgba(180,83,9,0.12), rgba(217,119,6,0.05))`, border: `1px solid ${SA.accentBorder}`, borderRadius: '12px', padding: '16px 20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: SA.accentBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <DollarSign size={18} color={SA.accentText} />
-          </div>
-          <div>
-            <p style={{ margin: 0, fontSize: '11px', color: '#6b7280' }}>Total Budget (Approved & Pending Only)</p>
-            <p style={{ margin: '2px 0 0', fontSize: '22px', fontWeight: 700, color: SA.accentText, letterSpacing: '-0.03em' }}>RM {stats.totalBudget.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-          </div>
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: '24px' }}>
-            {[
-              { label: 'Avg per programme', value: stats.total > 0 ? `RM ${Math.round(stats.totalBudget / stats.total).toLocaleString()}` : 'RM 0' },
-              { label: 'Approval rate',     value: stats.total > 0 ? `${Math.round((stats.approved / stats.total) * 100)}%` : '0%' },
-            ].map((kpi, i) => (
-              <div key={i} style={{ textAlign: 'right' }}>
-                <p style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#fcd34d' }}>{kpi.value}</p>
-                <p style={{ margin: '1px 0 0', fontSize: '11px', color: '#4b5563' }}>{kpi.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* SUPERADMIN QUICK-ACCESS CARDS */}
+        {/* Superadmin quick-access cards */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
           {[
             { icon: CirclePlus, label: 'Create Admin', desc: 'Register a new admin account', path: '/superadmin/create-admin' },
@@ -414,182 +844,21 @@ export default function SuperAdminDashboard() {
               </div>
             </div>
           </div>
-
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                  {['Programme', 'Category', 'Dates', 'Venue', 'Budget', 'Status', 'Actions'].map(h => (
-                    <th key={h} style={{ padding: '11px 14px', textAlign: 'left', color: '#374151', fontWeight: 500, fontSize: '11px', letterSpacing: '0.04em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0 ? (
-                  <tr><td colSpan={7} style={{ padding: '48px', textAlign: 'center', color: '#374151' }}><p style={{ margin: 0, fontSize: '13px' }}>No programmes found</p></td></tr>
-                ) : filtered.map((prog, i) => {
-                  const sc = getStatusConfig(prog.status); const StatusIcon = sc.icon
-                  return (
-                    <tr key={prog.id}
-                      style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)', transition: 'background 0.1s' }}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = SA.accentSoft}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)'}
-                    >
-                      <td style={{ padding: '12px 14px', maxWidth: '200px' }}><p style={{ margin: 0, fontWeight: 500, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prog.name}</p></td>
-                      <td style={{ padding: '12px 14px' }}><span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '5px', background: SA.accentBg, color: SA.accentText, fontWeight: 500 }}>{prog.category || '—'}</span></td>
-                      <td style={{ padding: '12px 14px', color: '#6b7280', whiteSpace: 'nowrap' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px' }}>
-                          <Calendar size={11} />
-                          {prog.start_date ? new Date(prog.start_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' }) : '—'}
-                          {prog.end_date && <> → {new Date(prog.end_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: '2-digit' })}</>}
-                        </div>
-                      </td>
-                      <td style={{ padding: '12px 14px', color: '#6b7280', maxWidth: '140px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><MapPin size={11} />{prog.venue || '—'}</div>
-                      </td>
-                      <td style={{ padding: '12px 14px', color: '#e2e8f0', whiteSpace: 'nowrap' }}>{prog.budget ? `RM ${Number(prog.budget).toLocaleString('en-MY', { minimumFractionDigits: 2 })}` : '—'}</td>
-                      <td style={{ padding: '12px 14px' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 500, background: sc.bg, color: sc.color, padding: '4px 9px', borderRadius: '5px' }}>
-                          <StatusIcon size={11} />{prog.status || 'Pending'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 14px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                          {prog.status === 'Pending' && (
-                            <button onClick={() => { setReviewProg(prog); setRejectComment('') }}
-                              style={{ background: SA.accentBg, border: `1px solid ${SA.accentBorder}`, borderRadius: '6px', padding: '5px 10px', cursor: 'pointer', color: SA.accentText, display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 500 }}>
-                              <Shield size={12} />Review
-                            </button>
-                          )}
-                          {prog.status !== 'Approved' && (
-                            <>
-                              <button onClick={() => handleEdit(prog)} style={{ background: SA.accentBg, border: `1px solid ${SA.accentBorder}`, borderRadius: '6px', padding: '5px 7px', cursor: 'pointer', color: SA.accentText }}><Pencil size={13} /></button>
-                              <button onClick={() => handleDelete(prog.id)} style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.12)', borderRadius: '6px', padding: '5px 7px', cursor: 'pointer', color: '#ef4444' }}><Trash size={13} /></button>
-                              <button onClick={() => router.push(`/programmes/${prog.id}`)} style={{ background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.15)', borderRadius: '6px', padding: '5px 7px', cursor: 'pointer', color: '#38bdf8' }}><Eye size={13} /></button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+          <DesktopTable {...tableProps} />
         </div>
       </main>
 
-      {/* ── EDIT MODAL ── */}
-      {showEditModal && (
-        <div onClick={e => { if (e.target === e.currentTarget) setShowEditModal(false) }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-          <div style={{ background: '#0f1a24', border: `1px solid ${SA.accentBorder}`, borderRadius: '14px', padding: '28px', width: '100%', maxWidth: '540px', margin: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
-              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: '8px' }}><Pencil size={15} color={SA.accentText} />Edit Programme</h2>
-              <button onClick={() => setShowEditModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280' }}><CircleX size={18} /></button>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-              {[
-                { label: 'Programme Name', name: 'name',       type: 'text',   span: 2 },
-                { label: 'Venue',          name: 'venue',      type: 'text',   span: 2 },
-                { label: 'Budget (RM)',    name: 'budget',     type: 'number', span: 1 },
-                { label: 'Start Date',     name: 'start_date', type: 'date',   span: 1 },
-                { label: 'End Date',       name: 'end_date',   type: 'date',   span: 1 },
-              ].map(field => (
-                <div key={field.name} style={{ gridColumn: `span ${field.span}` }}>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>{field.label}</label>
-                  <input type={field.type} value={(editForm as any)[field.name] || ''} onChange={e => setEditForm({ ...editForm, [field.name]: e.target.value })}
-                    style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
-                </div>
-              ))}
-              <div>
-                <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Category</label>
-                <select value={editForm.category || ''} onChange={e => setEditForm({ ...editForm, category: e.target.value })}
-                  style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: '#0b1118', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none' }}>
-                  {['Academic', 'Sports', 'Community Service', 'Others'].map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '10px', marginTop: '22px' }}>
-              <button onClick={() => setShowEditModal(false)} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: '#6b7280', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                <CircleX size={14} />Cancel
-              </button>
-              <button onClick={handleUpdate} disabled={actionLoading}
-                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: SA.gradientBtn, color: 'white', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: actionLoading ? 0.7 : 1 }}>
-                <Save size={14} />{actionLoading ? 'Saving...' : 'Save Changes'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── REVIEW MODAL ── */}
-      {reviewProg && (
-        <div onClick={e => { if (e.target === e.currentTarget) { setReviewProg(null); setRejectComment('') } }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, backdropFilter: 'blur(4px)' }}>
-          <div style={{ background: '#0f1a24', border: `1px solid ${SA.accentBorder}`, borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '560px', margin: '16px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
-              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Shield size={15} color={SA.accentText} />Review Programme
-              </h2>
-              <button onClick={() => { setReviewProg(null); setRejectComment('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280' }}><CircleX size={18} /></button>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
-              {[
-                { label: 'Programme Name', value: reviewProg.name, span: 2 },
-                { label: 'Category', value: reviewProg.category || '—', span: 1 },
-                { label: 'Venue', value: reviewProg.venue || '—', span: 1 },
-                { label: 'Start Date', value: reviewProg.start_date ? new Date(reviewProg.start_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' }) : '—', span: 1 },
-                { label: 'End Date', value: reviewProg.end_date ? new Date(reviewProg.end_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' }) : '—', span: 1 },
-                { label: 'Budget', value: reviewProg.budget ? `RM ${Number(reviewProg.budget).toLocaleString('en-MY', { minimumFractionDigits: 2 })}` : '—', span: 1 },
-                { label: 'Submitted', value: reviewProg.created_at ? new Date(reviewProg.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }) : '—', span: 1 },
-              ].map(f => (
-                <div key={f.label} style={{ gridColumn: `span ${f.span}`, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '10px 13px' }}>
-                  <p style={{ margin: 0, fontSize: '10px', color: '#6b7280', fontWeight: 500, marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{f.label}</p>
-                  <p style={{ margin: 0, fontSize: '13px', color: '#e2e8f0', fontWeight: 500 }}>{f.value}</p>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', marginBottom: '20px' }} />
-
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', fontWeight: 500, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Rejection Comment <span style={{ color: '#ef4444' }}>*</span>
-                <span style={{ color: '#374151', fontWeight: 400, textTransform: 'none', letterSpacing: 0, marginLeft: '6px' }}>(required only when rejecting)</span>
-              </label>
-              <textarea value={rejectComment} onChange={e => setRejectComment(e.target.value)}
-                placeholder="Explain why this programme is being rejected so the director can revise and resubmit..."
-                rows={3}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${rejectComment.trim() ? 'rgba(239,68,68,0.35)' : 'rgba(255,255,255,0.08)'}`, color: '#e2e8f0', fontSize: '13px', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.6 }} />
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={() => { setReviewProg(null); setRejectComment('') }} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: '#6b7280', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                <CircleX size={14} />Cancel
-              </button>
-              <button onClick={handleReject} disabled={rejectLoading || !rejectComment.trim()}
-                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: rejectComment.trim() ? 'rgba(239,68,68,0.85)' : 'rgba(239,68,68,0.25)', color: 'white', fontSize: '13px', fontWeight: 500, cursor: rejectComment.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: rejectLoading ? 0.7 : 1 }}>
-                <XCircle size={14} />{rejectLoading ? 'Rejecting...' : 'Reject'}
-              </button>
-              <button onClick={handleApprove} disabled={actionLoading}
-                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #059669, #10b981)', color: 'white', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: actionLoading ? 0.7 : 1 }}>
-                <CheckCircle size={14} />{actionLoading ? 'Approving...' : 'Approve'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── LOADING OVERLAY ── */}
-      {(actionLoading || rejectLoading || deleteLoading) && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,10,20,0.75)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 100, backdropFilter: 'blur(6px)', gap: '16px' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '50%', border: `3px solid ${SA.accentBg}`, borderTopColor: SA.accent, animation: 'spin 0.75s linear infinite' }} />
-          <p style={{ color: SA.accentText, fontSize: '14px', fontWeight: 500, margin: 0 }}>
-            {deleteLoading ? 'Deleting programme...' : rejectLoading ? 'Rejecting programme...' : rejectComment === '' ? 'Approving programme...' : 'Saving changes...'}
-          </p>
-          <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-        </div>
-      )}
+      <EditModal
+        show={showEditModal} isMobile={false} editForm={editForm} actionLoading={actionLoading}
+        onClose={() => setShowEditModal(false)} onChange={setEditForm} onUpdate={handleUpdate}
+      />
+      <ReviewModal
+        prog={reviewProg} isMobile={false} rejectComment={rejectComment}
+        actionLoading={actionLoading} rejectLoading={rejectLoading}
+        onClose={() => { setReviewProg(null); setRejectComment('') }}
+        onCommentChange={setRejectComment} onApprove={handleApprove} onReject={handleReject}
+      />
+      <LoadingOverlay actionLoading={actionLoading} rejectLoading={rejectLoading} deleteLoading={deleteLoading} rejectComment={rejectComment} />
     </div>
   )
 }

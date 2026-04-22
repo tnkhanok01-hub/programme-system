@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation"
 import { supabase } from "../../lib/supabaseClient"
 import {
   Pencil, Trash, CirclePlus, ArrowLeft, Upload,
-  Eye, Download, X, FileText, ChevronDown, ChevronUp, Clock
+  Eye, Download, X, FileText, ChevronDown, ChevronUp, Clock, MapPin, Calendar
 } from "lucide-react"
 
 function getLifecycle(start_date: string | null, end_date: string | null) {
@@ -30,6 +30,162 @@ const statusConfig: Record<string, { color: string; bg: string }> = {
   Rejected: { color: "#f87171", bg: "rgba(248,113,113,0.12)" },
 }
 
+/* ─── MOBILE PROGRAMME CARD ──────────────────────────────────────────────── */
+function MobileProgrammeCard({
+  p, idx, documents, openDocsId, selectedProgrammeId, file, uploadLoading,
+  onToggleDocs, onToggleUpload, onFileChange, onUpload, onDelete, onPreview,
+}: {
+  p: any; idx: number; documents: any[]
+  openDocsId: string | null; selectedProgrammeId: string | null
+  file: File | null; uploadLoading: boolean
+  onToggleDocs: (id: string) => void
+  onToggleUpload: (id: string) => void
+  onFileChange: (f: File | null) => void
+  onUpload: (id: string) => void
+  onDelete: (id: string) => void
+  onPreview: (f: any) => void
+}) {
+  const lifecycle = getLifecycle(p.start_date, p.end_date)
+  const lc = lifecycleConfig[lifecycle] || lifecycleConfig["N/A"]
+  const sc = statusConfig[p.status] || { color: "#94a3b8", bg: "rgba(148,163,184,0.12)" }
+  const programmeFiles = documents.filter(d => d.programme_id === p.id)
+  const isDocsOpen = openDocsId === p.id
+  const isUploadOpen = selectedProgrammeId === p.id
+
+  return (
+    <div style={{ background: "#0c1526", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "12px", overflow: "hidden" }}>
+      {/* Card header */}
+      <div style={{ padding: "14px" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "8px" }}>
+          <div style={{ flex: 1, minWidth: 0, marginRight: "10px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+              <span style={{ fontSize: "10px", color: "#334155" }}>#{idx + 1}</span>
+              <span style={{ fontSize: "10px", fontFamily: "'DM Mono', monospace", color: "#475569" }}>{p.category || ""}</span>
+            </div>
+            <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#f1f5f9", lineHeight: 1.3 }}>{p.name}</h3>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "5px", flexShrink: 0 }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "3px 8px", borderRadius: "20px", fontSize: "11px", fontWeight: 600, background: sc.bg, color: sc.color }}>
+              <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: sc.color }} />
+              {p.status ?? "—"}
+            </span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "3px 8px", borderRadius: "20px", fontSize: "11px", fontWeight: 600, background: lc.bg, color: lc.color }}>
+              <Clock size={9} />{lifecycle}
+            </span>
+          </div>
+        </div>
+
+        {/* Meta row */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "10px" }}>
+          {p.venue && (
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "#64748b" }}>
+              <MapPin size={10} />{p.venue}
+            </span>
+          )}
+          {(p.start_date || p.end_date) && (
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "#64748b", fontFamily: "'DM Mono', monospace" }}>
+              <Calendar size={10} />{p.start_date ?? "—"} → {p.end_date ?? "—"}
+            </span>
+          )}
+          {p.budget != null && (
+            <span style={{ fontSize: "11px", color: "#64748b", fontFamily: "'DM Mono', monospace" }}>
+              RM {Number(p.budget).toLocaleString()}
+            </span>
+          )}
+        </div>
+
+        {/* Action buttons */}
+        <div style={{ display: "flex", gap: "6px" }}>
+          <button
+            onClick={() => onToggleDocs(p.id)}
+            style={{ display: "flex", alignItems: "center", gap: "4px", padding: "6px 10px", borderRadius: "6px", border: `1px solid ${isDocsOpen ? "rgba(99,102,241,0.3)" : "rgba(255,255,255,0.07)"}`, background: isDocsOpen ? "rgba(99,102,241,0.15)" : "rgba(255,255,255,0.04)", color: isDocsOpen ? "#818cf8" : "#64748b", fontSize: "12px", fontWeight: 500, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+            <FileText size={12} />{programmeFiles.length} {isDocsOpen ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+          </button>
+          <button
+            onClick={() => onToggleUpload(p.id)}
+            style={{ display: "flex", alignItems: "center", gap: "4px", padding: "6px 10px", borderRadius: "6px", border: `1px solid ${isUploadOpen ? "rgba(52,211,153,0.25)" : "rgba(255,255,255,0.07)"}`, background: isUploadOpen ? "rgba(52,211,153,0.15)" : "rgba(255,255,255,0.04)", color: isUploadOpen ? "#34d399" : "#64748b", fontSize: "12px", fontWeight: 500, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+            <Upload size={12} />Upload
+          </button>
+          <button
+            style={{ display: "flex", alignItems: "center", gap: "4px", padding: "6px 10px", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.04)", color: "#64748b", fontSize: "12px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+            <Pencil size={12} />
+          </button>
+          <button
+            onClick={() => onDelete(p.id)}
+            style={{ display: "flex", alignItems: "center", gap: "4px", padding: "6px 10px", borderRadius: "6px", border: "1px solid rgba(248,113,113,0.15)", background: "rgba(248,113,113,0.08)", color: "#f87171", fontSize: "12px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+            <Trash size={12} />
+          </button>
+        </div>
+      </div>
+
+      {/* Upload expand */}
+      {isUploadOpen && (
+        <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "12px 14px", background: "rgba(0,0,0,0.2)", borderLeft: "3px solid rgba(52,211,153,0.3)" }}>
+          <p style={{ fontSize: "10px", fontWeight: 600, color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "8px" }}>Upload Document</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <input type="file" onChange={e => onFileChange(e.target.files?.[0] || null)}
+              style={{ color: "#94a3b8", fontSize: "12px", fontFamily: "'DM Sans', sans-serif" }} />
+            <button
+              onClick={() => onUpload(p.id)}
+              disabled={uploadLoading || !file}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", background: file ? "linear-gradient(135deg,#059669,#10b981)" : "rgba(255,255,255,0.05)", color: file ? "white" : "#475569", border: "none", borderRadius: "7px", padding: "9px", fontSize: "13px", fontWeight: 600, cursor: file ? "pointer" : "not-allowed", fontFamily: "'DM Sans', sans-serif" }}>
+              <Upload size={13} />{uploadLoading ? "Uploading..." : "Upload"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Docs expand */}
+      {isDocsOpen && (
+        <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "12px 14px", background: "rgba(0,0,0,0.2)", borderLeft: "3px solid rgba(99,102,241,0.3)" }}>
+          <p style={{ fontSize: "10px", fontWeight: 600, color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "8px" }}>
+            Documents ({programmeFiles.length})
+          </p>
+          {programmeFiles.length === 0 ? (
+            <p style={{ color: "#334155", fontSize: "13px" }}>No documents uploaded yet.</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              {programmeFiles.map(f => (
+                <div key={f.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", borderRadius: "7px", background: "rgba(255,255,255,0.03)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
+                    <div style={{ width: "28px", height: "28px", borderRadius: "6px", background: "rgba(99,102,241,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <FileText size={13} color="#818cf8" />
+                    </div>
+                    <span style={{ fontSize: "12px", color: "#cbd5e1", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "140px" }}>{f.file_name}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: "5px", flexShrink: 0 }}>
+                    <button onClick={() => onPreview(f)} style={{ display: "flex", alignItems: "center", gap: "3px", padding: "4px 8px", borderRadius: "5px", border: "1px solid rgba(96,165,250,0.2)", background: "rgba(96,165,250,0.1)", color: "#60a5fa", fontSize: "11px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+                      <Eye size={11} />
+                    </button>
+                    <button
+                      style={{ display: "flex", alignItems: "center", gap: "3px", padding: "4px 8px", borderRadius: "5px", border: "1px solid rgba(52,211,153,0.2)", background: "rgba(52,211,153,0.1)", color: "#34d399", fontSize: "11px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}
+                      onClick={async () => {
+                        const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${f.file_path}`
+                        const res = await fetch(url)
+                        const blob = await res.blob()
+                        const blobUrl = window.URL.createObjectURL(blob)
+                        const a = document.createElement("a")
+                        a.href = blobUrl; a.download = f.file_name
+                        document.body.appendChild(a); a.click()
+                        document.body.removeChild(a)
+                        window.URL.revokeObjectURL(blobUrl)
+                      }}>
+                      <Download size={11} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MAIN PAGE
+═══════════════════════════════════════════════════════════════════════════ */
 export default function ProgrammePage() {
   const router = useRouter()
   const [programmes, setProgrammes] = useState<any[]>([])
@@ -42,6 +198,16 @@ export default function ProgrammePage() {
   const [previewFile, setPreviewFile] = useState<any | null>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [uploadLoading, setUploadLoading] = useState(false)
+
+  // null = not yet measured → prevents SSR desktop flash on mobile
+  const [isMobile, setIsMobile] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener("resize", check)
+    return () => window.removeEventListener("resize", check)
+  }, [])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -89,17 +255,21 @@ export default function ProgrammePage() {
     setDeleteConfirmId(null)
   }
 
-  if (loading) {
-    return (
-      <div style={{ minHeight: "100vh", background: "#070e1a", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
-          <div style={{ width: "36px", height: "36px", border: "3px solid rgba(99,102,241,0.2)", borderTop: "3px solid #6366f1", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-          <p style={{ color: "#64748b", fontSize: "14px", fontFamily: "'DM Sans', sans-serif" }}>Loading programmes...</p>
-        </div>
-        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+  const toggleDocs   = (id: string) => setOpenDocsId(prev => prev === id ? null : id)
+  const toggleUpload = (id: string) => setSelectedProgrammeId(prev => prev === id ? null : id)
+
+  if (loading) return (
+    <div style={{ minHeight: "100vh", background: "#070e1a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
+        <div style={{ width: "36px", height: "36px", border: "3px solid rgba(99,102,241,0.2)", borderTop: "3px solid #6366f1", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+        <p style={{ color: "#64748b", fontSize: "14px", fontFamily: "'DM Sans', sans-serif" }}>Loading programmes...</p>
       </div>
-    )
-  }
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+    </div>
+  )
+
+  // Hold blank screen until viewport is measured
+  if (isMobile === null) return <div style={{ minHeight: "100vh", background: "#070e1a" }} />
 
   const COLS = ["#", "Name", "Category", "Venue", "Date Range", "Budget (RM)", "Lifecycle", "Status", "Docs", "Actions"]
 
@@ -163,221 +333,220 @@ export default function ProgrammePage() {
         ::-webkit-scrollbar-track { background: transparent; }
       `}</style>
 
-      <main style={{ minHeight: "100vh", background: "#070e1a", padding: "28px 24px", fontFamily: "'DM Sans', sans-serif" }}>
+      <main style={{ minHeight: "100vh", background: "#070e1a", padding: isMobile ? "16px" : "28px 24px", fontFamily: "'DM Sans', sans-serif" }}>
         <div style={{ width: "100%", margin: "0 auto" }}>
 
           {/* ── HEADER ── */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: isMobile ? "16px" : "24px", flexWrap: "wrap", gap: "10px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: isMobile ? "10px" : "14px" }}>
               <button
                 onClick={handleBack}
-                style={{ display: "flex", alignItems: "center", gap: "7px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "8px", padding: "9px 15px", color: "#94a3b8", fontSize: "14px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "color 0.15s" }}
-                onMouseEnter={e => (e.currentTarget.style.color = "#e2e8f0")}
-                onMouseLeave={e => (e.currentTarget.style.color = "#94a3b8")}
-              >
-                <ArrowLeft size={15} /> Back
+                style={{ display: "flex", alignItems: "center", gap: "6px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "8px", padding: isMobile ? "7px 11px" : "9px 15px", color: "#94a3b8", fontSize: "13px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+                <ArrowLeft size={14} />{!isMobile && "Back"}
               </button>
               <div>
-                <h1 style={{ fontSize: "22px", fontWeight: 700, color: "#f1f5f9", letterSpacing: "-0.03em" }}>Programme List</h1>
-                <p style={{ fontSize: "13px", color: "#475569", marginTop: "2px" }}>{programmes.length} programme{programmes.length !== 1 ? "s" : ""}</p>
+                <h1 style={{ fontSize: isMobile ? "17px" : "22px", fontWeight: 700, color: "#f1f5f9", letterSpacing: "-0.03em" }}>Programme List</h1>
+                <p style={{ fontSize: "12px", color: "#475569", marginTop: "2px" }}>{programmes.length} programme{programmes.length !== 1 ? "s" : ""}</p>
               </div>
             </div>
-
             <button
               onClick={() => router.push("/create-programme-form")}
-              style={{ display: "flex", alignItems: "center", gap: "8px", background: "linear-gradient(135deg, #4f46e5, #6366f1)", border: "none", borderRadius: "9px", padding: "10px 20px", color: "white", fontSize: "14px", fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", boxShadow: "0 4px 14px rgba(99,102,241,0.35)" }}
-            >
-              <CirclePlus size={15} /> New Programme
+              style={{ display: "flex", alignItems: "center", gap: "7px", background: "linear-gradient(135deg, #4f46e5, #6366f1)", border: "none", borderRadius: "9px", padding: isMobile ? "9px 14px" : "10px 20px", color: "white", fontSize: isMobile ? "12px" : "14px", fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", boxShadow: "0 4px 14px rgba(99,102,241,0.35)", whiteSpace: "nowrap" }}>
+              <CirclePlus size={14} />{isMobile ? "New" : "New Programme"}
             </button>
           </div>
 
           {error && (
-            <div style={{ marginBottom: "16px", background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.2)", borderRadius: "8px", padding: "12px 16px", color: "#f87171", fontSize: "14px" }}>
+            <div style={{ marginBottom: "16px", background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.2)", borderRadius: "8px", padding: "12px 16px", color: "#f87171", fontSize: "13px" }}>
               {error}
             </div>
           )}
 
-          {/* ── TABLE ── */}
-          <div style={{ background: "#0c1526", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "12px", overflow: "hidden" }}>
-            <div className="tbl-wrap">
-              <table className="tbl">
-                <thead>
-                  <tr>
-                    {COLS.map(col => (
-                      <th key={col} className={col === "Actions" || col === "Docs" ? "center" : ""}>{col}</th>
-                    ))}
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {programmes.length === 0 ? (
-                    <tr>
-                      <td colSpan={COLS.length} style={{ padding: "60px 20px", textAlign: "center", color: "#334155", fontFamily: "'DM Sans', sans-serif", border: "none" }}>
-                        <FileText size={36} style={{ margin: "0 auto 12px", display: "block", opacity: 0.3 }} />
-                        <p style={{ fontSize: "15px", fontWeight: 500, color: "#475569" }}>No programmes yet</p>
-                        <p style={{ fontSize: "13px", marginTop: "4px" }}>Create your first programme to get started</p>
-                      </td>
-                    </tr>
-                  ) : programmes.map((p, idx) => {
-                    const lifecycle = getLifecycle(p.start_date, p.end_date)
-                    const lc = lifecycleConfig[lifecycle] || lifecycleConfig["N/A"]
-                    const sc = statusConfig[p.status] || { color: "#94a3b8", bg: "rgba(148,163,184,0.12)" }
-                    const programmeFiles = documents.filter(d => d.programme_id === p.id)
-                    const isDocsOpen = openDocsId === p.id
-                    const isUploadOpen = selectedProgrammeId === p.id
-
-                    return (
-                      <React.Fragment key={p.id}>
-
-                        {/* ── MAIN DATA ROW ── */}
-                        <tr className="main-row">
-                          <td>{idx + 1}</td>
-
-                          <td className="name-cell">{p.name}</td>
-
-                          <td>{p.category || <span style={{ color: "#2d3d52" }}>—</span>}</td>
-
-                          <td>{p.venue || <span style={{ color: "#2d3d52" }}>—</span>}</td>
-
-                          <td style={{ fontSize: "13px", fontFamily: "'DM Mono', monospace" }}>
-                            {p.start_date || p.end_date
-                              ? `${p.start_date ?? "—"} → ${p.end_date ?? "—"}`
-                              : <span style={{ color: "#2d3d52" }}>—</span>}
-                          </td>
-
-                          <td style={{ fontFamily: "'DM Mono', monospace", fontSize: "13px" }}>
-                            {p.budget != null ? Number(p.budget).toLocaleString() : <span style={{ color: "#2d3d52" }}>—</span>}
-                          </td>
-
-                          <td>
-                            <span className="badge" style={{ background: lc.bg, color: lc.color }}>
-                              <Clock size={10} />{lifecycle}
-                            </span>
-                          </td>
-
-                          <td>
-                            <span className="badge" style={{ background: sc.bg, color: sc.color }}>
-                              <span className="badge-dot" style={{ background: sc.color }} />{p.status ?? "—"}
-                            </span>
-                          </td>
-
-                          {/* Docs toggle */}
-                          <td className="center">
-                            <button
-                              className="act-btn"
-                              onClick={() => setOpenDocsId(isDocsOpen ? null : p.id)}
-                              style={{ background: isDocsOpen ? "rgba(99,102,241,0.15)" : "rgba(255,255,255,0.04)", color: isDocsOpen ? "#818cf8" : "#64748b", border: `1px solid ${isDocsOpen ? "rgba(99,102,241,0.3)" : "rgba(255,255,255,0.07)"}`, gap: "5px", padding: "6px 10px", fontSize: "13px" }}
-                            >
-                              <FileText size={13} />
-                              <span>{programmeFiles.length}</span>
-                              {isDocsOpen ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-                            </button>
-                          </td>
-
-                          {/* Action buttons */}
-                          <td className="center">
-                            <div style={{ display: "flex", gap: "6px", justifyContent: "center" }}>
-                              <button className="act-btn" title="Upload document" onClick={() => setSelectedProgrammeId(isUploadOpen ? null : p.id)}
-                                style={{ background: isUploadOpen ? "rgba(52,211,153,0.15)" : "rgba(255,255,255,0.04)", color: isUploadOpen ? "#34d399" : "#64748b", border: `1px solid ${isUploadOpen ? "rgba(52,211,153,0.25)" : "rgba(255,255,255,0.07)"}` }}>
-                                <Upload size={14} />
-                              </button>
-                              <button className="act-btn" title="Edit"
-                                style={{ background: "rgba(255,255,255,0.04)", color: "#64748b", border: "1px solid rgba(255,255,255,0.07)" }}>
-                                <Pencil size={14} />
-                              </button>
-                              <button className="act-btn" title="Delete" onClick={() => setDeleteConfirmId(p.id)}
-                                style={{ background: "rgba(248,113,113,0.08)", color: "#f87171", border: "1px solid rgba(248,113,113,0.15)" }}>
-                                <Trash size={14} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-
-                        {/* ── UPLOAD EXPAND ROW ── */}
-                        {isUploadOpen && (
-                          <tr className="expand-row">
-                            <td colSpan={COLS.length}>
-                              <div className="expand-inner">
-                                <p style={{ fontSize: "11px", fontWeight: 600, color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "10px" }}>Upload Document</p>
-                                <div className="upload-zone">
-                                  <input type="file" onChange={e => setFile(e.target.files?.[0] || null)} />
-                                  <button
-                                    onClick={() => handleUpload(p.id)}
-                                    disabled={uploadLoading || !file}
-                                    style={{ display: "flex", alignItems: "center", gap: "6px", background: file ? "linear-gradient(135deg,#059669,#10b981)" : "rgba(255,255,255,0.05)", color: file ? "white" : "#475569", border: "none", borderRadius: "7px", padding: "8px 18px", fontSize: "13px", fontWeight: 600, cursor: file ? "pointer" : "not-allowed", fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap" }}
-                                  >
-                                    <Upload size={13} />{uploadLoading ? "Uploading..." : "Upload"}
-                                  </button>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-
-                        {/* ── DOCUMENTS EXPAND ROW ── */}
-                        {isDocsOpen && (
-                          <tr className="expand-row">
-                            <td colSpan={COLS.length}>
-                              <div className="expand-inner">
-                                <p style={{ fontSize: "11px", fontWeight: 600, color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "10px" }}>
-                                  Documents ({programmeFiles.length})
-                                </p>
-                                {programmeFiles.length === 0 ? (
-                                  <p style={{ color: "#334155", fontSize: "13px" }}>No documents uploaded yet.</p>
-                                ) : (
-                                  <div style={{ display: "flex", flexDirection: "column", gap: "3px", maxWidth: "640px" }}>
-                                    {programmeFiles.map(f => (
-                                      <div key={f.id} className="doc-item">
-                                        <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
-                                          <div style={{ width: "30px", height: "30px", borderRadius: "7px", background: "rgba(99,102,241,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                            <FileText size={14} color="#818cf8" />
-                                          </div>
-                                          <span style={{ fontSize: "14px", color: "#cbd5e1", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "320px" }}>{f.file_name}</span>
-                                        </div>
-                                        <div style={{ display: "flex", gap: "6px", flexShrink: 0, marginLeft: "12px" }}>
-                                          <button className="mini-btn" onClick={() => setPreviewFile(f)} style={{ background: "rgba(96,165,250,0.1)", color: "#60a5fa", borderColor: "rgba(96,165,250,0.2)" }}>
-                                            <Eye size={12} /> View
-                                          </button>
-                                          <button className="mini-btn"
-                                            style={{ background: "rgba(52,211,153,0.1)", color: "#34d399", borderColor: "rgba(52,211,153,0.2)" }}
-                                            onClick={async () => {
-                                              const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${f.file_path}`
-                                              const res = await fetch(url)
-                                              const blob = await res.blob()
-                                              const blobUrl = window.URL.createObjectURL(blob)
-                                              const a = document.createElement("a")
-                                              a.href = blobUrl; a.download = f.file_name
-                                              document.body.appendChild(a); a.click()
-                                              document.body.removeChild(a)
-                                              window.URL.revokeObjectURL(blobUrl)
-                                            }}>
-                                            <Download size={12} /> Download
-                                          </button>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-
-                      </React.Fragment>
-                    )
-                  })}
-                </tbody>
-              </table>
+          {/* ══════════════════════════════════════════════════
+              MOBILE — card list
+          ══════════════════════════════════════════════════ */}
+          {isMobile ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {programmes.length === 0 ? (
+                <div style={{ background: "#0c1526", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "12px", padding: "48px 20px", textAlign: "center" }}>
+                  <FileText size={32} style={{ margin: "0 auto 12px", display: "block", opacity: 0.3, color: "#475569" }} />
+                  <p style={{ fontSize: "14px", fontWeight: 500, color: "#475569" }}>No programmes yet</p>
+                  <p style={{ fontSize: "12px", marginTop: "4px", color: "#334155" }}>Create your first programme to get started</p>
+                </div>
+              ) : programmes.map((p, idx) => (
+                <MobileProgrammeCard
+                  key={p.id} p={p} idx={idx} documents={documents}
+                  openDocsId={openDocsId} selectedProgrammeId={selectedProgrammeId}
+                  file={file} uploadLoading={uploadLoading}
+                  onToggleDocs={toggleDocs}
+                  onToggleUpload={toggleUpload}
+                  onFileChange={setFile}
+                  onUpload={handleUpload}
+                  onDelete={(id) => setDeleteConfirmId(id)}
+                  onPreview={setPreviewFile}
+                />
+              ))}
             </div>
-          </div>
+          ) : (
+          /* ══════════════════════════════════════════════════
+              DESKTOP — original table
+          ══════════════════════════════════════════════════ */
+            <div style={{ background: "#0c1526", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "12px", overflow: "hidden" }}>
+              <div className="tbl-wrap">
+                <table className="tbl">
+                  <thead>
+                    <tr>
+                      {COLS.map(col => (
+                        <th key={col} className={col === "Actions" || col === "Docs" ? "center" : ""}>{col}</th>
+                      ))}
+                    </tr>
+                  </thead>
 
+                  <tbody>
+                    {programmes.length === 0 ? (
+                      <tr>
+                        <td colSpan={COLS.length} style={{ padding: "60px 20px", textAlign: "center", color: "#334155", fontFamily: "'DM Sans', sans-serif", border: "none" }}>
+                          <FileText size={36} style={{ margin: "0 auto 12px", display: "block", opacity: 0.3 }} />
+                          <p style={{ fontSize: "15px", fontWeight: 500, color: "#475569" }}>No programmes yet</p>
+                          <p style={{ fontSize: "13px", marginTop: "4px" }}>Create your first programme to get started</p>
+                        </td>
+                      </tr>
+                    ) : programmes.map((p, idx) => {
+                      const lifecycle = getLifecycle(p.start_date, p.end_date)
+                      const lc = lifecycleConfig[lifecycle] || lifecycleConfig["N/A"]
+                      const sc = statusConfig[p.status] || { color: "#94a3b8", bg: "rgba(148,163,184,0.12)" }
+                      const programmeFiles = documents.filter(d => d.programme_id === p.id)
+                      const isDocsOpen = openDocsId === p.id
+                      const isUploadOpen = selectedProgrammeId === p.id
+
+                      return (
+                        <React.Fragment key={p.id}>
+                          <tr className="main-row">
+                            <td>{idx + 1}</td>
+                            <td className="name-cell">{p.name}</td>
+                            <td>{p.category || <span style={{ color: "#2d3d52" }}>—</span>}</td>
+                            <td>{p.venue || <span style={{ color: "#2d3d52" }}>—</span>}</td>
+                            <td style={{ fontSize: "13px", fontFamily: "'DM Mono', monospace" }}>
+                              {p.start_date || p.end_date ? `${p.start_date ?? "—"} → ${p.end_date ?? "—"}` : <span style={{ color: "#2d3d52" }}>—</span>}
+                            </td>
+                            <td style={{ fontFamily: "'DM Mono', monospace", fontSize: "13px" }}>
+                              {p.budget != null ? Number(p.budget).toLocaleString() : <span style={{ color: "#2d3d52" }}>—</span>}
+                            </td>
+                            <td>
+                              <span className="badge" style={{ background: lc.bg, color: lc.color }}>
+                                <Clock size={10} />{lifecycle}
+                              </span>
+                            </td>
+                            <td>
+                              <span className="badge" style={{ background: sc.bg, color: sc.color }}>
+                                <span className="badge-dot" style={{ background: sc.color }} />{p.status ?? "—"}
+                              </span>
+                            </td>
+                            <td className="center">
+                              <button className="act-btn" onClick={() => toggleDocs(p.id)}
+                                style={{ background: isDocsOpen ? "rgba(99,102,241,0.15)" : "rgba(255,255,255,0.04)", color: isDocsOpen ? "#818cf8" : "#64748b", border: `1px solid ${isDocsOpen ? "rgba(99,102,241,0.3)" : "rgba(255,255,255,0.07)"}`, gap: "5px", padding: "6px 10px", fontSize: "13px" }}>
+                                <FileText size={13} />
+                                <span>{programmeFiles.length}</span>
+                                {isDocsOpen ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                              </button>
+                            </td>
+                            <td className="center">
+                              <div style={{ display: "flex", gap: "6px", justifyContent: "center" }}>
+                                <button className="act-btn" title="Upload document" onClick={() => toggleUpload(p.id)}
+                                  style={{ background: isUploadOpen ? "rgba(52,211,153,0.15)" : "rgba(255,255,255,0.04)", color: isUploadOpen ? "#34d399" : "#64748b", border: `1px solid ${isUploadOpen ? "rgba(52,211,153,0.25)" : "rgba(255,255,255,0.07)"}` }}>
+                                  <Upload size={14} />
+                                </button>
+                                <button className="act-btn" title="Edit"
+                                  style={{ background: "rgba(255,255,255,0.04)", color: "#64748b", border: "1px solid rgba(255,255,255,0.07)" }}>
+                                  <Pencil size={14} />
+                                </button>
+                                <button className="act-btn" title="Delete" onClick={() => setDeleteConfirmId(p.id)}
+                                  style={{ background: "rgba(248,113,113,0.08)", color: "#f87171", border: "1px solid rgba(248,113,113,0.15)" }}>
+                                  <Trash size={14} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+
+                          {isUploadOpen && (
+                            <tr className="expand-row">
+                              <td colSpan={COLS.length}>
+                                <div className="expand-inner">
+                                  <p style={{ fontSize: "11px", fontWeight: 600, color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "10px" }}>Upload Document</p>
+                                  <div className="upload-zone">
+                                    <input type="file" onChange={e => setFile(e.target.files?.[0] || null)} />
+                                    <button onClick={() => handleUpload(p.id)} disabled={uploadLoading || !file}
+                                      style={{ display: "flex", alignItems: "center", gap: "6px", background: file ? "linear-gradient(135deg,#059669,#10b981)" : "rgba(255,255,255,0.05)", color: file ? "white" : "#475569", border: "none", borderRadius: "7px", padding: "8px 18px", fontSize: "13px", fontWeight: 600, cursor: file ? "pointer" : "not-allowed", fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap" }}>
+                                      <Upload size={13} />{uploadLoading ? "Uploading..." : "Upload"}
+                                    </button>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+
+                          {isDocsOpen && (
+                            <tr className="expand-row">
+                              <td colSpan={COLS.length}>
+                                <div className="expand-inner">
+                                  <p style={{ fontSize: "11px", fontWeight: 600, color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "10px" }}>
+                                    Documents ({programmeFiles.length})
+                                  </p>
+                                  {programmeFiles.length === 0 ? (
+                                    <p style={{ color: "#334155", fontSize: "13px" }}>No documents uploaded yet.</p>
+                                  ) : (
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "3px", maxWidth: "640px" }}>
+                                      {programmeFiles.map(f => (
+                                        <div key={f.id} className="doc-item">
+                                          <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+                                            <div style={{ width: "30px", height: "30px", borderRadius: "7px", background: "rgba(99,102,241,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                              <FileText size={14} color="#818cf8" />
+                                            </div>
+                                            <span style={{ fontSize: "14px", color: "#cbd5e1", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "320px" }}>{f.file_name}</span>
+                                          </div>
+                                          <div style={{ display: "flex", gap: "6px", flexShrink: 0, marginLeft: "12px" }}>
+                                            <button className="mini-btn" onClick={() => setPreviewFile(f)} style={{ background: "rgba(96,165,250,0.1)", color: "#60a5fa", borderColor: "rgba(96,165,250,0.2)" }}>
+                                              <Eye size={12} /> View
+                                            </button>
+                                            <button className="mini-btn"
+                                              style={{ background: "rgba(52,211,153,0.1)", color: "#34d399", borderColor: "rgba(52,211,153,0.2)" }}
+                                              onClick={async () => {
+                                                const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${f.file_path}`
+                                                const res = await fetch(url)
+                                                const blob = await res.blob()
+                                                const blobUrl = window.URL.createObjectURL(blob)
+                                                const a = document.createElement("a")
+                                                a.href = blobUrl; a.download = f.file_name
+                                                document.body.appendChild(a); a.click()
+                                                document.body.removeChild(a)
+                                                window.URL.revokeObjectURL(blobUrl)
+                                              }}>
+                                              <Download size={12} /> Download
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
       {/* ── DELETE MODAL ── */}
       {deleteConfirmId && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, backdropFilter: "blur(4px)" }}>
-          <div style={{ background: "#0c1526", border: "1px solid rgba(248,113,113,0.2)", borderRadius: "14px", padding: "28px", width: "100%", maxWidth: "340px", margin: "16px", textAlign: "center", fontFamily: "'DM Sans', sans-serif" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, backdropFilter: "blur(4px)", padding: "16px" }}>
+          <div style={{ background: "#0c1526", border: "1px solid rgba(248,113,113,0.2)", borderRadius: "14px", padding: "28px", width: "100%", maxWidth: "340px", textAlign: "center", fontFamily: "'DM Sans', sans-serif" }}>
             <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "rgba(248,113,113,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
               <Trash size={22} color="#f87171" />
             </div>
@@ -393,22 +562,22 @@ export default function ProgrammePage() {
 
       {/* ── PREVIEW MODAL ── */}
       {previewFile && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, backdropFilter: "blur(6px)" }}>
-          <div style={{ background: "#0c1526", border: "1px solid rgba(255,255,255,0.08)", width: "90%", maxWidth: "700px", borderRadius: "14px", padding: "20px", fontFamily: "'DM Sans', sans-serif" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, backdropFilter: "blur(6px)", padding: "16px" }}>
+          <div style={{ background: "#0c1526", border: "1px solid rgba(255,255,255,0.08)", width: "100%", maxWidth: "700px", borderRadius: "14px", padding: "20px", fontFamily: "'DM Sans', sans-serif" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <div style={{ width: "32px", height: "32px", borderRadius: "7px", background: "rgba(99,102,241,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+                <div style={{ width: "32px", height: "32px", borderRadius: "7px", background: "rgba(99,102,241,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <FileText size={15} color="#818cf8" />
                 </div>
-                <span style={{ color: "#e2e8f0", fontSize: "15px", fontWeight: 500, maxWidth: "440px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{previewFile.file_name}</span>
+                <span style={{ color: "#e2e8f0", fontSize: "14px", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{previewFile.file_name}</span>
               </div>
-              <button onClick={() => setPreviewFile(null)} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "7px", padding: "6px", color: "#64748b", cursor: "pointer", display: "flex" }}>
+              <button onClick={() => setPreviewFile(null)} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "7px", padding: "6px", color: "#64748b", cursor: "pointer", display: "flex", flexShrink: 0, marginLeft: "10px" }}>
                 <X size={16} />
               </button>
             </div>
             <iframe
               src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${previewFile.file_path}`}
-              style={{ width: "100%", height: "440px", background: "white", borderRadius: "8px", border: "none" }}
+              style={{ width: "100%", height: isMobile ? "320px" : "440px", background: "white", borderRadius: "8px", border: "none" }}
             />
           </div>
         </div>

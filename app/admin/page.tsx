@@ -21,10 +21,10 @@ type NavItem = 'dashboard' | 'programmes' | 'users' | 'settings'
 /* ─── HELPERS ────────────────────────────────────────────────────────────── */
 function getStatusConfig(status: string) {
   switch (status) {
-    case 'Approved': return { bg: 'rgba(16,185,129,0.12)', color: '#10b981', icon: CheckCircle }
-    case 'Rejected':  return { bg: 'rgba(239,68,68,0.12)',  color: '#ef4444', icon: XCircle }
-    case 'Pending':   return { bg: 'rgba(245,158,11,0.12)', color: '#f59e0b', icon: AlertCircle }
-    default:          return { bg: 'rgba(148,163,184,0.12)',color: '#94a3b8', icon: Clock }
+    case 'Approved': return { bg: 'rgba(16,185,129,0.12)',  color: '#10b981', icon: CheckCircle }
+    case 'Rejected': return { bg: 'rgba(239,68,68,0.12)',   color: '#ef4444', icon: XCircle }
+    case 'Pending':  return { bg: 'rgba(245,158,11,0.12)',  color: '#f59e0b', icon: AlertCircle }
+    default:         return { bg: 'rgba(148,163,184,0.12)', color: '#94a3b8', icon: Clock }
   }
 }
 const getInitials = (name: string) =>
@@ -164,13 +164,13 @@ function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoadi
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '10px', marginBottom: '18px' }}>
           {[
-            { label: 'Programme Name', value: prog.name, span: isMobile ? 1 : 2 },
-            { label: 'Category',  value: prog.category || '—', span: 1 },
-            { label: 'Venue',     value: prog.venue || '—', span: 1 },
+            { label: 'Programme Name', value: prog.name,         span: isMobile ? 1 : 2 },
+            { label: 'Category',       value: prog.category || '—', span: 1 },
+            { label: 'Venue',          value: prog.venue || '—',    span: 1 },
             { label: 'Start Date', value: prog.start_date ? new Date(prog.start_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' }) : '—', span: 1 },
             { label: 'End Date',   value: prog.end_date   ? new Date(prog.end_date).toLocaleDateString('en-MY',   { day: 'numeric', month: 'long', year: 'numeric' }) : '—', span: 1 },
-            { label: 'Budget',     value: prog.budget ? `RM ${Number(prog.budget).toLocaleString('en-MY', { minimumFractionDigits: 2 })}` : '—', span: 1 },
-            { label: 'Submitted',  value: prog.created_at ? new Date(prog.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }) : '—', span: 1 },
+            { label: 'Budget',    value: prog.budget ? `RM ${Number(prog.budget).toLocaleString('en-MY', { minimumFractionDigits: 2 })}` : '—', span: 1 },
+            { label: 'Submitted', value: prog.created_at ? new Date(prog.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }) : '—', span: 1 },
           ].map(f => (
             <div key={f.label} style={{ gridColumn: `span ${f.span}`, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '10px 13px' }}>
               <p style={{ margin: 0, fontSize: '10px', color: '#6b7280', fontWeight: 500, marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{f.label}</p>
@@ -185,7 +185,7 @@ function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoadi
             <span style={{ color: '#374151', fontWeight: 400, textTransform: 'none', letterSpacing: 0, marginLeft: '6px' }}>(required only when rejecting)</span>
           </label>
           <textarea value={rejectComment} onChange={e => onCommentChange(e.target.value)}
-            placeholder="Explain why this programme is being rejected so the director can revise and resubmit..." rows={3}
+            placeholder="Explain why this programme is being rejected..." rows={3}
             style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${rejectComment.trim() ? 'rgba(239,68,68,0.35)' : 'rgba(255,255,255,0.08)'}`, color: '#e2e8f0', fontSize: '13px', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.6 }} />
         </div>
         <div style={{ display: 'flex', gap: '8px', flexDirection: isMobile ? 'column' : 'row' }}>
@@ -376,11 +376,14 @@ export default function AdminHomepage() {
   const [rejectComment, setRejectComment] = useState('')
   const [rejectLoading, setRejectLoading] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
 
+  // KEY FIX: null = not yet measured (server). After mount, set real value.
+  const [isMobile, setIsMobile] = useState<boolean | null>(null)
+
+  // Runs once on client after hydration — sets the real viewport width
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
-    check()
+    check() // set immediately on mount
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
@@ -499,10 +502,10 @@ export default function AdminHomepage() {
   }
 
   const stats = {
-    total: programmes.length,
-    pending:  programmes.filter(p => p.status === 'Pending').length,
-    approved: programmes.filter(p => p.status === 'Approved').length,
-    rejected: programmes.filter(p => p.status === 'Rejected').length,
+    total:       programmes.length,
+    pending:     programmes.filter(p => p.status === 'Pending').length,
+    approved:    programmes.filter(p => p.status === 'Approved').length,
+    rejected:    programmes.filter(p => p.status === 'Rejected').length,
     totalBudget: programmes.filter(p => p.status !== 'Rejected').reduce((sum, p) => sum + (Number(p.budget) || 0), 0),
   }
 
@@ -527,14 +530,6 @@ export default function AdminHomepage() {
     if (id === 'settings')   router.push('/profile')
   }
 
-  /* Shared modal/overlay props */
-  const sharedModalProps = {
-    isMobile,
-    actionLoading,
-    rejectLoading,
-    rejectComment,
-  }
-
   const tableProps = {
     filtered,
     onEdit:   handleEdit,
@@ -543,13 +538,25 @@ export default function AdminHomepage() {
     onView:   (id: string) => router.push(`/programmes/${id}`),
   }
 
-  /* ── Loading screen ── */
+  const modalProps = {
+    actionLoading,
+    rejectLoading,
+    rejectComment,
+  }
+
+  // ── Loading screen ──
   if (loading) return (
     <div style={{ minHeight: '100vh', background: '#080f1a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '16px' }}>
       <div style={{ width: '44px', height: '44px', borderRadius: '50%', border: '3px solid #1e3a5f', borderTopColor: '#3b82f6', animation: 'spin 0.8s linear infinite' }} />
       <p style={{ color: '#475569', fontSize: '13px' }}>Initializing admin panel...</p>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
+  )
+
+  // ── Wait for client to measure viewport before rendering layout ──
+  // This prevents the desktop layout flashing on mobile before useEffect fires
+  if (isMobile === null) return (
+    <div style={{ minHeight: '100vh', background: '#080f1a' }} />
   )
 
   /* ══════════════════════════════════════════════════════
@@ -631,7 +638,8 @@ export default function AdminHomepage() {
         {/* Fixed bottom tab bar */}
         <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#0c1526', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', zIndex: 20 }}>
           {navItems.map(item => {
-            const Icon = item.icon; const isActive = activeNav === item.id
+            const Icon = item.icon
+            const isActive = activeNav === item.id
             return (
               <button key={item.id} onClick={() => handleNavClick(item.id)}
                 style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px 4px', cursor: 'pointer', gap: '3px', border: 'none', background: 'transparent' }}>
@@ -647,8 +655,7 @@ export default function AdminHomepage() {
           onClose={() => setShowEditModal(false)} onChange={setEditForm} onUpdate={handleUpdate}
         />
         <ReviewModal
-          prog={reviewProg} isMobile={true} rejectComment={rejectComment}
-          actionLoading={actionLoading} rejectLoading={rejectLoading}
+          prog={reviewProg} isMobile={true} {...modalProps}
           onClose={() => { setReviewProg(null); setRejectComment('') }}
           onCommentChange={setRejectComment} onApprove={handleApprove} onReject={handleReject}
         />
@@ -764,8 +771,7 @@ export default function AdminHomepage() {
         onClose={() => setShowEditModal(false)} onChange={setEditForm} onUpdate={handleUpdate}
       />
       <ReviewModal
-        prog={reviewProg} isMobile={false} rejectComment={rejectComment}
-        actionLoading={actionLoading} rejectLoading={rejectLoading}
+        prog={reviewProg} isMobile={false} {...modalProps}
         onClose={() => { setReviewProg(null); setRejectComment('') }}
         onCommentChange={setRejectComment} onApprove={handleApprove} onReject={handleReject}
       />
