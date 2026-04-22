@@ -1,159 +1,594 @@
-"use client"
+'use client'
 
-import React, { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { supabase } from "../../lib/supabaseClient"
+import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '../../lib/supabaseClient'
 import {
-  LayoutDashboard,
-  BookOpen,
-  Users,
-  Settings,
-  LogOut,
-  CirclePlus,
-  Shield
-} from "lucide-react"
+  LayoutDashboard, BookOpen, Users, Settings, LogOut, Bell,
+  CirclePlus, Pencil, Trash, Save, CircleX, TrendingUp, Clock,
+  CheckCircle, XCircle, AlertCircle, Search, Shield, Calendar,
+  MapPin, DollarSign, Activity, ArrowRightLeft, Crown,
+} from 'lucide-react'
 
-type NavItem =
-  | "dashboard"
-  | "programmes"
-  | "createAdmin"
-  | "exchangeAdmin"
-  | "settings"
+interface Programme {
+  id: string; name: string; category: string; venue: string
+  budget: number; start_date: string; end_date: string; status: string; created_at: string
+}
+interface Profile { id: string; full_name: string; email: string; roles: { name: string } | null }
+type NavItem = 'dashboard' | 'programmes' | 'createAdmin' | 'exchangeAdmin' | 'settings'
 
-export default function SuperAdminPage() {
+// Superadmin accent tokens — amber/gold to differentiate from admin purple
+const SA = {
+  accent:       '#f59e0b',
+  accentBg:     'rgba(245,158,11,0.12)',
+  accentBorder: 'rgba(245,158,11,0.2)',
+  accentText:   '#fbbf24',
+  accentSoft:   'rgba(245,158,11,0.06)',
+  gradientBtn:  'linear-gradient(135deg, #b45309, #d97706)',
+  gradientLogo: 'linear-gradient(135deg, #92400e, #d97706)',
+}
+
+export default function SuperAdminDashboard() {
   const router = useRouter()
-
-  const [activeNav, setActiveNav] = useState<NavItem>("dashboard")
-  const [profile, setProfile] = useState<any>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [programmes, setProgrammes] = useState<Programme[]>([])
+  const [userCount, setUserCount] = useState(0)
+  const [adminCount, setAdminCount] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [activeNav, setActiveNav] = useState<NavItem>('dashboard')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filterStatus, setFilterStatus] = useState('All')
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editForm, setEditForm] = useState<Partial<Programme>>({})
+  const [actionLoading, setActionLoading] = useState(false)
+  const [currentTime, setCurrentTime] = useState(new Date())
+  const [reviewProg, setReviewProg] = useState<Programme | null>(null)
+  const [rejectComment, setRejectComment] = useState('')
+  const [rejectLoading, setRejectLoading] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000)
+    return () => clearInterval(timer)
+  }, [])
 
+  useEffect(() => {
+    const init = async () => {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError || !session) { router.replace('/login'); return }
 
-  // In production, you would fetch the profile from Supabase like this:
-    useEffect(() => {
-    // bypass login for development
-    setProfile({
-        full_name: "Super Admin"
-    })
-    setLoading(false)
-    }, [])
+      const { data: profileData, error: profileError } = await supabase
+        .from('users')
+        .select('id, full_name, roles(name)')
+        .eq('id', session.user.id)
+        .single()
+
+      if (profileError || !profileData) { setLoading(false); return }
+
+      const role = (profileData.roles as any)?.name?.toLowerCase?.() ?? ''
+      if (role !== 'superadmin') {
+        router.replace(role === 'admin' ? '/admin' : role === 'student' ? '/student' : '/login')
+        return
+      }
+
+      setProfile(profileData as any)
+
+      const [
+        { data: programmeData },
+        { count: totalUsers },
+        { count: totalAdmins },
+      ] = await Promise.all([
+        supabase.from('programmes').select('*').order('created_at', { ascending: false }),
+        supabase.from('users').select('*', { count: 'exact', head: true }),
+        supabase.from('users').select('*, roles!inner(name)', { count: 'exact', head: true }).eq('roles.name', 'admin'),
+      ])
+
+      if (programmeData) setProgrammes(programmeData)
+      setUserCount(totalUsers ?? 0)
+      setAdminCount(totalAdmins ?? 0)
+      setLoading(false)
+    }
+    init()
+  }, [])
+
+  const getToken = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    return session?.access_token ?? null
+  }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    router.replace("/login")
+    router.replace('/login')
   }
 
-  const getInitials = (name: string) =>
-    name?.split(" ").map(n => n[0]).join("").toUpperCase() || "SA"
+  const handleEdit = (prog: Programme) => {
+    setEditForm({ ...prog, start_date: prog.start_date?.slice(0, 10), end_date: prog.end_date?.slice(0, 10) })
+    setShowEditModal(true)
+  }
 
-  const navItems = [
-    { id: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
-    { id: "programmes", icon: BookOpen, label: "Programmes" },
-    { id: "createAdmin", icon: CirclePlus, label: "Create Admin" },
-    { id: "exchangeAdmin", icon: Users, label: "Exchange Admin" },
-    { id: "settings", icon: Settings, label: "Settings" }
+  const handleUpdate = async () => {
+    setActionLoading(true)
+    const token = await getToken()
+    if (!token) { router.replace('/login'); return }
+    const res = await fetch(`/api/programmes/${editForm.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name: editForm.name, category: editForm.category, venue: editForm.venue, budget: editForm.budget, start_date: editForm.start_date, end_date: editForm.end_date }),
+    })
+    const data = await res.json()
+    if (res.ok) { setProgrammes(prev => prev.map(p => p.id === editForm.id ? data.programme : p)); setShowEditModal(false) }
+    setActionLoading(false)
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this programme? This cannot be undone.')) return
+    const token = await getToken()
+    if (!token) return
+    setDeleteLoading(true)
+    const res = await fetch(`/api/programmes/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    if (res.ok) setProgrammes(prev => prev.filter(p => p.id !== id))
+    setDeleteLoading(false)
+  }
+
+  const handleApprove = async () => {
+    if (!reviewProg) return
+    const token = await getToken()
+    if (!token) return
+    setActionLoading(true)
+    const res = await fetch(`/api/programmes/${reviewProg.id}/approve`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) {
+      setProgrammes(prev => prev.map(p => p.id === reviewProg.id ? { ...p, status: 'Approved' } : p))
+      setReviewProg(null)
+    } else {
+      const data = await res.json()
+      alert(data.error ?? 'Failed to approve programme.')
+    }
+    setActionLoading(false)
+  }
+
+  const handleReject = async () => {
+    if (!reviewProg) return
+    if (!rejectComment.trim()) { alert('Please provide a rejection comment before rejecting.'); return }
+    const token = await getToken()
+    if (!token) return
+    setRejectLoading(true)
+    const res = await fetch(`/api/programmes/${reviewProg.id}/reject`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ reason: rejectComment.trim() }),
+    })
+    if (res.ok) {
+      setProgrammes(prev => prev.map(p => p.id === reviewProg.id ? { ...p, status: 'Rejected' } : p))
+      setReviewProg(null)
+      setRejectComment('')
+    } else {
+      const data = await res.json()
+      alert(data.error ?? 'Failed to reject programme.')
+    }
+    setRejectLoading(false)
+  }
+
+  const getInitials = (name: string) => name?.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'SA'
+
+  const stats = {
+    total: programmes.length,
+    pending: programmes.filter(p => p.status === 'Pending').length,
+    approved: programmes.filter(p => p.status === 'Approved').length,
+    rejected: programmes.filter(p => p.status === 'Rejected').length,
+    totalBudget: programmes.filter(p => p.status !== 'Rejected').reduce((sum, p) => sum + (Number(p.budget) || 0), 0),
+  }
+
+  const filtered = programmes.filter(p => {
+    const q = searchQuery.toLowerCase()
+    const matchSearch = p.name?.toLowerCase().includes(q) || p.category?.toLowerCase().includes(q) || p.venue?.toLowerCase().includes(q)
+    return matchSearch && (filterStatus === 'All' || p.status === filterStatus)
+  })
+
+  const getStatusConfig = (status: string) => {
+    switch (status) {
+      case 'Approved': return { bg: 'rgba(16,185,129,0.12)',  color: '#10b981', icon: CheckCircle }
+      case 'Rejected': return { bg: 'rgba(239,68,68,0.12)',   color: '#ef4444', icon: XCircle }
+      case 'Pending':  return { bg: 'rgba(245,158,11,0.12)',  color: '#f59e0b', icon: AlertCircle }
+      default:         return { bg: 'rgba(148,163,184,0.12)', color: '#94a3b8', icon: Clock }
+    }
+  }
+
+  const navItems: { id: NavItem; icon: React.ElementType; label: string; path: string }[] = [
+    { id: 'dashboard',     icon: LayoutDashboard, label: 'Dashboard',      path: '/superadmin' },
+    { id: 'programmes',    icon: BookOpen,         label: 'Programmes',     path: '/create-programme' },
+    { id: 'createAdmin',   icon: CirclePlus,       label: 'Create Admin',   path: '/superadmin/create-admin' },
+    { id: 'exchangeAdmin', icon: ArrowRightLeft,   label: 'Exchange Admin', path: '/superadmin/exchange-admin' },
+    { id: 'settings',      icon: Settings,         label: 'Settings',       path: '/profile' },
   ]
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
-        Loading SuperAdmin Panel...
-      </div>
-    )
-  }
+  if (loading) return (
+    <div style={{ minHeight: '100vh', background: '#080f1a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '16px' }}>
+      <div style={{ width: '44px', height: '44px', borderRadius: '50%', border: `3px solid ${SA.accentBg}`, borderTopColor: SA.accent, animation: 'spin 0.8s linear infinite' }} />
+      <p style={{ color: '#475569', fontSize: '13px' }}>Initializing superadmin panel...</p>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  )
 
   return (
-    <div className="flex min-h-screen bg-slate-900 text-white">
+    <div style={{ minHeight: '100vh', background: '#080f1a', display: 'flex', fontFamily: "'Inter', -apple-system, sans-serif", color: '#e2e8f0' }}>
 
-      {/* SIDEBAR */}
-      <aside className="w-[220px] bg-slate-950 border-r border-white/5 fixed h-full flex flex-col">
+      {/* ── SIDEBAR ── */}
+      <aside style={{ width: '220px', background: '#0b1118', borderRight: `1px solid rgba(245,158,11,0.07)`, display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 20 }}>
 
-        {/* LOGO */}
-        <div className="p-6 border-b border-white/5 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-purple-600 flex items-center justify-center">
-            <Shield size={16} />
-          </div>
-          <div>
-            <p className="font-bold text-sm">UTM-SPMS</p>
-            <p className="text-xs text-slate-500">SUPERADMIN PANEL</p>
+        {/* Logo */}
+        <div style={{ padding: '24px 20px', borderBottom: `1px solid rgba(245,158,11,0.07)` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '34px', height: '34px', borderRadius: '9px', background: SA.gradientLogo, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+              <Shield size={14} color="white" />
+              <Crown size={8} color="#fef3c7" style={{ position: 'absolute', top: '-4px', right: '-4px' }} />
+            </div>
+            <div>
+              <p style={{ fontWeight: 700, fontSize: '14px', margin: 0, color: '#f1f5f9', letterSpacing: '-0.02em' }}>UTM-SPMS</p>
+              <p style={{ fontSize: '10px', color: SA.accent, margin: 0, fontWeight: 600, letterSpacing: '0.06em' }}>SUPERADMIN</p>
+            </div>
           </div>
         </div>
 
-        {/* NAV */}
-        <div className="p-3 flex-1">
-          {navItems.map(item => {
-            const Icon = item.icon
-            const isActive = activeNav === item.id
-
+        {/* Nav */}
+        <nav style={{ padding: '14px 10px', flex: 1 }}>
+          <p style={{ fontSize: '9px', fontWeight: 600, color: '#374151', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0 10px', marginBottom: '6px' }}>Navigation</p>
+          {navItems.slice(0, 2).map(item => {
+            const Icon = item.icon; const isActive = activeNav === item.id
             return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  setActiveNav(item.id as any)
+              <button key={item.id} onClick={() => { setActiveNav(item.id); router.push(item.path) }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: isActive ? SA.accentBg : 'transparent', color: isActive ? SA.accentText : '#6b7280', fontSize: '13px', fontWeight: isActive ? 500 : 400, marginBottom: '2px', textAlign: 'left', transition: 'all 0.12s' }}>
+                <Icon size={15} />{item.label}
+                {isActive && <div style={{ marginLeft: 'auto', width: '4px', height: '4px', borderRadius: '50%', background: SA.accent }} />}
+              </button>
+            )
+          })}
 
-                  if (item.id === "dashboard") router.push("/superadmin")
-                  if (item.id === "programmes") router.push("/create-programme")
-                  if (item.id === "createAdmin") router.push("/superadmin/create-admin")
-                  if (item.id === "exchangeAdmin") router.push("/superadmin/exchange-admin")
-                  if (item.id === "settings") router.push("/profile")
-                }}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm mb-1 transition
-                  ${isActive
-                    ? "bg-purple-500/20 text-purple-300"
-                    : "text-slate-400 hover:bg-white/5"}
-                `}
-              >
-                <Icon size={16} />
-                {item.label}
+          {/* Superadmin-exclusive section */}
+          <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: `1px solid rgba(245,158,11,0.07)` }}>
+            <p style={{ fontSize: '9px', fontWeight: 600, color: SA.accent, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0 10px', marginBottom: '6px', opacity: 0.6 }}>Superadmin Only</p>
+            {navItems.slice(2, 4).map(item => {
+              const Icon = item.icon; const isActive = activeNav === item.id
+              return (
+                <button key={item.id} onClick={() => { setActiveNav(item.id); router.push(item.path) }}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: isActive ? SA.accentBg : 'transparent', color: isActive ? SA.accentText : '#6b7280', fontSize: '13px', fontWeight: isActive ? 500 : 400, marginBottom: '2px', textAlign: 'left', transition: 'all 0.12s' }}>
+                  <Icon size={15} />{item.label}
+                  {isActive && <div style={{ marginLeft: 'auto', width: '4px', height: '4px', borderRadius: '50%', background: SA.accent }} />}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Settings + Quick Actions */}
+          <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+            {navItems.slice(4).map(item => {
+              const Icon = item.icon; const isActive = activeNav === item.id
+              return (
+                <button key={item.id} onClick={() => { setActiveNav(item.id); router.push(item.path) }}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: isActive ? SA.accentBg : 'transparent', color: isActive ? SA.accentText : '#6b7280', fontSize: '13px', fontWeight: isActive ? 500 : 400, marginBottom: '2px', textAlign: 'left', transition: 'all 0.12s' }}>
+                  <Icon size={15} />{item.label}
+                  {isActive && <div style={{ marginLeft: 'auto', width: '4px', height: '4px', borderRadius: '50%', background: SA.accent }} />}
+                </button>
+              )
+            })}
+          </div>
+
+          <div style={{ marginTop: '12px' }}>
+            <button onClick={() => router.push('/superadmin/create-admin')}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: SA.accentSoft, color: SA.accentText, fontSize: '13px', fontWeight: 500, textAlign: 'left' }}>
+              <CirclePlus size={15} />New Admin
+            </button>
+          </div>
+        </nav>
+
+        {/* User footer */}
+        <div style={{ padding: '14px', borderTop: `1px solid rgba(245,158,11,0.07)` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '9px', borderRadius: '9px', background: SA.accentSoft }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: SA.gradientLogo, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 600, color: 'white', flexShrink: 0 }}>
+              {getInitials(profile?.full_name || '')}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: '12px', fontWeight: 500, color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile?.full_name || 'Superadmin'}</p>
+              <p style={{ margin: 0, fontSize: '10px', color: SA.accent, fontWeight: 500 }}>Superadmin</p>
+            </div>
+            <button onClick={handleLogout} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', padding: '3px' }}>
+              <LogOut size={13} />
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* ── MAIN ── */}
+      <main style={{ flex: 1, marginLeft: '220px', padding: '28px 32px', overflowX: 'hidden' }}>
+
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+              <h1 style={{ fontSize: '20px', fontWeight: 700, margin: 0, letterSpacing: '-0.02em', color: '#f8fafc' }}>Superadmin Dashboard</h1>
+              <span style={{ fontSize: '10px', fontWeight: 600, background: SA.accentBg, color: SA.accentText, border: `1px solid ${SA.accentBorder}`, padding: '2px 8px', borderRadius: '20px', letterSpacing: '0.06em' }}>ELEVATED ACCESS</span>
+            </div>
+            <p style={{ fontSize: '13px', color: '#4b5563', margin: 0 }}>{currentTime.toLocaleDateString('en-MY', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button style={{ position: 'relative', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '9px', width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280' }}>
+              <Bell size={15} />
+              {stats.pending > 0 && <span style={{ position: 'absolute', top: '7px', right: '7px', width: '7px', height: '7px', borderRadius: '50%', background: SA.accent, border: '1.5px solid #080f1a' }} />}
+            </button>
+            <button onClick={() => router.push('/superadmin/create-admin')}
+              style={{ display: 'flex', alignItems: 'center', gap: '7px', background: SA.gradientBtn, border: 'none', borderRadius: '9px', padding: '9px 16px', color: 'white', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}>
+              <CirclePlus size={14} />New Admin
+            </button>
+          </div>
+        </div>
+
+        {/* STAT CARDS — 6 columns (admin has 5, superadmin adds Admins count) */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '12px', marginBottom: '28px' }}>
+          {[
+            { label: 'Total Programmes', value: stats.total,    icon: BookOpen,    color: SA.accentText,  bg: SA.accentBg, border: SA.accentBorder },
+            { label: 'Pending Review',   value: stats.pending,  icon: AlertCircle, color: '#fb923c',      bg: 'rgba(251,146,60,0.1)',  border: 'rgba(251,146,60,0.15)' },
+            { label: 'Approved',         value: stats.approved, icon: CheckCircle, color: '#10b981',      bg: 'rgba(16,185,129,0.1)',  border: 'rgba(16,185,129,0.15)' },
+            { label: 'Rejected',         value: stats.rejected, icon: XCircle,     color: '#ef4444',      bg: 'rgba(239,68,68,0.1)',   border: 'rgba(239,68,68,0.15)' },
+            { label: 'Total Users',      value: userCount,      icon: Users,       color: '#38bdf8',      bg: 'rgba(56,189,248,0.1)',  border: 'rgba(56,189,248,0.15)' },
+            { label: 'Admins',           value: adminCount,     icon: Crown,       color: SA.accentText,  bg: SA.accentBg, border: SA.accentBorder },
+          ].map((card, i) => { const Icon = card.icon; return (
+            <div key={i} style={{ background: '#0b1118', border: `1px solid ${card.border}`, borderRadius: '12px', padding: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <div style={{ width: '34px', height: '34px', borderRadius: '9px', background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon size={16} color={card.color} /></div>
+                <TrendingUp size={12} color="#374151" />
+              </div>
+              <p style={{ margin: 0, fontSize: '24px', fontWeight: 700, color: '#f1f5f9', letterSpacing: '-0.03em' }}>{card.value}</p>
+              <p style={{ margin: '3px 0 0', fontSize: '11px', color: '#4b5563' }}>{card.label}</p>
+            </div>
+          )})}
+        </div>
+
+        {/* BUDGET BANNER */}
+        <div style={{ background: `linear-gradient(135deg, rgba(180,83,9,0.12), rgba(217,119,6,0.05))`, border: `1px solid ${SA.accentBorder}`, borderRadius: '12px', padding: '16px 20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: SA.accentBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <DollarSign size={18} color={SA.accentText} />
+          </div>
+          <div>
+            <p style={{ margin: 0, fontSize: '11px', color: '#6b7280' }}>Total Budget (Approved & Pending Only)</p>
+            <p style={{ margin: '2px 0 0', fontSize: '22px', fontWeight: 700, color: SA.accentText, letterSpacing: '-0.03em' }}>RM {stats.totalBudget.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          </div>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: '24px' }}>
+            {[
+              { label: 'Avg per programme', value: stats.total > 0 ? `RM ${Math.round(stats.totalBudget / stats.total).toLocaleString()}` : 'RM 0' },
+              { label: 'Approval rate',     value: stats.total > 0 ? `${Math.round((stats.approved / stats.total) * 100)}%` : '0%' },
+            ].map((kpi, i) => (
+              <div key={i} style={{ textAlign: 'right' }}>
+                <p style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#fcd34d' }}>{kpi.value}</p>
+                <p style={{ margin: '1px 0 0', fontSize: '11px', color: '#4b5563' }}>{kpi.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* SUPERADMIN QUICK-ACCESS CARDS */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
+          {[
+            { icon: CirclePlus, label: 'Create Admin', desc: 'Register a new admin account', path: '/superadmin/create-admin' },
+            { icon: ArrowRightLeft, label: 'Exchange Admin', desc: 'Transfer superadmin privileges', path: '/superadmin/exchange-admin' },
+          ].map((item, i) => {
+            const Icon = item.icon
+            return (
+              <button key={i} onClick={() => router.push(item.path)}
+                style={{ background: '#0b1118', border: `1px solid ${SA.accentBorder}`, borderRadius: '12px', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', textAlign: 'left', transition: 'border-color 0.15s' }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = SA.accent}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = SA.accentBorder}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '9px', background: SA.accentBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon size={18} color={SA.accentText} />
+                </div>
+                <div>
+                  <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#f1f5f9' }}>{item.label}</p>
+                  <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#4b5563' }}>{item.desc}</p>
+                </div>
               </button>
             )
           })}
         </div>
 
-        {/* USER */}
-        <div className="p-3 border-t border-white/5 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-xs font-bold">
-            {getInitials(profile?.full_name)}
+        {/* TABLE */}
+        <div style={{ background: '#0b1118', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '14px', overflow: 'hidden' }}>
+          <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap' }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: '8px' }}><Activity size={15} color={SA.accent} />Programme Management</h2>
+              <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#4b5563' }}>{filtered.length} of {programmes.length} programmes</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <div style={{ position: 'relative' }}>
+                <Search size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#4b5563' }} />
+                <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '7px', padding: '7px 10px 7px 30px', color: '#e2e8f0', fontSize: '12px', outline: 'none', width: '180px' }} />
+              </div>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                {['All', 'Pending', 'Approved', 'Rejected'].map(s => (
+                  <button key={s} onClick={() => setFilterStatus(s)}
+                    style={{ padding: '6px 10px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: 500, background: filterStatus === s ? SA.accentBg : 'rgba(255,255,255,0.04)', color: filterStatus === s ? SA.accentText : '#6b7280' }}>
+                    {s}{s !== 'All' && <span style={{ marginLeft: '4px', fontSize: '10px', opacity: 0.7 }}>({s === 'Pending' ? stats.pending : s === 'Approved' ? stats.approved : stats.rejected})</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
-          <div className="flex-1">
-            <p className="text-sm">{profile?.full_name}</p>
-            <p className="text-xs text-slate-500">SuperAdmin</p>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  {['Programme', 'Category', 'Dates', 'Venue', 'Budget', 'Status', 'Actions'].map(h => (
+                    <th key={h} style={{ padding: '11px 14px', textAlign: 'left', color: '#374151', fontWeight: 500, fontSize: '11px', letterSpacing: '0.04em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr><td colSpan={7} style={{ padding: '48px', textAlign: 'center', color: '#374151' }}><p style={{ margin: 0, fontSize: '13px' }}>No programmes found</p></td></tr>
+                ) : filtered.map((prog, i) => {
+                  const sc = getStatusConfig(prog.status); const StatusIcon = sc.icon
+                  return (
+                    <tr key={prog.id}
+                      style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)', transition: 'background 0.1s' }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = SA.accentSoft}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)'}
+                    >
+                      <td style={{ padding: '12px 14px', maxWidth: '200px' }}><p style={{ margin: 0, fontWeight: 500, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prog.name}</p></td>
+                      <td style={{ padding: '12px 14px' }}><span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '5px', background: SA.accentBg, color: SA.accentText, fontWeight: 500 }}>{prog.category || '—'}</span></td>
+                      <td style={{ padding: '12px 14px', color: '#6b7280', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px' }}>
+                          <Calendar size={11} />
+                          {prog.start_date ? new Date(prog.start_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' }) : '—'}
+                          {prog.end_date && <> → {new Date(prog.end_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: '2-digit' })}</>}
+                        </div>
+                      </td>
+                      <td style={{ padding: '12px 14px', color: '#6b7280', maxWidth: '140px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><MapPin size={11} />{prog.venue || '—'}</div>
+                      </td>
+                      <td style={{ padding: '12px 14px', color: '#e2e8f0', whiteSpace: 'nowrap' }}>{prog.budget ? `RM ${Number(prog.budget).toLocaleString('en-MY', { minimumFractionDigits: 2 })}` : '—'}</td>
+                      <td style={{ padding: '12px 14px' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 500, background: sc.bg, color: sc.color, padding: '4px 9px', borderRadius: '5px' }}>
+                          <StatusIcon size={11} />{prog.status || 'Pending'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px 14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          {prog.status === 'Pending' && (
+                            <button onClick={() => { setReviewProg(prog); setRejectComment('') }}
+                              style={{ background: SA.accentBg, border: `1px solid ${SA.accentBorder}`, borderRadius: '6px', padding: '5px 10px', cursor: 'pointer', color: SA.accentText, display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 500 }}>
+                              <Shield size={12} />Review
+                            </button>
+                          )}
+                          {prog.status !== 'Approved' && (
+                            <>
+                              <button onClick={() => handleEdit(prog)} style={{ background: SA.accentBg, border: `1px solid ${SA.accentBorder}`, borderRadius: '6px', padding: '5px 7px', cursor: 'pointer', color: SA.accentText }}><Pencil size={13} /></button>
+                              <button onClick={() => handleDelete(prog.id)} style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.12)', borderRadius: '6px', padding: '5px 7px', cursor: 'pointer', color: '#ef4444' }}><Trash size={13} /></button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
-
-          <button onClick={handleLogout} className="text-slate-400 hover:text-red-400">
-            <LogOut size={16} />
-          </button>
         </div>
-      </aside>
-
-      {/* MAIN CONTENT */}
-      <main className="ml-[220px] p-8 w-full">
-
-        <h1 className="text-xl font-bold mb-2">SuperAdmin Dashboard</h1>
-        <p className="text-slate-400 mb-6">
-          Manage admins, programmes, and system settings
-        </p>
-
-        {/* SIMPLE CARDS */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-slate-800 p-4 rounded-lg">
-            <p className="text-slate-400 text-sm">Admin Control</p>
-            <p className="text-lg font-semibold">Manage Admins</p>
-          </div>
-
-          <div className="bg-slate-800 p-4 rounded-lg">
-            <p className="text-slate-400 text-sm">System</p>
-            <p className="text-lg font-semibold">Full Access</p>
-          </div>
-
-          <div className="bg-slate-800 p-4 rounded-lg">
-            <p className="text-slate-400 text-sm">Security</p>
-            <p className="text-lg font-semibold">Role Management</p>
-          </div>
-        </div>
-
       </main>
+
+      {/* ── EDIT MODAL ── */}
+      {showEditModal && (
+        <div onClick={e => { if (e.target === e.currentTarget) setShowEditModal(false) }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+          <div style={{ background: '#0f1a24', border: `1px solid ${SA.accentBorder}`, borderRadius: '14px', padding: '28px', width: '100%', maxWidth: '540px', margin: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
+              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: '8px' }}><Pencil size={15} color={SA.accentText} />Edit Programme</h2>
+              <button onClick={() => setShowEditModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280' }}><CircleX size={18} /></button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+              {[
+                { label: 'Programme Name', name: 'name',       type: 'text',   span: 2 },
+                { label: 'Venue',          name: 'venue',      type: 'text',   span: 2 },
+                { label: 'Budget (RM)',    name: 'budget',     type: 'number', span: 1 },
+                { label: 'Start Date',     name: 'start_date', type: 'date',   span: 1 },
+                { label: 'End Date',       name: 'end_date',   type: 'date',   span: 1 },
+              ].map(field => (
+                <div key={field.name} style={{ gridColumn: `span ${field.span}` }}>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>{field.label}</label>
+                  <input type={field.type} value={(editForm as any)[field.name] || ''} onChange={e => setEditForm({ ...editForm, [field.name]: e.target.value })}
+                    style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+              ))}
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Category</label>
+                <select value={editForm.category || ''} onChange={e => setEditForm({ ...editForm, category: e.target.value })}
+                  style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: '#0b1118', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none' }}>
+                  {['Academic', 'Sports', 'Community Service', 'Others'].map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '22px' }}>
+              <button onClick={() => setShowEditModal(false)} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: '#6b7280', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                <CircleX size={14} />Cancel
+              </button>
+              <button onClick={handleUpdate} disabled={actionLoading}
+                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: SA.gradientBtn, color: 'white', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: actionLoading ? 0.7 : 1 }}>
+                <Save size={14} />{actionLoading ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── REVIEW MODAL ── */}
+      {reviewProg && (
+        <div onClick={e => { if (e.target === e.currentTarget) { setReviewProg(null); setRejectComment('') } }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: '#0f1a24', border: `1px solid ${SA.accentBorder}`, borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '560px', margin: '16px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
+              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Shield size={15} color={SA.accentText} />Review Programme
+              </h2>
+              <button onClick={() => { setReviewProg(null); setRejectComment('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280' }}><CircleX size={18} /></button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+              {[
+                { label: 'Programme Name', value: reviewProg.name, span: 2 },
+                { label: 'Category', value: reviewProg.category || '—', span: 1 },
+                { label: 'Venue', value: reviewProg.venue || '—', span: 1 },
+                { label: 'Start Date', value: reviewProg.start_date ? new Date(reviewProg.start_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' }) : '—', span: 1 },
+                { label: 'End Date', value: reviewProg.end_date ? new Date(reviewProg.end_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' }) : '—', span: 1 },
+                { label: 'Budget', value: reviewProg.budget ? `RM ${Number(reviewProg.budget).toLocaleString('en-MY', { minimumFractionDigits: 2 })}` : '—', span: 1 },
+                { label: 'Submitted', value: reviewProg.created_at ? new Date(reviewProg.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }) : '—', span: 1 },
+              ].map(f => (
+                <div key={f.label} style={{ gridColumn: `span ${f.span}`, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '10px 13px' }}>
+                  <p style={{ margin: 0, fontSize: '10px', color: '#6b7280', fontWeight: 500, marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{f.label}</p>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#e2e8f0', fontWeight: 500 }}>{f.value}</p>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', marginBottom: '20px' }} />
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', fontWeight: 500, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Rejection Comment <span style={{ color: '#ef4444' }}>*</span>
+                <span style={{ color: '#374151', fontWeight: 400, textTransform: 'none', letterSpacing: 0, marginLeft: '6px' }}>(required only when rejecting)</span>
+              </label>
+              <textarea value={rejectComment} onChange={e => setRejectComment(e.target.value)}
+                placeholder="Explain why this programme is being rejected so the director can revise and resubmit..."
+                rows={3}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${rejectComment.trim() ? 'rgba(239,68,68,0.35)' : 'rgba(255,255,255,0.08)'}`, color: '#e2e8f0', fontSize: '13px', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.6 }} />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => { setReviewProg(null); setRejectComment('') }} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: '#6b7280', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                <CircleX size={14} />Cancel
+              </button>
+              <button onClick={handleReject} disabled={rejectLoading || !rejectComment.trim()}
+                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: rejectComment.trim() ? 'rgba(239,68,68,0.85)' : 'rgba(239,68,68,0.25)', color: 'white', fontSize: '13px', fontWeight: 500, cursor: rejectComment.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: rejectLoading ? 0.7 : 1 }}>
+                <XCircle size={14} />{rejectLoading ? 'Rejecting...' : 'Reject'}
+              </button>
+              <button onClick={handleApprove} disabled={actionLoading}
+                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #059669, #10b981)', color: 'white', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: actionLoading ? 0.7 : 1 }}>
+                <CheckCircle size={14} />{actionLoading ? 'Approving...' : 'Approve'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── LOADING OVERLAY ── */}
+      {(actionLoading || rejectLoading || deleteLoading) && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,10,20,0.75)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 100, backdropFilter: 'blur(6px)', gap: '16px' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '50%', border: `3px solid ${SA.accentBg}`, borderTopColor: SA.accent, animation: 'spin 0.75s linear infinite' }} />
+          <p style={{ color: SA.accentText, fontSize: '14px', fontWeight: 500, margin: 0 }}>
+            {deleteLoading ? 'Deleting programme...' : rejectLoading ? 'Rejecting programme...' : rejectComment === '' ? 'Approving programme...' : 'Saving changes...'}
+          </p>
+          <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+        </div>
+      )}
     </div>
   )
 }
