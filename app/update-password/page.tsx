@@ -17,39 +17,56 @@ export default function UpdatePassword() {
   useEffect(() => {
     const handleSession = async () => {
       try {
-    
+        const hash = window.location.hash;
+        if (hash) {
+          const params = new URLSearchParams(hash.replace("#", ""));
+          const access_token = params.get("access_token");
+          const refresh_token = params.get("refresh_token");
+          const type = params.get("type");
+
+          if (access_token && refresh_token && type === "recovery") {
+            const { error } = await supabase.auth.setSession({
+              access_token,
+              refresh_token,
+            });
+
+            if (error) {
+              setIsError(true);
+              setMessage(error.message);
+              return;
+            }
+
+            window.history.replaceState({}, document.title, "/update-password");
+            setReady(true);
+            return;
+          }
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get("code");
+
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+          if (error) {
+            setIsError(true);
+            setMessage(error.message);
+            return;
+          }
+
+          window.history.replaceState({}, document.title, "/update-password");
+          setReady(true);
+          return;
+        }
+
         const { data: sessionData } = await supabase.auth.getSession();
         if (sessionData.session) {
           setReady(true);
           return;
         }
 
-        const hash = window.location.hash;
-        if (!hash) {
-          setIsError(true);
-          setMessage("Invalid or expired reset link.");
-          return;
-        }
-
-        const params = new URLSearchParams(hash.replace("#", ""));
-        const access_token = params.get("access_token");
-        const refresh_token = params.get("refresh_token");
-
-        if (!access_token || !refresh_token) {
-          setIsError(true);
-          setMessage("Invalid reset token.");
-          return;
-        }
-
-        const { error } = await supabase.auth.setSession({ access_token, refresh_token });
-        if (error) {
-          setIsError(true);
-          setMessage(error.message);
-          return;
-        }
-
-        window.history.replaceState({}, document.title, "/update-password");
-        setReady(true);
+        setIsError(true);
+        setMessage("Invalid or expired reset link.");
       } catch {
         setIsError(true);
         setMessage("Something went wrong. Please try again.");
