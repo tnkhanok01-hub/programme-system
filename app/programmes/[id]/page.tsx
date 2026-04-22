@@ -1,11 +1,12 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { supabase } from '../../../lib/supabaseClient'
 import {
   ArrowLeft, CheckCircle, XCircle, AlertCircle, Clock,
-  Calendar, MapPin, DollarSign, BookOpen, Save, RefreshCw,
+  Calendar, MapPin, DollarSign, BookOpen, RefreshCw,
+  Upload, FileText, Download, Eye, X, Trash2,
 } from 'lucide-react'
 
 interface Programme {
@@ -15,12 +16,183 @@ interface Programme {
   programme_director_id: string
 }
 
-const statusConfig: Record<string, { color: string; bg: string; border: string; icon: React.ElementType }> = {
-  Pending: { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.2)', icon: AlertCircle },
-  Approved: { color: '#10b981', bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.2)', icon: CheckCircle },
-  Rejected: { color: '#ef4444', bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.2)', icon: XCircle },
+interface PhaseDoc {
+  id: string
+  file_name: string
+  file_path: string
+  phase: 'pre' | 'during' | 'post'
+  programme_id: string
+  created_at: string
 }
 
+type Phase = 'pre' | 'during' | 'post'
+
+const PHASES: { id: Phase; label: string; color: string; activeBg: string; activeBorder: string }[] = [
+  { id: 'pre',    label: 'Pre',    color: '#60a5fa', activeBg: 'rgba(96,165,250,0.15)',  activeBorder: 'rgba(96,165,250,0.4)'  },
+  { id: 'during', label: 'During', color: '#34d399', activeBg: 'rgba(52,211,153,0.15)',  activeBorder: 'rgba(52,211,153,0.4)'  },
+  { id: 'post',   label: 'Post',   color: '#a78bfa', activeBg: 'rgba(167,139,250,0.15)', activeBorder: 'rgba(167,139,250,0.4)' },
+]
+
+const statusConfig: Record<string, { color: string; bg: string; border: string; icon: React.ElementType }> = {
+  Pending:  { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  border: 'rgba(245,158,11,0.2)',  icon: AlertCircle },
+  Approved: { color: '#10b981', bg: 'rgba(16,185,129,0.1)',  border: 'rgba(16,185,129,0.2)',  icon: CheckCircle },
+  Rejected: { color: '#ef4444', bg: 'rgba(239,68,68,0.1)',   border: 'rgba(239,68,68,0.2)',   icon: XCircle },
+}
+
+/* ─── PHASE UPLOAD TAB ───────────────────────────────────────────────────── */
+function PhaseTab({
+  phase, programmeId, docs, onDocsChange,
+}: {
+  phase: Phase
+  programmeId: string
+  docs: PhaseDoc[]
+  onDocsChange: (updated: PhaseDoc[]) => void
+}) {
+  const phaseInfo = PHASES.find(p => p.id === phase)!
+  const phaseDocs = docs.filter(d => d.phase === phase)
+  const [uploading, setUploading] = useState(false)
+  const [previewDoc, setPreviewDoc] = useState<PhaseDoc | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('programme_id', programmeId)
+    formData.append('phase', phase)
+
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+      body: formData,
+    })
+
+    if (res.ok) {
+      // Re-fetch all phase docs for this programme
+      const { data } = await supabase
+        .from('programme_documents')
+        .select('*')
+        .eq('programme_id', programmeId)
+      onDocsChange((data ?? []) as PhaseDoc[])
+    } else {
+      const err = await res.json().catch(() => ({}))
+      alert('Upload failed: ' + (err.error ?? 'Unknown error'))
+    }
+
+    setUploading(false)
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
+  const handleDelete = async (doc: PhaseDoc) => {
+    if (!confirm(`Delete "${doc.file_name}"? This cannot be undone.`)) return
+    await supabase.from('programme_documents').delete().eq('id', doc.id)
+    onDocsChange(docs.filter(d => d.id !== doc.id))
+  }
+
+  const handleDownload = async (doc: PhaseDoc) => {
+    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${doc.file_path}`
+    const res = await fetch(url)
+    const blob = await res.blob()
+    const blobUrl = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = blobUrl; a.download = doc.file_name
+    document.body.appendChild(a); a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(blobUrl)
+  }
+
+  return (
+    <div>
+      {/* Upload zone */}
+      <div style={{ border: `1.5px dashed ${phaseInfo.activeBorder}`, borderRadius: '10px', padding: '20px', background: phaseInfo.activeBg, marginBottom: '16px', textAlign: 'center' }}>
+        <div style={{ marginBottom: '10px' }}>
+          <Upload size={22} color={phaseInfo.color} style={{ margin: '0 auto 6px' }} />
+          <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0 }}>
+            Upload paperwork, posters or reports for the <strong style={{ color: phaseInfo.color }}>{phaseInfo.label}</strong> phase
+          </p>
+        </div>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 18px', background: phaseInfo.activeBg, border: `1px solid ${phaseInfo.activeBorder}`, color: phaseInfo.color, borderRadius: '7px', cursor: uploading ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 500, fontFamily: "'DM Sans', sans-serif", transition: 'opacity 0.15s', opacity: uploading ? 0.6 : 1 }}>
+          {uploading ? <><RefreshCw size={13} style={{ animation: 'spin 0.8s linear infinite' }} />Uploading...</> : <><Upload size={13} />Choose File</>}
+          <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={handleUpload} disabled={uploading} />
+        </label>
+      </div>
+
+      {/* Document list */}
+      {phaseDocs.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '24px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <FileText size={24} color="#334155" style={{ margin: '0 auto 8px', display: 'block' }} />
+          <p style={{ margin: 0, fontSize: '13px', color: '#475569' }}>No documents uploaded for the {phaseInfo.label} phase yet.</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <p style={{ fontSize: '10px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>
+            {phaseInfo.label} Documents ({phaseDocs.length})
+          </p>
+          {phaseDocs.map(doc => (
+            <div key={doc.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: '#0c1526', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '7px', background: phaseInfo.activeBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <FileText size={14} color={phaseInfo.color} />
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '260px' }}>{doc.file_name}</p>
+                  <p style={{ margin: '2px 0 0', fontSize: '10px', color: '#475569' }}>
+                    {new Date(doc.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '5px', flexShrink: 0, marginLeft: '10px' }}>
+                <button onClick={() => setPreviewDoc(doc)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 9px', borderRadius: '6px', border: '1px solid rgba(96,165,250,0.2)', background: 'rgba(96,165,250,0.1)', color: '#60a5fa', fontSize: '11px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+                  <Eye size={11} />View
+                </button>
+                <button onClick={() => handleDownload(doc)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 9px', borderRadius: '6px', border: '1px solid rgba(52,211,153,0.2)', background: 'rgba(52,211,153,0.1)', color: '#34d399', fontSize: '11px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+                  <Download size={11} />
+                </button>
+                <button onClick={() => handleDelete(doc)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 9px', borderRadius: '6px', border: '1px solid rgba(248,113,113,0.15)', background: 'rgba(248,113,113,0.08)', color: '#f87171', fontSize: '11px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+                  <Trash2 size={11} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Preview modal (scoped to this tab) */}
+      {previewDoc && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 80, backdropFilter: 'blur(6px)', padding: '16px' }}>
+          <div style={{ background: '#0c1526', border: '1px solid rgba(255,255,255,0.08)', width: '100%', maxWidth: '700px', borderRadius: '14px', padding: '20px', fontFamily: "'DM Sans', sans-serif" }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '7px', background: phaseInfo.activeBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <FileText size={15} color={phaseInfo.color} />
+                </div>
+                <span style={{ color: '#e2e8f0', fontSize: '14px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{previewDoc.file_name}</span>
+              </div>
+              <button onClick={() => setPreviewDoc(null)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '7px', padding: '6px', color: '#64748b', cursor: 'pointer', display: 'flex', flexShrink: 0, marginLeft: '10px' }}>
+                <X size={16} />
+              </button>
+            </div>
+            <iframe
+              src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${previewDoc.file_path}`}
+              style={{ width: '100%', height: '440px', background: 'white', borderRadius: '8px', border: 'none' }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MAIN PAGE
+═══════════════════════════════════════════════════════════════════════════ */
 export default function ProgrammeDetailPage() {
   const router = useRouter()
   const params = useParams()
@@ -28,23 +200,24 @@ export default function ProgrammeDetailPage() {
 
   const [programme, setProgramme] = useState<Programme | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'pre' | 'during' | 'post'>('pre');
+  const [activeTab, setActiveTab] = useState<Phase>('pre')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [isOwner, setIsOwner] = useState(false)
 
-  // Editable fields for resubmission
+  // Phase documents — fetched once, passed down; PhaseTab filters by phase
+  const [phaseDocs, setPhaseDocs] = useState<PhaseDoc[]>([])
+
   const [form, setForm] = useState({ name: '', category: '', venue: '', budget: '', start_date: '', end_date: '', description: '' })
 
   useEffect(() => {
-    if (!id) return  // wait until params are resolved
+    if (!id) return
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.replace('/login'); return }
 
-      const token = session.access_token
       const res = await fetch(`/api/programmes/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${session.access_token}` },
       })
 
       if (!res.ok) {
@@ -58,14 +231,22 @@ export default function ProgrammeDetailPage() {
       setProgramme(prog)
       setIsOwner(!!data.isDirector)
       setForm({
-        name: prog.name ?? '',
-        category: prog.category ?? '',
-        venue: prog.venue ?? '',
-        budget: prog.budget != null ? String(prog.budget) : '',
-        start_date: prog.start_date ? prog.start_date.slice(0, 10) : '',
-        end_date: prog.end_date ? prog.end_date.slice(0, 10) : '',
+        name:        prog.name        ?? '',
+        category:    prog.category    ?? '',
+        venue:       prog.venue       ?? '',
+        budget:      prog.budget != null ? String(prog.budget) : '',
+        start_date:  prog.start_date  ? prog.start_date.slice(0, 10) : '',
+        end_date:    prog.end_date    ? prog.end_date.slice(0, 10)   : '',
         description: prog.description ?? '',
       })
+
+      // Fetch phase docs
+      const { data: docs } = await supabase
+        .from('programme_documents')
+        .select('*')
+        .eq('programme_id', id)
+      setPhaseDocs((docs ?? []) as PhaseDoc[])
+
       setLoading(false)
     }
     init()
@@ -118,269 +299,188 @@ export default function ProgrammeDetailPage() {
   const StatusIcon = sc.icon
   const isRejected = programme.status === 'Rejected'
   const canResubmit = isRejected && isOwner
+  const activePhase = PHASES.find(p => p.id === activeTab)!
 
   return (
-    <div style={{ minHeight: '100vh', background: '#070e1a', fontFamily: "'DM Sans', sans-serif", color: '#e2e8f0', padding: '32px' }}>
-      <div style={{ maxWidth: '720px', margin: '0 auto' }}>
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap');
+        @keyframes spin { to { transform: rotate(360deg) } }
+      `}</style>
 
-        {/* Back */}
-        <button onClick={() => router.back()} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', fontSize: '13px', marginBottom: '24px', padding: 0 }}>
-          <ArrowLeft size={14} />Back to Programmes
-        </button>
+      <div style={{ minHeight: '100vh', background: '#070e1a', fontFamily: "'DM Sans', sans-serif", color: '#e2e8f0', padding: '28px 20px' }}>
+        <div style={{ maxWidth: '720px', margin: '0 auto' }}>
 
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px', gap: '12px', flexWrap: 'wrap' }}>
-          <div>
-            <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 700, color: '#f1f5f9', letterSpacing: '-0.02em' }}>{programme.name}</h1>
-            <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#4b5563' }}>
-              Submitted {new Date(programme.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' })}
-            </p>
-          </div>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`, borderRadius: '8px', padding: '6px 12px', fontSize: '12px', fontWeight: 600 }}>
-            <StatusIcon size={13} />{programme.status}
-          </span>
-        </div>
+          {/* Back */}
+          <button onClick={() => router.back()}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', fontSize: '13px', marginBottom: '24px', padding: 0 }}>
+            <ArrowLeft size={14} />Back to Programmes
+          </button>
 
-        {/* Rejection banner */}
-        {isRejected && programme.rejection_reason && (
-          <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '12px', padding: '16px 20px', marginBottom: '24px' }}>
-            <p style={{ margin: '0 0 6px', fontSize: '11px', fontWeight: 600, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <XCircle size={13} />Rejection Comment
-            </p>
-            <p style={{ margin: 0, fontSize: '14px', color: '#fca5a5', lineHeight: 1.7 }}>{programme.rejection_reason}</p>
-          </div>
-        )}
-
-        {/* Details card */}
-        <div style={{ background: '#0c1526', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '14px', padding: '24px', marginBottom: '24px' }}>
-          <h2 style={{ margin: '0 0 16px', fontSize: '13px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Programme Details</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            {[
-              { label: 'Category', value: programme.category || '—', icon: BookOpen },
-              { label: 'Venue', value: programme.venue || '—', icon: MapPin },
-              { label: 'Start Date', value: programme.start_date ? new Date(programme.start_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' }) : '—', icon: Calendar },
-              { label: 'End Date', value: programme.end_date ? new Date(programme.end_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' }) : '—', icon: Calendar },
-              { label: 'Budget', value: programme.budget != null ? `RM ${Number(programme.budget).toLocaleString('en-MY', { minimumFractionDigits: 2 })}` : '—', icon: DollarSign },
-            ].map(f => {
-              const Icon = f.icon
-              return (
-                <div key={f.label} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                  <div style={{ width: '30px', height: '30px', borderRadius: '7px', background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <Icon size={13} color="#818cf8" />
-                  </div>
-                  <div>
-                    <p style={{ margin: 0, fontSize: '10px', color: '#4b5563', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{f.label}</p>
-                    <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#e2e8f0' }}>{f.value}</p>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-          {programme.description && (
-            <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-              <p style={{ margin: '0 0 6px', fontSize: '10px', color: '#4b5563', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Description</p>
-              <p style={{ margin: 0, fontSize: '13px', color: '#94a3b8', lineHeight: 1.7 }}>{programme.description}</p>
-            </div>
-          )}
-        </div>
-
-        {/* Programme Lifecycle Section */}
-        <div style={{ marginBottom: '20px' }}>
-
-          {/* Tab Buttons */}
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
-            {['pre', 'during', 'post'].map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab as any)}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  background: activeTab === tab ? '#6366f1' : 'transparent',
-                  color: activeTab === tab ? 'white' : '#94a3b8',
-                  cursor: 'pointer',
-                  fontSize: '12px'
-                }}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
-          </div>
-
-          {/* ================= PRE PHASE ================= */}
-          {/* This section is shown when 'Pre' tab is selected */}
-          {activeTab === 'pre' && (
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px', gap: '12px', flexWrap: 'wrap' }}>
             <div>
-              <h3>Pre Phase</h3>
-              <div style={{
-                border: '1px dashed rgba(255,255,255,0.2)',
-                borderRadius: '10px',
-                padding: '20px',
-                textAlign: 'center',
-                background: 'rgba(255,255,255,0.02)'
-              }}>
-                <p style={{ marginBottom: '10px', fontSize: '13px', color: '#94a3b8' }}>
-                  📄 Upload paperwork & poster
-                </p>
+              <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 700, color: '#f1f5f9', letterSpacing: '-0.02em' }}>{programme.name}</h1>
+              <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#4b5563' }}>
+                Submitted {new Date(programme.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </p>
+            </div>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`, borderRadius: '8px', padding: '6px 12px', fontSize: '12px', fontWeight: 600, flexShrink: 0 }}>
+              <StatusIcon size={13} />{programme.status}
+            </span>
+          </div>
 
-                <label style={{
-                  display: 'inline-block',
-                  padding: '8px 16px',
-                  background: '#6366f1',
-                  color: 'white',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                  transition: '0.2s'
-                }}
-                  onMouseOver={(e) => (e.currentTarget.style.background = '#4f46e5')}
-                  onMouseOut={(e) => (e.currentTarget.style.background = '#6366f1')}
-                >
-                  Upload File
-                  <input type="file" style={{ display: 'none' }} />
-                </label>
-              </div>
+          {/* Rejection banner */}
+          {isRejected && programme.rejection_reason && (
+            <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '12px', padding: '16px 20px', marginBottom: '24px' }}>
+              <p style={{ margin: '0 0 6px', fontSize: '11px', fontWeight: 600, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <XCircle size={13} />Rejection Comment
+              </p>
+              <p style={{ margin: 0, fontSize: '14px', color: '#fca5a5', lineHeight: 1.7 }}>{programme.rejection_reason}</p>
             </div>
           )}
 
-          {/* ================= DURING PHASE ================= */}
-          {/* This section is shown when 'During' tab is selected */}
-          {activeTab === 'during' && (
-            <div>
-              <h3>During Phase</h3>
-              <div style={{
-                border: '1px dashed rgba(255,255,255,0.2)',
-                borderRadius: '10px',
-                padding: '20px',
-                textAlign: 'center',
-                background: 'rgba(255,255,255,0.02)'
-              }}>
-                <p style={{ marginBottom: '10px', fontSize: '13px', color: '#94a3b8' }}>
-                  📄 Upload paperwork & poster
-                </p>
-
-                <label style={{
-                  display: 'inline-block',
-                  padding: '8px 16px',
-                  background: '#6366f1',
-                  color: 'white',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                  transition: '0.2s'
-                }}
-                  onMouseOver={(e) => (e.currentTarget.style.background = '#4f46e5')}
-                  onMouseOut={(e) => (e.currentTarget.style.background = '#6366f1')}
-                >
-                  Upload File
-                  <input type="file" style={{ display: 'none' }} />
-                </label>
-              </div>
-            </div>
-          )}
-
-          {/* ================= POST PHASE ================= */}
-          {/* This section is shown when 'Post' tab is selected */}
-          {activeTab === 'post' && (
-            <div>
-              <h3>Post Phase</h3>
-              <div style={{
-                border: '1px dashed rgba(255,255,255,0.2)',
-                borderRadius: '10px',
-                padding: '20px',
-                textAlign: 'center',
-                background: 'rgba(255,255,255,0.02)'
-              }}>
-                <p style={{ marginBottom: '10px', fontSize: '13px', color: '#94a3b8' }}>
-                  📄 Upload paperwork & poster
-                </p>
-
-                <label style={{
-                  display: 'inline-block',
-                  padding: '8px 16px',
-                  background: '#6366f1',
-                  color: 'white',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                  transition: '0.2s'
-                }}
-                  onMouseOver={(e) => (e.currentTarget.style.background = '#4f46e5')}
-                  onMouseOut={(e) => (e.currentTarget.style.background = '#6366f1')}
-                >
-                  Upload File
-                  <input type="file" style={{ display: 'none' }} />
-                </label>
-              </div>
-            </div>
-          )}
-
-        </div>
-        {/* Resubmit form — only shown if Rejected and is owner */}
-        {canResubmit && (
-          <div style={{ background: '#0c1526', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '14px', padding: '24px' }}>
-            <h2 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: 600, color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <RefreshCw size={15} color="#818cf8" />Revise & Resubmit
-            </h2>
-            <p style={{ margin: '0 0 20px', fontSize: '12px', color: '#4b5563' }}>
-              Address the rejection comment above, update the fields below, then resubmit for review.
-            </p>
-
+          {/* Details card */}
+          <div style={{ background: '#0c1526', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '14px', padding: '24px', marginBottom: '24px' }}>
+            <h2 style={{ margin: '0 0 16px', fontSize: '13px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Programme Details</h2>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
               {[
-                { label: 'Programme Name', key: 'name', type: 'text', span: 2 },
-                { label: 'Venue', key: 'venue', type: 'text', span: 2 },
-                { label: 'Start Date', key: 'start_date', type: 'date', span: 1 },
-                { label: 'End Date', key: 'end_date', type: 'date', span: 1 },
-                { label: 'Budget (RM)', key: 'budget', type: 'number', span: 1 },
-              ].map(f => (
-                <div key={f.key} style={{ gridColumn: `span ${f.span}` }}>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>{f.label}</label>
-                  <input
-                    type={f.type}
-                    value={(form as any)[f.key]}
-                    onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-                    style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
-                  />
-                </div>
-              ))}
-
-              <div style={{ gridColumn: 'span 1' }}>
-                <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Category</label>
-                <select
-                  value={form.category}
-                  onChange={e => setForm(prev => ({ ...prev, category: e.target.value }))}
-                  style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: '#0a1628', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none' }}
-                >
-                  {['Academic', 'Sports', 'Community Service', 'Others'].map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+                { label: 'Category',   value: programme.category || '—', icon: BookOpen },
+                { label: 'Venue',      value: programme.venue    || '—', icon: MapPin },
+                { label: 'Start Date', value: programme.start_date ? new Date(programme.start_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' }) : '—', icon: Calendar },
+                { label: 'End Date',   value: programme.end_date   ? new Date(programme.end_date).toLocaleDateString('en-MY',   { day: 'numeric', month: 'long', year: 'numeric' }) : '—', icon: Calendar },
+                { label: 'Budget',     value: programme.budget != null ? `RM ${Number(programme.budget).toLocaleString('en-MY', { minimumFractionDigits: 2 })}` : '—', icon: DollarSign },
+              ].map(f => {
+                const Icon = f.icon
+                return (
+                  <div key={f.label} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                    <div style={{ width: '30px', height: '30px', borderRadius: '7px', background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Icon size={13} color="#818cf8" />
+                    </div>
+                    <div>
+                      <p style={{ margin: 0, fontSize: '10px', color: '#4b5563', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{f.label}</p>
+                      <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#e2e8f0' }}>{f.value}</p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            {programme.description && (
+              <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                <p style={{ margin: '0 0 6px', fontSize: '10px', color: '#4b5563', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Description</p>
+                <p style={{ margin: 0, fontSize: '13px', color: '#94a3b8', lineHeight: 1.7 }}>{programme.description}</p>
               </div>
+            )}
+          </div>
 
-              <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Description</label>
-                <textarea
-                  value={form.description}
-                  onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))}
-                  rows={3}
-                  style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.6 }}
-                />
-              </div>
+          {/* ── LIFECYCLE TABS ── */}
+          <div style={{ background: '#0c1526', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '14px', overflow: 'hidden', marginBottom: '24px' }}>
+
+            {/* Tab bar */}
+            <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              {PHASES.map(phase => {
+                const isActive = activeTab === phase.id
+                const tabDocCount = phaseDocs.filter(d => d.phase === phase.id).length
+                return (
+                  <button
+                    key={phase.id}
+                    onClick={() => setActiveTab(phase.id)}
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      padding: '14px 10px',
+                      border: 'none',
+                      borderBottom: isActive ? `2px solid ${phase.color}` : '2px solid transparent',
+                      background: isActive ? phase.activeBg : 'transparent',
+                      color: isActive ? phase.color : '#6b7280',
+                      fontSize: '13px',
+                      fontWeight: isActive ? 600 : 400,
+                      cursor: 'pointer',
+                      fontFamily: "'DM Sans', sans-serif",
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <Clock size={13} />
+                    {phase.label}
+                    {/* Doc count badge */}
+                    {tabDocCount > 0 && (
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        minWidth: '18px', height: '18px', padding: '0 5px',
+                        borderRadius: '9px', fontSize: '10px', fontWeight: 700,
+                        background: isActive ? phase.color : 'rgba(255,255,255,0.08)',
+                        color: isActive ? '#070e1a' : '#94a3b8',
+                      }}>
+                        {tabDocCount}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
 
-            <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
-              <button
-                onClick={handleResubmit}
-                disabled={saving}
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'linear-gradient(135deg, #4f46e5, #6366f1)', border: 'none', borderRadius: '8px', padding: '10px 20px', color: 'white', fontSize: '13px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
-              >
-                <RefreshCw size={14} />{saving ? 'Resubmitting...' : 'Resubmit for Review'}
-              </button>
+            {/* Tab content — only the active phase renders */}
+            <div style={{ padding: '20px' }}>
+              <PhaseTab
+                key={activeTab}            // force remount when tab changes → clears upload state
+                phase={activeTab}
+                programmeId={programme.id}
+                docs={phaseDocs}
+                onDocsChange={setPhaseDocs}
+              />
             </div>
           </div>
-        )}
 
+          {/* Resubmit form */}
+          {canResubmit && (
+            <div style={{ background: '#0c1526', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '14px', padding: '24px' }}>
+              <h2 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: 600, color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <RefreshCw size={15} color="#818cf8" />Revise & Resubmit
+              </h2>
+              <p style={{ margin: '0 0 20px', fontSize: '12px', color: '#4b5563' }}>
+                Address the rejection comment above, update the fields below, then resubmit for review.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                {[
+                  { label: 'Programme Name', key: 'name',       type: 'text',   span: 2 },
+                  { label: 'Venue',          key: 'venue',       type: 'text',   span: 2 },
+                  { label: 'Start Date',     key: 'start_date',  type: 'date',   span: 1 },
+                  { label: 'End Date',       key: 'end_date',    type: 'date',   span: 1 },
+                  { label: 'Budget (RM)',    key: 'budget',      type: 'number', span: 1 },
+                ].map(f => (
+                  <div key={f.key} style={{ gridColumn: `span ${f.span}` }}>
+                    <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>{f.label}</label>
+                    <input type={f.type} value={(form as any)[f.key]} onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                      style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
+                ))}
+                <div style={{ gridColumn: 'span 1' }}>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Category</label>
+                  <select value={form.category} onChange={e => setForm(prev => ({ ...prev, category: e.target.value }))}
+                    style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: '#0a1628', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none' }}>
+                    {['Academic', 'Sports', 'Community Service', 'Others'].map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Description</label>
+                  <textarea value={form.description} onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))} rows={3}
+                    style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.6 }} />
+                </div>
+              </div>
+              <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
+                <button onClick={handleResubmit} disabled={saving}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'linear-gradient(135deg, #4f46e5, #6366f1)', border: 'none', borderRadius: '8px', padding: '10px 20px', color: 'white', fontSize: '13px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+                  <RefreshCw size={14} />{saving ? 'Resubmitting...' : 'Resubmit for Review'}
+                </button>
+              </div>
+            </div>
+          )}
+
+        </div>
       </div>
-    </div>
+    </>
   )
 }
