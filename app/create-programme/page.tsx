@@ -42,14 +42,23 @@ export default function ProgrammePage() {
   const [previewFile, setPreviewFile] = useState<any | null>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [uploadLoading, setUploadLoading] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.replace("/login"); return }
+      setUserId(session.user.id)
       const { data, error } = await supabase.from("programmes").select("*").order("created_at", { ascending: false })
       if (error) setError(error.message)
-      else setProgrammes(data || [])
+      else {
+        const sorted = [...(data || [])].sort((a, b) => {
+          const aOwn = a.programme_director_id === session.user.id ? 0 : 1
+          const bOwn = b.programme_director_id === session.user.id ? 0 : 1
+          return aOwn - bOwn
+        })
+        setProgrammes(sorted)
+      }
       const { data: docs } = await supabase.from("programme_documents").select("*")
       setDocuments(docs || [])
       setLoading(false)
@@ -225,15 +234,16 @@ export default function ProgrammePage() {
                     const programmeFiles = documents.filter(d => d.programme_id === p.id)
                     const isDocsOpen = openDocsId === p.id
                     const isUploadOpen = selectedProgrammeId === p.id
+                    const isOwn = p.programme_director_id === userId
 
                     return (
                       <React.Fragment key={p.id}>
 
                         {/* ── MAIN DATA ROW ── */}
-                        <tr className="main-row">
-                          <td>{idx + 1}</td>
+                        <tr className="main-row" style={isOwn ? { background: 'rgba(99,102,241,0.07)', borderLeft: '2px solid rgba(99,102,241,0.5)' } : {}}>
+                          <td>{idx + 1}{isOwn && <span style={{ marginLeft: '5px', fontSize: '9px', background: 'rgba(99,102,241,0.2)', color: '#818cf8', borderRadius: '4px', padding: '1px 5px', fontWeight: 600, verticalAlign: 'middle' }}>MINE</span>}</td>
 
-                          <td className="name-cell">{p.name}</td>
+                          <td className="name-cell" style={{ cursor: isOwn ? 'pointer' : 'default' }} onClick={() => isOwn && router.push(`/programmes/${p.id}`)}>{p.name}{isOwn && <span style={{ marginLeft: '6px', fontSize: '10px', color: '#818cf8', opacity: 0.7 }}>↗</span>}</td>
 
                           <td>{p.category || <span style={{ color: "#2d3d52" }}>—</span>}</td>
 

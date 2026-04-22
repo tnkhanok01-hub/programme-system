@@ -24,6 +24,37 @@ function makeServiceClient() {
   );
 }
 
+// ─── GET /api/programmes/[id] ─────────────────────────────────────────────────
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const token = getToken(request);
+  if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  // Use service client to verify token — avoids RLS issues with anon key
+  const { data: { user }, error: authError } = await makeServiceClient().auth.getUser(token);
+  if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { id: programmeId } = await params;
+
+  const { data: programme, error } = await makeServiceClient()
+    .from('programmes')
+    .select('*')
+    .eq('id', programmeId)
+    .single();
+
+  if (error || !programme) {
+    return NextResponse.json({ error: 'Programme not found.' }, { status: 404 });
+  }
+
+  const isDirector = programme.programme_director_id === user.id;
+
+  // Any authenticated user can view. isDirector tells the client
+  // whether to show the resubmit form.
+  return NextResponse.json({ programme, isDirector });
+}
+
 // ─── PUT /api/programmes/[id] ─────────────────────────────────────────────────
 export async function PUT(
   request: Request,

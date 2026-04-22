@@ -14,7 +14,7 @@ interface Programme {
   id: string; name: string; category: string; venue: string
   budget: number; start_date: string; end_date: string; status: string; created_at: string
 }
-interface Profile { id: string; full_name: string; email: string; role: string }
+interface Profile { id: string; full_name: string; email: string; roles: { name: string } | null }
 type NavItem = 'dashboard' | 'programmes' | 'users' | 'settings'
 
 export default function AdminHomepage() {
@@ -30,6 +30,10 @@ export default function AdminHomepage() {
   const [editForm, setEditForm] = useState<Partial<Programme>>({})
   const [actionLoading, setActionLoading] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
+  const [reviewProg, setReviewProg] = useState<Programme | null>(null)
+  const [rejectComment, setRejectComment] = useState('')
+  const [rejectLoading, setRejectLoading] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000)
@@ -45,10 +49,10 @@ export default function AdminHomepage() {
         return
       }
 
-      // 2. Fetch profile
+      // 2. Fetch user record with role via join
       const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
+        .from('users')
+        .select('id, full_name, roles(name)')
         .eq('id', session.user.id)
         .single()
 
@@ -57,19 +61,19 @@ export default function AdminHomepage() {
         return
       }
 
-      // 3. Role check — case-insensitive so 'Admin' and 'admin' both work
-      const role = profileData.role?.toLowerCase?.() ?? ''
+      // 3. Role check via joined roles table
+      const role = (profileData.roles as any)?.name?.toLowerCase?.() ?? ''
       if (role !== 'admin' && role !== 'superadmin') {
         router.replace(role === 'student' ? '/student' : '/login')
         return
       }
 
-      setProfile(profileData)
+      setProfile(profileData as any)
 
       // 4. Fetch programmes and user count in parallel
       const [{ data: programmeData }, { count }] = await Promise.all([
         supabase.from('programmes').select('*').order('created_at', { ascending: false }),
-        supabase.from('profiles').select('*', { count: 'exact', head: true }),
+        supabase.from('users').select('*', { count: 'exact', head: true }),
       ])
 
       if (programmeData) setProgrammes(programmeData)
@@ -113,18 +117,57 @@ export default function AdminHomepage() {
     if (!confirm('Delete this programme? This cannot be undone.')) return
     const token = await getToken()
     if (!token) return
+    setDeleteLoading(true)
     const res = await fetch(`/api/programmes/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
     if (res.ok) setProgrammes(prev => prev.filter(p => p.id !== id))
+    setDeleteLoading(false)
   }
 
-  const handleApprove = async (id: string) => {
-    const { error } = await supabase.from('programmes').update({ status: 'Approved' }).eq('id', id)
-    if (!error) setProgrammes(prev => prev.map(p => p.id === id ? { ...p, status: 'Approved' } : p))
+  const handleApprove = async () => {
+    if (!reviewProg) return
+    const token = await getToken()
+    if (!token) return
+    setActionLoading(true)
+    const res = await fetch(`/api/programmes/${reviewProg.id}/approve`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) {
+      setProgrammes(prev => prev.map(p => p.id === reviewProg.id ? { ...p, status: 'Approved' } : p))
+      setReviewProg(null)
+    } else {
+      const data = await res.json()
+      alert(data.error ?? 'Failed to approve programme.')
+    }
+    setActionLoading(false)
   }
 
-  const handleReject = async (id: string) => {
-    const { error } = await supabase.from('programmes').update({ status: 'Rejected' }).eq('id', id)
-    if (!error) setProgrammes(prev => prev.map(p => p.id === id ? { ...p, status: 'Rejected' } : p))
+  const handleReject = async () => {
+    if (!reviewProg) return
+    if (!rejectComment.trim()) {
+      alert('Please provide a rejection comment before rejecting.')
+      return
+    }
+    const token = await getToken()
+    if (!token) return
+    setRejectLoading(true)
+    const res = await fetch(`/api/programmes/${reviewProg.id}/reject`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ reason: rejectComment.trim() }),
+    })
+    if (res.ok) {
+      // Status → Rejected; budget excluded from total via stats filter
+      setProgrammes(prev => prev.map(p =>
+        p.id === reviewProg.id ? { ...p, status: 'Rejected' } : p
+      ))
+      setReviewProg(null)
+      setRejectComment('')
+    } else {
+      const data = await res.json()
+      alert(data.error ?? 'Failed to reject programme.')
+    }
+    setRejectLoading(false)
   }
 
   const getInitials = (name: string) => name?.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'AD'
@@ -134,7 +177,8 @@ export default function AdminHomepage() {
     pending: programmes.filter(p => p.status === 'Pending').length,
     approved: programmes.filter(p => p.status === 'Approved').length,
     rejected: programmes.filter(p => p.status === 'Rejected').length,
-    totalBudget: programmes.reduce((sum, p) => sum + (Number(p.budget) || 0), 0),
+    // Rejected programmes are excluded from total budget
+    totalBudget: programmes.filter(p => p.status !== 'Rejected').reduce((sum, p) => sum + (Number(p.budget) || 0), 0),
   }
 
   const filtered = programmes.filter(p => {
@@ -231,7 +275,7 @@ export default function AdminHomepage() {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ margin: 0, fontSize: '12px', fontWeight: 500, color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile?.full_name || 'Admin'}</p>
-              <p style={{ margin: 0, fontSize: '10px', color: '#6b7280', textTransform: 'capitalize' }}>{profile?.role || 'Administrator'}</p>
+              <p style={{ margin: 0, fontSize: '10px', color: '#6b7280', textTransform: 'capitalize' }}>{(profile?.roles as any)?.name || 'Administrator'}</p>
             </div>
             <button onClick={handleLogout} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', padding: '3px' }}>
               <LogOut size={13} />
@@ -282,7 +326,7 @@ export default function AdminHomepage() {
         <div style={{ background: 'linear-gradient(135deg, rgba(109,40,217,0.15), rgba(124,58,237,0.08))', border: '1px solid rgba(124,58,237,0.2)', borderRadius: '12px', padding: '16px 20px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '14px' }}>
           <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(124,58,237,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><DollarSign size={18} color="#a78bfa" /></div>
           <div>
-            <p style={{ margin: 0, fontSize: '11px', color: '#6b7280' }}>Total Budget Across All Programmes</p>
+            <p style={{ margin: 0, fontSize: '11px', color: '#6b7280' }}>Total Budget (Approved & Pending Only)</p>
             <p style={{ margin: '2px 0 0', fontSize: '22px', fontWeight: 700, color: '#a78bfa', letterSpacing: '-0.03em' }}>RM {stats.totalBudget.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
           </div>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: '24px' }}>
@@ -361,13 +405,16 @@ export default function AdminHomepage() {
                       <td style={{ padding: '12px 14px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                           {prog.status === 'Pending' && (
+                            <button onClick={() => { setReviewProg(prog); setRejectComment('') }} style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '6px', padding: '5px 10px', cursor: 'pointer', color: '#818cf8', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 500 }}>
+                              <Shield size={12} />Review
+                            </button>
+                          )}
+                          {prog.status !== 'Approved' && (
                             <>
-                              <button onClick={() => handleApprove(prog.id)} style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '6px', padding: '5px 8px', cursor: 'pointer', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 500 }}><CheckCircle size={12} />Approve</button>
-                              <button onClick={() => handleReject(prog.id)} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: '6px', padding: '5px 8px', cursor: 'pointer', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 500 }}><XCircle size={12} />Reject</button>
+                              <button onClick={() => handleEdit(prog)} style={{ background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.15)', borderRadius: '6px', padding: '5px 7px', cursor: 'pointer', color: '#a78bfa' }}><Pencil size={13} /></button>
+                              <button onClick={() => handleDelete(prog.id)} style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.12)', borderRadius: '6px', padding: '5px 7px', cursor: 'pointer', color: '#ef4444' }}><Trash size={13} /></button>
                             </>
                           )}
-                          <button onClick={() => handleEdit(prog)} style={{ background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.15)', borderRadius: '6px', padding: '5px 7px', cursor: 'pointer', color: '#a78bfa' }}><Pencil size={13} /></button>
-                          <button onClick={() => handleDelete(prog.id)} style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.12)', borderRadius: '6px', padding: '5px 7px', cursor: 'pointer', color: '#ef4444' }}><Trash size={13} /></button>
                         </div>
                       </td>
                     </tr>
@@ -418,6 +465,83 @@ export default function AdminHomepage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* REVIEW / DECISION MODAL */}
+      {reviewProg && (
+        <div onClick={e => { if (e.target === e.currentTarget) { setReviewProg(null); setRejectComment('') } }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: '#0f1e30', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '560px', margin: '16px', maxHeight: '90vh', overflowY: 'auto' }}>
+
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
+              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Shield size={15} color="#818cf8" />Review Programme
+              </h2>
+              <button onClick={() => { setReviewProg(null); setRejectComment('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280' }}><CircleX size={18} /></button>
+            </div>
+
+            {/* Details grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+              {[
+                { label: 'Programme Name', value: reviewProg.name, span: 2 },
+                { label: 'Category', value: reviewProg.category || '—', span: 1 },
+                { label: 'Venue', value: reviewProg.venue || '—', span: 1 },
+                { label: 'Start Date', value: reviewProg.start_date ? new Date(reviewProg.start_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' }) : '—', span: 1 },
+                { label: 'End Date', value: reviewProg.end_date ? new Date(reviewProg.end_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' }) : '—', span: 1 },
+                { label: 'Budget', value: reviewProg.budget ? `RM ${Number(reviewProg.budget).toLocaleString('en-MY', { minimumFractionDigits: 2 })}` : '—', span: 1 },
+                { label: 'Submitted', value: reviewProg.created_at ? new Date(reviewProg.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }) : '—', span: 1 },
+              ].map(f => (
+                <div key={f.label} style={{ gridColumn: `span ${f.span}`, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '10px 13px' }}>
+                  <p style={{ margin: 0, fontSize: '10px', color: '#6b7280', fontWeight: 500, marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{f.label}</p>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#e2e8f0', fontWeight: 500 }}>{f.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Divider */}
+            <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', marginBottom: '20px' }} />
+
+            {/* Rejection comment */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', fontWeight: 500, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Rejection Comment <span style={{ color: '#ef4444' }}>*</span>
+                <span style={{ color: '#374151', fontWeight: 400, textTransform: 'none', letterSpacing: 0, marginLeft: '6px' }}>(required only when rejecting)</span>
+              </label>
+              <textarea
+                value={rejectComment}
+                onChange={e => setRejectComment(e.target.value)}
+                placeholder="Explain why this programme is being rejected so the director can revise and resubmit..."
+                rows={3}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${rejectComment.trim() ? 'rgba(239,68,68,0.35)' : 'rgba(255,255,255,0.08)'}`, color: '#e2e8f0', fontSize: '13px', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.6 }}
+              />
+            </div>
+
+            {/* Action buttons */}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => { setReviewProg(null); setRejectComment('') }} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: '#6b7280', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                <CircleX size={14} />Cancel
+              </button>
+              <button onClick={handleReject} disabled={rejectLoading || !rejectComment.trim()} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: rejectComment.trim() ? 'rgba(239,68,68,0.85)' : 'rgba(239,68,68,0.25)', color: 'white', fontSize: '13px', fontWeight: 500, cursor: rejectComment.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: rejectLoading ? 0.7 : 1 }}>
+                <XCircle size={14} />{rejectLoading ? 'Rejecting...' : 'Reject'}
+              </button>
+              <button onClick={handleApprove} disabled={actionLoading} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #059669, #10b981)', color: 'white', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: actionLoading ? 0.7 : 1 }}>
+                <CheckCircle size={14} />{actionLoading ? 'Approving...' : 'Approve'}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* FULL-SCREEN ACTION LOADING OVERLAY */}
+      {(actionLoading || rejectLoading || deleteLoading) && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,10,20,0.75)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 100, backdropFilter: 'blur(6px)', gap: '16px' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '50%', border: '3px solid rgba(124,58,237,0.2)', borderTopColor: '#7c3aed', animation: 'spin 0.75s linear infinite' }} />
+          <p style={{ color: '#a78bfa', fontSize: '14px', fontWeight: 500, margin: 0 }}>
+            {deleteLoading ? 'Deleting programme...' : rejectLoading ? 'Rejecting programme...' : actionLoading && rejectComment === '' ? 'Approving programme...' : 'Saving changes...'}
+          </p>
+          <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
         </div>
       )}
     </div>

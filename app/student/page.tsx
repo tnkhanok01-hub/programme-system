@@ -50,6 +50,7 @@ export default function StudentHomepage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeNav, setActiveNav] = useState('dashboard')
   const [currentTime, setCurrentTime] = useState(new Date())
+  const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000)
@@ -67,6 +68,7 @@ export default function StudentHomepage() {
         .eq('id', session.user.id)
         .single()
 
+      setUserId(session.user.id)
       if (profileData) setProfile(profileData)
 
       const { data: programmeData } = await supabase
@@ -75,7 +77,14 @@ export default function StudentHomepage() {
         .order('created_at', { ascending: false })
         .limit(6)
 
-      if (programmeData) setProgrammes(programmeData)
+      if (programmeData) {
+        const sorted = [...programmeData].sort((a, b) => {
+          const aOwn = a.programme_director_id === session.user.id ? 0 : 1
+          const bOwn = b.programme_director_id === session.user.id ? 0 : 1
+          return aOwn - bOwn
+        })
+        setProgrammes(sorted)
+      }
 
       const { count } = await supabase
         .from('programme_roles')
@@ -416,32 +425,39 @@ export default function StudentHomepage() {
                   key={prog.id}
                   onClick={() => router.push(`/programmes/${prog.id}`)}
                   style={{
-                    background: 'rgba(255,255,255,0.03)',
-                    border: '1px solid rgba(255,255,255,0.07)',
+                    background: prog.programme_director_id === userId ? 'rgba(99,102,241,0.08)' : 'rgba(255,255,255,0.03)',
+                    border: prog.programme_director_id === userId ? '1px solid rgba(99,102,241,0.35)' : '1px solid rgba(255,255,255,0.07)',
                     borderRadius: '12px',
                     padding: '18px',
                     cursor: 'pointer',
                     transition: 'all 0.15s',
                   }}
                   onMouseEnter={e => {
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'
-                    ;(e.currentTarget as HTMLElement).style.borderColor = 'rgba(59,130,246,0.3)'
+                    (e.currentTarget as HTMLElement).style.background = prog.programme_director_id === userId ? 'rgba(99,102,241,0.14)' : 'rgba(255,255,255,0.06)'
+                    ;(e.currentTarget as HTMLElement).style.borderColor = prog.programme_director_id === userId ? 'rgba(99,102,241,0.5)' : 'rgba(59,130,246,0.3)'
                   }}
                   onMouseLeave={e => {
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.03)'
-                    ;(e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)'
+                    (e.currentTarget as HTMLElement).style.background = prog.programme_director_id === userId ? 'rgba(99,102,241,0.08)' : 'rgba(255,255,255,0.03)'
+                    ;(e.currentTarget as HTMLElement).style.borderColor = prog.programme_director_id === userId ? 'rgba(99,102,241,0.35)' : 'rgba(255,255,255,0.07)'
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '10px' }}>
-                    <span style={{
-                      fontSize: '11px', fontWeight: 600,
-                      background: statusStyle.bg, color: statusStyle.color,
-                      padding: '3px 8px', borderRadius: '5px',
-                      display: 'flex', alignItems: 'center', gap: '4px',
-                    }}>
-                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: statusStyle.dot, flexShrink: 0 }} />
-                      {prog.status || 'Open'}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      <span style={{
+                        fontSize: '11px', fontWeight: 600,
+                        background: statusStyle.bg, color: statusStyle.color,
+                        padding: '3px 8px', borderRadius: '5px',
+                        display: 'flex', alignItems: 'center', gap: '4px',
+                      }}>
+                        <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: statusStyle.dot, flexShrink: 0 }} />
+                        {prog.status || 'Open'}
+                      </span>
+                      {prog.programme_director_id === userId && (
+                        <span style={{ fontSize: '10px', fontWeight: 700, background: 'rgba(99,102,241,0.2)', color: '#818cf8', padding: '2px 7px', borderRadius: '5px', letterSpacing: '0.04em' }}>
+                          MINE
+                        </span>
+                      )}
+                    </div>
                     {prog.code && (
                       <span style={{ fontSize: '11px', color: '#475569', fontFamily: 'monospace' }}>{prog.code}</span>
                     )}
