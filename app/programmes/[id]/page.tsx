@@ -112,7 +112,15 @@ function PhaseTab({
         <div style={{ marginBottom: '10px' }}>
           <Upload size={22} color={phaseInfo.color} style={{ margin: '0 auto 6px' }} />
           <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0 }}>
-            Upload paperwork, posters or reports for the <strong style={{ color: phaseInfo.color }}>{phaseInfo.label}</strong> phase
+            {phase === 'pre' && (
+              <>Upload <strong style={{ color: phaseInfo.color }}>paperwork, checklist, poster,</strong> and <strong style={{ color: phaseInfo.color }}>OSHE HIRARC</strong> for this phase</>
+            )}
+            {phase === 'during' && (
+              <>Upload <strong style={{ color: phaseInfo.color }}>photos taken during the program</strong> — minimum <strong style={{ color: phaseInfo.color }}>5 photos</strong> required</>
+            )}
+            {phase === 'post' && (
+              <>Upload your <strong style={{ color: phaseInfo.color }}>program report, financial report,</strong> and <strong style={{ color: phaseInfo.color }}>survey report</strong> for this phase</>
+            )}
           </p>
         </div>
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 18px', background: phaseInfo.activeBg, border: `1px solid ${phaseInfo.activeBorder}`, color: phaseInfo.color, borderRadius: '7px', cursor: uploading ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 500, fontFamily: "'DM Sans', sans-serif", transition: 'opacity 0.15s', opacity: uploading ? 0.6 : 1 }}>
