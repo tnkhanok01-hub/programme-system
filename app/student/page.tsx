@@ -19,6 +19,7 @@ import {
   LayoutDashboard,
   FileText,
   Settings,
+  Plus,
 } from 'lucide-react'
 
 interface Programme {
@@ -327,6 +328,10 @@ export default function StudentHomepage() {
                 <button onClick={() => router.push('/create-programme')} style={{ background: '#1d4ed8', border: 'none', borderRadius: '7px', padding: '6px 10px', color: 'white', fontSize: '11px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
                   View all <ChevronRight size={12} />
                 </button>
+
+                <button onClick={() => router.push('/create-programme-form')} style={{ background: '#1d4ed8', border: 'none', borderRadius: '7px', padding: '6px 10px', color: 'white', fontSize: '11px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                  Add Programme <Plus size={12} />
+                </button>
               </div>
               {/* Search */}
               <div style={{ position: 'relative' }}>
@@ -480,6 +485,9 @@ export default function StudentHomepage() {
               </div>
               <button onClick={() => router.push('/create-programme')} style={{ background: '#1d4ed8', border: 'none', borderRadius: '8px', padding: '8px 16px', color: 'white', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
                 View all <ChevronRight size={14} />
+              </button>
+              <button onClick={() => router.push('/create-programme-form')} style={{ background: '#1d4ed8', border: 'none', borderRadius: '8px', padding: '8px 16px', color: 'white', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+                New Programme <Plus size={14} />
               </button>
             </div>
           </div>
