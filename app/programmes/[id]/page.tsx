@@ -21,11 +21,25 @@ interface PhaseDoc {
   file_name: string
   file_path: string
   phase: 'pre' | 'during' | 'post'
+  doc_type?: string
   programme_id: string
   created_at: string
 }
 
 type Phase = 'pre' | 'during' | 'post'
+
+// ── Checklist definitions ────────────────────────────────────────────────
+const PRE_CHECKLIST = [
+  { key: 'paperwork', label: 'Paperwork',   hint: 'e.g. approval forms, permission letters' },
+  { key: 'oshe',      label: 'OSHE HIRARC', hint: 'Hazard identification & risk assessment' },
+  { key: 'poster',    label: 'Poster',      hint: 'Event poster or promotional material' },
+]
+
+const POST_CHECKLIST = [
+  { key: 'program_report',   label: 'Program Report',   hint: 'Overall summary and outcomes of the programme' },
+  { key: 'financial_report', label: 'Financial Report', hint: 'Budget breakdown and expenditure record' },
+  { key: 'survey_report',    label: 'Survey Report',    hint: 'Participant feedback and survey results' },
+]
 
 const PHASES: { id: Phase; label: string; color: string; activeBg: string; activeBorder: string }[] = [
   { id: 'pre',    label: 'Pre',    color: '#60a5fa', activeBg: 'rgba(96,165,250,0.15)',  activeBorder: 'rgba(96,165,250,0.4)'  },
@@ -39,17 +53,269 @@ const statusConfig: Record<string, { color: string; bg: string; border: string; 
   Rejected: { color: '#ef4444', bg: 'rgba(239,68,68,0.1)',   border: 'rgba(239,68,68,0.2)',   icon: XCircle },
 }
 
-/* ─── PHASE UPLOAD TAB ───────────────────────────────────────────────────── */
-function PhaseTab({
-  phase, programmeId, docs, onDocsChange,
+/* ─── SHARED: single doc row ────────────────────────────────────────────── */
+function DocRow({
+  doc, phaseInfo, canUpload, onPreview, onDownload, onDelete,
 }: {
-  phase: Phase
+  doc: PhaseDoc
+  phaseInfo: typeof PHASES[0]
+  canUpload: boolean
+  onPreview: (d: PhaseDoc) => void
+  onDownload: (d: PhaseDoc) => void
+  onDelete: (d: PhaseDoc) => void
+}) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 12px', background: '#0c1526', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '9px', minWidth: 0 }}>
+        <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: phaseInfo.activeBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <FileText size={13} color={phaseInfo.color} />
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <p style={{ margin: 0, fontSize: '12px', color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '240px' }}>{doc.file_name}</p>
+          <p style={{ margin: '1px 0 0', fontSize: '10px', color: '#475569' }}>
+            {new Date(doc.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </p>
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: '4px', flexShrink: 0, marginLeft: '8px' }}>
+        <button onClick={() => onPreview(doc)} style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '4px 8px', borderRadius: '5px', border: '1px solid rgba(96,165,250,0.2)', background: 'rgba(96,165,250,0.1)', color: '#60a5fa', fontSize: '11px', cursor: 'pointer' }}>
+          <Eye size={11} />View
+        </button>
+        <button onClick={() => onDownload(doc)} style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '4px 8px', borderRadius: '5px', border: '1px solid rgba(52,211,153,0.2)', background: 'rgba(52,211,153,0.1)', color: '#34d399', fontSize: '11px', cursor: 'pointer' }}>
+          <Download size={11} />
+        </button>
+        {canUpload && (
+          <button onClick={() => onDelete(doc)} style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '4px 8px', borderRadius: '5px', border: '1px solid rgba(248,113,113,0.15)', background: 'rgba(248,113,113,0.08)', color: '#f87171', fontSize: '11px', cursor: 'pointer' }}>
+            <Trash2 size={11} />
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ─── REUSABLE CHECKLIST TAB (used by both Pre and Post) ────────────────── */
+function ChecklistPhaseTab({
+  phase, checklist, programmeId, docs, onDocsChange, canUpload,
+}: {
+  phase: 'pre' | 'post'
+  checklist: { key: string; label: string; hint: string }[]
   programmeId: string
   docs: PhaseDoc[]
   onDocsChange: (updated: PhaseDoc[]) => void
+  canUpload: boolean
 }) {
   const phaseInfo = PHASES.find(p => p.id === phase)!
   const phaseDocs = docs.filter(d => d.phase === phase)
+  const [uploadingKey, setUploadingKey] = useState<string | null>(null)
+  const [previewDoc, setPreviewDoc] = useState<PhaseDoc | null>(null)
+  const fileRefs = useRef<Record<string, HTMLInputElement | null>>({})
+
+  const docsForKey = (key: string) => phaseDocs.filter(d => d.doc_type === key)
+  const completedCount = checklist.filter(item => docsForKey(item.key).length > 0).length
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>, docKey: string) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingKey(docKey)
+
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('programme_id', programmeId)
+    formData.append('phase', phase)
+    formData.append('doc_type', docKey)
+
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+      body: formData,
+    })
+
+    if (res.ok) {
+      const { data } = await supabase
+        .from('programme_documents').select('*').eq('programme_id', programmeId)
+      onDocsChange((data ?? []) as PhaseDoc[])
+    } else {
+      const err = await res.json().catch(() => ({}))
+      alert('Upload failed: ' + (err.error ?? 'Unknown error'))
+    }
+
+    setUploadingKey(null)
+    const ref = fileRefs.current[docKey]
+    if (ref) ref.value = ''
+  }
+
+  const handleDelete = async (doc: PhaseDoc) => {
+    if (!confirm(`Delete "${doc.file_name}"? This cannot be undone.`)) return
+    await supabase.from('programme_documents').delete().eq('id', doc.id)
+    onDocsChange(docs.filter(d => d.id !== doc.id))
+  }
+
+  const handleDownload = async (doc: PhaseDoc) => {
+    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${doc.file_path}`
+    const res = await fetch(url)
+    const blob = await res.blob()
+    const blobUrl = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = blobUrl; a.download = doc.file_name
+    document.body.appendChild(a); a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(blobUrl)
+  }
+
+  return (
+    <div>
+      {/* Progress bar */}
+      <div style={{ marginBottom: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+          <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Checklist Progress
+          </p>
+          <span style={{ fontSize: '11px', fontWeight: 600, color: completedCount === checklist.length ? '#10b981' : phaseInfo.color }}>
+            {completedCount} / {checklist.length} completed
+          </span>
+        </div>
+        <div style={{ height: '5px', background: 'rgba(255,255,255,0.06)', borderRadius: '99px', overflow: 'hidden' }}>
+          <div style={{
+            height: '100%',
+            width: `${(completedCount / checklist.length) * 100}%`,
+            background: completedCount === checklist.length
+              ? 'linear-gradient(90deg, #10b981, #34d399)'
+              : `linear-gradient(90deg, ${phaseInfo.color}aa, ${phaseInfo.color})`,
+            borderRadius: '99px',
+            transition: 'width 0.4s ease',
+          }} />
+        </div>
+      </div>
+
+      {/* Checklist items */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {checklist.map((item, idx) => {
+          const itemDocs = docsForKey(item.key)
+          const isDone = itemDocs.length > 0
+          const isUploading = uploadingKey === item.key
+
+          return (
+            <div key={item.key} style={{
+              border: `1px solid ${isDone ? 'rgba(16,185,129,0.25)' : 'rgba(255,255,255,0.07)'}`,
+              borderRadius: '11px',
+              overflow: 'hidden',
+              background: isDone ? 'rgba(16,185,129,0.03)' : 'rgba(255,255,255,0.02)',
+              transition: 'border-color 0.2s',
+            }}>
+              {/* Item header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px' }}>
+                {/* Status icon */}
+                <div style={{ flexShrink: 0 }}>
+                  {isDone ? (
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(16,185,129,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <CheckCircle size={16} color="#10b981" />
+                    </div>
+                  ) : (
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px dashed rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569' }}>{idx + 1}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Label + hint */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: isDone ? '#f1f5f9' : '#94a3b8' }}>
+                    {item.label}
+                    {isDone && (
+                      <span style={{ marginLeft: '8px', fontSize: '10px', fontWeight: 500, color: '#10b981', background: 'rgba(16,185,129,0.12)', padding: '2px 7px', borderRadius: '4px' }}>
+                        Uploaded
+                      </span>
+                    )}
+                  </p>
+                  <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#475569' }}>{item.hint}</p>
+                </div>
+
+                {/* Upload button */}
+                {canUpload && (
+                  <label style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '5px',
+                    padding: '6px 12px', borderRadius: '7px', cursor: isUploading ? 'not-allowed' : 'pointer',
+                    border: `1px solid ${isDone ? 'rgba(16,185,129,0.3)' : `${phaseInfo.color}4d`}`,
+                    background: isDone ? 'rgba(16,185,129,0.1)' : `${phaseInfo.color}1a`,
+                    color: isDone ? '#10b981' : phaseInfo.color,
+                    fontSize: '12px', fontWeight: 500, flexShrink: 0,
+                    opacity: isUploading ? 0.6 : 1,
+                    transition: 'all 0.15s',
+                  }}>
+                    {isUploading
+                      ? <><RefreshCw size={12} style={{ animation: 'spin 0.8s linear infinite' }} />Uploading...</>
+                      : <><Upload size={12} />{isDone ? 'Replace' : 'Upload'}</>}
+                    <input
+                      type="file"
+                      style={{ display: 'none' }}
+                      disabled={isUploading}
+                      ref={el => { fileRefs.current[item.key] = el }}
+                      onChange={e => handleUpload(e, item.key)}
+                    />
+                  </label>
+                )}
+              </div>
+
+              {/* Uploaded docs */}
+              {itemDocs.length > 0 && (
+                <div style={{ padding: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {itemDocs.map(doc => (
+                    <DocRow
+                      key={doc.id}
+                      doc={doc}
+                      phaseInfo={phaseInfo}
+                      canUpload={canUpload}
+                      onPreview={setPreviewDoc}
+                      onDownload={handleDownload}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Preview modal */}
+      {previewDoc && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 80, backdropFilter: 'blur(6px)', padding: '16px' }}>
+          <div style={{ background: '#0c1526', border: '1px solid rgba(255,255,255,0.08)', width: '100%', maxWidth: '700px', borderRadius: '14px', padding: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '7px', background: phaseInfo.activeBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <FileText size={15} color={phaseInfo.color} />
+                </div>
+                <span style={{ color: '#e2e8f0', fontSize: '14px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{previewDoc.file_name}</span>
+              </div>
+              <button onClick={() => setPreviewDoc(null)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '7px', padding: '6px', color: '#64748b', cursor: 'pointer', display: 'flex', flexShrink: 0, marginLeft: '10px' }}>
+                <X size={16} />
+              </button>
+            </div>
+            <iframe
+              src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${previewDoc.file_path}`}
+              style={{ width: '100%', height: '440px', background: 'white', borderRadius: '8px', border: 'none' }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ─── DURING PHASE — free upload ────────────────────────────────────────── */
+function DuringPhaseTab({
+  programmeId, docs, onDocsChange, canUpload,
+}: {
+  programmeId: string
+  docs: PhaseDoc[]
+  onDocsChange: (updated: PhaseDoc[]) => void
+  canUpload: boolean
+}) {
+  const phaseInfo = PHASES[1] // 'during'
+  const phaseDocs = docs.filter(d => d.phase === 'during')
   const [uploading, setUploading] = useState(false)
   const [previewDoc, setPreviewDoc] = useState<PhaseDoc | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -62,7 +328,7 @@ function PhaseTab({
     const formData = new FormData()
     formData.append('file', file)
     formData.append('programme_id', programmeId)
-    formData.append('phase', phase)
+    formData.append('phase', 'during')
 
     const { data: { session } } = await supabase.auth.getSession()
     const res = await fetch('/api/upload', {
@@ -72,11 +338,8 @@ function PhaseTab({
     })
 
     if (res.ok) {
-      // Re-fetch all phase docs for this programme
       const { data } = await supabase
-        .from('programme_documents')
-        .select('*')
-        .eq('programme_id', programmeId)
+        .from('programme_documents').select('*').eq('programme_id', programmeId)
       onDocsChange((data ?? []) as PhaseDoc[])
     } else {
       const err = await res.json().catch(() => ({}))
@@ -107,75 +370,48 @@ function PhaseTab({
 
   return (
     <div>
-      {/* Upload zone */}
-      <div style={{ border: `1.5px dashed ${phaseInfo.activeBorder}`, borderRadius: '10px', padding: '20px', background: phaseInfo.activeBg, marginBottom: '16px', textAlign: 'center' }}>
-        <div style={{ marginBottom: '10px' }}>
-          <Upload size={22} color={phaseInfo.color} style={{ margin: '0 auto 6px' }} />
-          <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0 }}>
-            {phase === 'pre' && (
-              <>Upload <strong style={{ color: phaseInfo.color }}>paperwork, checklist, poster,</strong> and <strong style={{ color: phaseInfo.color }}>OSHE HIRARC</strong> for this phase</>
-            )}
-            {phase === 'during' && (
-              <>Upload <strong style={{ color: phaseInfo.color }}>photos taken during the program</strong> — minimum <strong style={{ color: phaseInfo.color }}>5 photos</strong> required</>
-            )}
-            {phase === 'post' && (
-              <>Upload your <strong style={{ color: phaseInfo.color }}>program report, financial report,</strong> and <strong style={{ color: phaseInfo.color }}>survey report</strong> for this phase</>
-            )}
+      {canUpload && (
+        <div style={{ border: `1.5px dashed ${phaseInfo.activeBorder}`, borderRadius: '10px', padding: '20px', background: phaseInfo.activeBg, marginBottom: '16px', textAlign: 'center' }}>
+          <Upload size={22} color={phaseInfo.color} style={{ margin: '0 auto 8px', display: 'block' }} />
+          <p style={{ fontSize: '13px', color: '#94a3b8', margin: '0 0 12px' }}>
+            Upload <strong style={{ color: phaseInfo.color }}>photos taken during the program</strong> — minimum <strong style={{ color: phaseInfo.color }}>5 photos</strong> required
           </p>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 18px', background: phaseInfo.activeBg, border: `1px solid ${phaseInfo.activeBorder}`, color: phaseInfo.color, borderRadius: '7px', cursor: uploading ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 500, opacity: uploading ? 0.6 : 1 }}>
+            {uploading ? <><RefreshCw size={13} style={{ animation: 'spin 0.8s linear infinite' }} />Uploading...</> : <><Upload size={13} />Choose File</>}
+            <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={handleUpload} disabled={uploading} />
+          </label>
         </div>
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 18px', background: phaseInfo.activeBg, border: `1px solid ${phaseInfo.activeBorder}`, color: phaseInfo.color, borderRadius: '7px', cursor: uploading ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 500, fontFamily: "'DM Sans', sans-serif", transition: 'opacity 0.15s', opacity: uploading ? 0.6 : 1 }}>
-          {uploading ? <><RefreshCw size={13} style={{ animation: 'spin 0.8s linear infinite' }} />Uploading...</> : <><Upload size={13} />Choose File</>}
-          <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={handleUpload} disabled={uploading} />
-        </label>
-      </div>
+      )}
 
-      {/* Document list */}
-      {phaseDocs.length === 0 ? (
+      {phaseDocs.length === 0 && (
         <div style={{ textAlign: 'center', padding: '24px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
           <FileText size={24} color="#334155" style={{ margin: '0 auto 8px', display: 'block' }} />
-          <p style={{ margin: 0, fontSize: '13px', color: '#475569' }}>No documents uploaded for the {phaseInfo.label} phase yet.</p>
+          <p style={{ margin: 0, fontSize: '13px', color: '#475569' }}>No photos uploaded for the During phase yet.</p>
         </div>
-      ) : (
+      )}
+
+      {phaseDocs.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <p style={{ fontSize: '10px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>
-            {phaseInfo.label} Documents ({phaseDocs.length})
+            During Documents ({phaseDocs.length}{phaseDocs.length < 5 ? ` — ${5 - phaseDocs.length} more needed` : ''})
           </p>
           {phaseDocs.map(doc => (
-            <div key={doc.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: '#0c1526', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                <div style={{ width: '32px', height: '32px', borderRadius: '7px', background: phaseInfo.activeBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <FileText size={14} color={phaseInfo.color} />
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <p style={{ margin: 0, fontSize: '13px', color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '260px' }}>{doc.file_name}</p>
-                  <p style={{ margin: '2px 0 0', fontSize: '10px', color: '#475569' }}>
-                    {new Date(doc.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </p>
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: '5px', flexShrink: 0, marginLeft: '10px' }}>
-                <button onClick={() => setPreviewDoc(doc)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 9px', borderRadius: '6px', border: '1px solid rgba(96,165,250,0.2)', background: 'rgba(96,165,250,0.1)', color: '#60a5fa', fontSize: '11px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
-                  <Eye size={11} />View
-                </button>
-                <button onClick={() => handleDownload(doc)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 9px', borderRadius: '6px', border: '1px solid rgba(52,211,153,0.2)', background: 'rgba(52,211,153,0.1)', color: '#34d399', fontSize: '11px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
-                  <Download size={11} />
-                </button>
-                <button onClick={() => handleDelete(doc)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 9px', borderRadius: '6px', border: '1px solid rgba(248,113,113,0.15)', background: 'rgba(248,113,113,0.08)', color: '#f87171', fontSize: '11px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
-                  <Trash2 size={11} />
-                </button>
-              </div>
-            </div>
+            <DocRow
+              key={doc.id}
+              doc={doc}
+              phaseInfo={phaseInfo}
+              canUpload={canUpload}
+              onPreview={setPreviewDoc}
+              onDownload={handleDownload}
+              onDelete={handleDelete}
+            />
           ))}
         </div>
       )}
 
-      {/* Preview modal (scoped to this tab) */}
       {previewDoc && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 80, backdropFilter: 'blur(6px)', padding: '16px' }}>
-          <div style={{ background: '#0c1526', border: '1px solid rgba(255,255,255,0.08)', width: '100%', maxWidth: '700px', borderRadius: '14px', padding: '20px', fontFamily: "'DM Sans', sans-serif" }}>
+          <div style={{ background: '#0c1526', border: '1px solid rgba(255,255,255,0.08)', width: '100%', maxWidth: '700px', borderRadius: '14px', padding: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                 <div style={{ width: '32px', height: '32px', borderRadius: '7px', background: phaseInfo.activeBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -211,18 +447,25 @@ export default function ProgrammeDetailPage() {
   const [activeTab, setActiveTab] = useState<Phase>('pre')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [isOwner, setIsOwner] = useState(false)
-
-  // Phase documents — fetched once, passed down; PhaseTab filters by phase
   const [phaseDocs, setPhaseDocs] = useState<PhaseDoc[]>([])
+  const [form, setForm] = useState({
+    name: '', category: '', venue: '', budget: '', start_date: '', end_date: '', description: '',
+  })
 
-  const [form, setForm] = useState({ name: '', category: '', venue: '', budget: '', start_date: '', end_date: '', description: '' })
+  const isAdminRef = useRef(false)
+  const isOwnerRef = useRef(false)
 
   useEffect(() => {
     if (!id) return
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.replace('/login'); return }
+
+      const { data: profileData } = await supabase
+        .from('profiles').select('role').eq('id', session.user.id).single()
+
+      const role = profileData?.role?.toLowerCase() ?? 'student'
+      isAdminRef.current = role === 'admin' || role === 'superadmin'
 
       const res = await fetch(`/api/programmes/${id}`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
@@ -236,8 +479,9 @@ export default function ProgrammeDetailPage() {
 
       const data = await res.json()
       const prog: Programme = data.programme
+      isOwnerRef.current = !!data.isDirector
+
       setProgramme(prog)
-      setIsOwner(!!data.isDirector)
       setForm({
         name:        prog.name        ?? '',
         category:    prog.category    ?? '',
@@ -248,11 +492,8 @@ export default function ProgrammeDetailPage() {
         description: prog.description ?? '',
       })
 
-      // Fetch phase docs
       const { data: docs } = await supabase
-        .from('programme_documents')
-        .select('*')
-        .eq('programme_id', id)
+        .from('programme_documents').select('*').eq('programme_id', id)
       setPhaseDocs((docs ?? []) as PhaseDoc[])
 
       setLoading(false)
@@ -286,6 +527,24 @@ export default function ProgrammeDetailPage() {
     setSaving(false)
   }
 
+  const isAdmin       = isAdminRef.current
+  const isOwner       = isOwnerRef.current
+  const showPhaseTabs = true
+  const canUpload     = isAdmin || isOwner
+
+  // Badge count per tab
+  const tabDocCount = (phase: Phase) => {
+    if (phase === 'pre')  return PRE_CHECKLIST.filter(item => phaseDocs.some(d => d.phase === 'pre'  && d.doc_type === item.key)).length
+    if (phase === 'post') return POST_CHECKLIST.filter(item => phaseDocs.some(d => d.phase === 'post' && d.doc_type === item.key)).length
+    return phaseDocs.filter(d => d.phase === phase).length
+  }
+
+  const checklistTotal = (phase: Phase) => {
+    if (phase === 'pre')  return PRE_CHECKLIST.length
+    if (phase === 'post') return POST_CHECKLIST.length
+    return null
+  }
+
   if (loading) return (
     <div style={{ minHeight: '100vh', background: '#070e1a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '16px' }}>
       <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: '3px solid rgba(99,102,241,0.2)', borderTopColor: '#6366f1', animation: 'spin 0.8s linear infinite' }} />
@@ -307,7 +566,6 @@ export default function ProgrammeDetailPage() {
   const StatusIcon = sc.icon
   const isRejected = programme.status === 'Rejected'
   const canResubmit = isRejected && isOwner
-  const activePhase = PHASES.find(p => p.id === activeTab)!
 
   return (
     <>
@@ -381,66 +639,80 @@ export default function ProgrammeDetailPage() {
             )}
           </div>
 
-          {/* ── LIFECYCLE TABS ── */}
-          <div style={{ background: '#0c1526', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '14px', overflow: 'hidden', marginBottom: '24px' }}>
-
-            {/* Tab bar */}
-            <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-              {PHASES.map(phase => {
-                const isActive = activeTab === phase.id
-                const tabDocCount = phaseDocs.filter(d => d.phase === phase.id).length
-                return (
-                  <button
-                    key={phase.id}
-                    onClick={() => setActiveTab(phase.id)}
-                    style={{
-                      flex: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px',
-                      padding: '14px 10px',
-                      border: 'none',
+          {/* ── LIFECYCLE TABS ─────────────────────────────────────────── */}
+          {showPhaseTabs && (
+            <div style={{ background: '#0c1526', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '14px', overflow: 'hidden', marginBottom: '24px' }}>
+              {/* Tab bar */}
+              <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                {PHASES.map(phase => {
+                  const isActive = activeTab === phase.id
+                  const count = tabDocCount(phase.id)
+                  const total = checklistTotal(phase.id)
+                  const isComplete = total !== null && count === total
+                  return (
+                    <button key={phase.id} onClick={() => setActiveTab(phase.id)} style={{
+                      flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                      padding: '14px 10px', border: 'none',
                       borderBottom: isActive ? `2px solid ${phase.color}` : '2px solid transparent',
                       background: isActive ? phase.activeBg : 'transparent',
                       color: isActive ? phase.color : '#6b7280',
-                      fontSize: '13px',
-                      fontWeight: isActive ? 600 : 400,
-                      cursor: 'pointer',
-                      fontFamily: "'DM Sans', sans-serif",
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    <Clock size={13} />
-                    {phase.label}
-                    {/* Doc count badge */}
-                    {tabDocCount > 0 && (
-                      <span style={{
-                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                        minWidth: '18px', height: '18px', padding: '0 5px',
-                        borderRadius: '9px', fontSize: '10px', fontWeight: 700,
-                        background: isActive ? phase.color : 'rgba(255,255,255,0.08)',
-                        color: isActive ? '#070e1a' : '#94a3b8',
-                      }}>
-                        {tabDocCount}
-                      </span>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
+                      fontSize: '13px', fontWeight: isActive ? 600 : 400,
+                      cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", transition: 'all 0.15s',
+                    }}>
+                      <Clock size={13} />
+                      {phase.label}
+                      {count > 0 && (
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                          minWidth: '18px', height: '18px', padding: '0 5px', borderRadius: '9px',
+                          fontSize: '10px', fontWeight: 700,
+                          background: isComplete ? 'rgba(16,185,129,0.2)' : isActive ? phase.color : 'rgba(255,255,255,0.08)',
+                          color: isComplete ? '#10b981' : isActive ? '#070e1a' : '#94a3b8',
+                        }}>
+                          {total !== null ? `${count}/${total}` : count}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
 
-            {/* Tab content — only the active phase renders */}
-            <div style={{ padding: '20px' }}>
-              <PhaseTab
-                key={activeTab}            // force remount when tab changes → clears upload state
-                phase={activeTab}
-                programmeId={programme.id}
-                docs={phaseDocs}
-                onDocsChange={setPhaseDocs}
-              />
+              {/* Tab content */}
+              <div style={{ padding: '20px' }}>
+                {activeTab === 'pre' && (
+                  <ChecklistPhaseTab
+                    key="pre"
+                    phase="pre"
+                    checklist={PRE_CHECKLIST}
+                    programmeId={programme.id}
+                    docs={phaseDocs}
+                    onDocsChange={setPhaseDocs}
+                    canUpload={canUpload}
+                  />
+                )}
+                {activeTab === 'during' && (
+                  <DuringPhaseTab
+                    key="during"
+                    programmeId={programme.id}
+                    docs={phaseDocs}
+                    onDocsChange={setPhaseDocs}
+                    canUpload={canUpload}
+                  />
+                )}
+                {activeTab === 'post' && (
+                  <ChecklistPhaseTab
+                    key="post"
+                    phase="post"
+                    checklist={POST_CHECKLIST}
+                    programmeId={programme.id}
+                    docs={phaseDocs}
+                    onDocsChange={setPhaseDocs}
+                    canUpload={canUpload}
+                  />
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Resubmit form */}
           {canResubmit && (
