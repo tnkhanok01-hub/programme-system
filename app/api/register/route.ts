@@ -38,14 +38,26 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Create auth user only — NO users table insert yet
-    //    users table insert happens in /auth/confirm after email verified
+    // 2. Check for duplicate BEFORE calling signUp
+    //    signUp with service role doesn't send a confirmation email for duplicates —
+    //    it just silently succeeds or returns a vague error, so we check first.
+    const { data: existingUsers } = await supabase.auth.admin.listUsers()
+    const alreadyExists = existingUsers?.users?.some(
+      u => u.email?.toLowerCase() === emailNormalized
+    )
+
+    if (alreadyExists) {
+      return NextResponse.json(
+        { error: 'Email already registered. Please login.' },
+        { status: 409 }  // 409 Conflict — front-end checks for this status
+      );
+    }
+
+    // 3. Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: emailNormalized,
       password,
       options: {
-        // Store extra data in auth metadata temporarily
-        // until email is confirmed
         data: {
           full_name: full_name || '',
           matric_number: matric_number || null,
@@ -55,10 +67,17 @@ export async function POST(request: Request) {
     });
 
     if (authError) {
-      if (authError.message.includes('already registered')) {
+      // Fallback case-insensitive duplicate check on the error message
+      const msg = authError.message.toLowerCase()
+      if (
+        msg.includes('already registered') ||
+        msg.includes('already exists') ||
+        msg.includes('user already') ||
+        msg.includes('email already')
+      ) {
         return NextResponse.json(
           { error: 'Email already registered. Please login.' },
-          { status: 400 }
+          { status: 409 }
         );
       }
       return NextResponse.json(
