@@ -60,6 +60,7 @@ export async function GET(request: Request) {
     .from('users')
     .insert({
       id: user.id,
+      email: user.email,
       full_name: meta.full_name || '',
       phone: meta.phone || null,
       matric_number: meta.matric_number || null,
