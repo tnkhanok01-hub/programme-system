@@ -185,7 +185,7 @@ export default function AdminUsersPage() {
       setProfile(profileData)
 
       const { data: usersData } = await supabase
-        .from('users').select('id, full_name, phone, matric_number, roles!inner(name)').eq('roles.name', 'student')
+        .from('users').select('id, email, full_name, phone, matric_number, roles!inner(name)').eq('roles.name', 'student')
 
       if (usersData) {
         setUsers(usersData.map((u: any) => ({
