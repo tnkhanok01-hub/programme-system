@@ -10,6 +10,7 @@ import {
   getCommittee,
   joinCommittee,
   removeCommitteeMember,
+  addCommitteeMembers,
 } from '@/services/committeeService'
 import { COMMITTEE_ROLES } from '@/lib/constants'
 
@@ -33,6 +34,16 @@ export default function CommitteeSection({
   const [joinRole, setJoinRole] = useState('Member')
   const [joinError, setJoinError] = useState('')
   const [removingId, setRemovingId] = useState<string | null>(null)
+
+  // PD — add members panel
+  const [showAddPanel, setShowAddPanel] = useState(false)
+  const [addMode, setAddMode] = useState<'single' | 'bulk'>('single')
+  const [addIdentifier, setAddIdentifier] = useState('')
+  const [addRole, setAddRole] = useState('Member')
+  const [bulkText, setBulkText] = useState('')
+  const [bulkRole, setBulkRole] = useState('Member')
+  const [addLoading, setAddLoading] = useState(false)
+  const [addResults, setAddResults] = useState<{ identifier: string; role: string; status: string; reason?: string }[]>([])
 
   const isApproved = programmeStatus === 'Approved'
   const isMember = members.some((m) => m.user_id === currentUserId)
@@ -148,6 +159,52 @@ export default function CommitteeSection({
       setMembers(updated.members ?? [])
     } catch (err: any) {
       alert(err.message || 'Reject failed')
+    }
+  }
+
+  const handleAddSingle = async () => {
+    if (!addIdentifier.trim()) return
+    setAddLoading(true)
+    setAddResults([])
+    try {
+      const { results } = await addCommitteeMembers(programmeId, token, [
+        { identifier: addIdentifier.trim(), role: addRole },
+      ])
+      setAddResults(results)
+      if (results[0]?.status === 'added') {
+        const updated = await getCommittee(programmeId, token)
+        setMembers(updated.members ?? [])
+        setAddIdentifier('')
+      }
+    } catch (err: any) {
+      setAddResults([{ identifier: addIdentifier, role: addRole, status: 'error', reason: err.message }])
+    } finally {
+      setAddLoading(false)
+    }
+  }
+
+  const handleAddBulk = async () => {
+    const lines = bulkText
+      .split('\n')
+      .map(l => l.trim())
+      .filter(Boolean)
+    if (!lines.length) return
+    const entries = lines.map(line => ({ identifier: line, role: bulkRole }))
+    setAddLoading(true)
+    setAddResults([])
+    try {
+      const { results } = await addCommitteeMembers(programmeId, token, entries)
+      setAddResults(results)
+      const anyAdded = results.some(r => r.status === 'added')
+      if (anyAdded) {
+        const updated = await getCommittee(programmeId, token)
+        setMembers(updated.members ?? [])
+        setBulkText('')
+      }
+    } catch (err: any) {
+      setAddResults(entries.map(e => ({ ...e, status: 'error', reason: err.message })))
+    } finally {
+      setAddLoading(false)
     }
   }
 
@@ -285,7 +342,132 @@ export default function CommitteeSection({
               Join Programme
             </button>
           ))}
+
+        {canManage && (
+          <button
+            onClick={() => { setShowAddPanel(v => !v); setAddResults([]) }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              background: showAddPanel ? 'rgba(99,102,241,0.2)' : 'rgba(99,102,241,0.1)',
+              border: '1px solid rgba(99,102,241,0.3)',
+              borderRadius: '7px',
+              padding: '6px 12px',
+              color: '#818cf8',
+              fontSize: '12px',
+              fontWeight: 500,
+              cursor: 'pointer',
+            }}
+          >
+            <UserPlus size={13} />
+            Add Member
+          </button>
+        )}
       </div>
+
+      {/* Add Members panel — PD only */}
+      {canManage && showAddPanel && (
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(99,102,241,0.04)' }}>
+          {/* Mode toggle */}
+          <div style={{ display: 'flex', gap: '6px', marginBottom: '14px' }}>
+            {(['single', 'bulk'] as const).map(m => (
+              <button key={m} onClick={() => { setAddMode(m); setAddResults([]) }}
+                style={{
+                  padding: '5px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: 500,
+                  cursor: 'pointer', border: '1px solid',
+                  background: addMode === m ? 'rgba(99,102,241,0.2)' : 'transparent',
+                  borderColor: addMode === m ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.08)',
+                  color: addMode === m ? '#818cf8' : '#6b7280',
+                  fontFamily: 'inherit',
+                }}>
+                {m === 'single' ? 'Single' : 'Bulk (list)'}
+              </button>
+            ))}
+          </div>
+
+          {addMode === 'single' ? (
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <div style={{ flex: 2, minWidth: '140px' }}>
+                <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>
+                  Matric No. or Full Name
+                </label>
+                <input
+                  value={addIdentifier}
+                  onChange={e => setAddIdentifier(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAddSingle()}
+                  placeholder="e.g. A22EC0001 or Ahmad bin Ali"
+                  style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: '#0a1628', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ flex: 1, minWidth: '120px' }}>
+                <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Role</label>
+                <select value={addRole} onChange={e => setAddRole(e.target.value)}
+                  style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: '#0a1628', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none' }}>
+                  {COMMITTEE_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+              <button onClick={handleAddSingle} disabled={addLoading || !addIdentifier.trim()}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 18px', borderRadius: '7px', border: 'none', background: addLoading ? 'rgba(99,102,241,0.4)' : 'linear-gradient(135deg, #4f46e5, #6366f1)', color: 'white', fontSize: '13px', fontWeight: 600, cursor: addLoading || !addIdentifier.trim() ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', opacity: !addIdentifier.trim() ? 0.5 : 1 }}>
+                {addLoading ? <><RefreshCw size={13} style={{ animation: 'spin 0.8s linear infinite' }} />Adding...</> : <><UserPlus size={13} />Add</>}
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: '200px' }}>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>
+                    One matric number or name per line
+                  </label>
+                  <textarea
+                    value={bulkText}
+                    onChange={e => setBulkText(e.target.value)}
+                    placeholder={'A22EC0001\nA22EC0002\nAhmad bin Ali'}
+                    rows={4}
+                    style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: '#0a1628', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '140px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Role for all</label>
+                    <select value={bulkRole} onChange={e => setBulkRole(e.target.value)}
+                      style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: '#0a1628', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none' }}>
+                      {COMMITTEE_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                  </div>
+                  <button onClick={handleAddBulk} disabled={addLoading || !bulkText.trim()}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '9px 14px', borderRadius: '7px', border: 'none', background: addLoading ? 'rgba(99,102,241,0.4)' : 'linear-gradient(135deg, #4f46e5, #6366f1)', color: 'white', fontSize: '13px', fontWeight: 600, cursor: addLoading || !bulkText.trim() ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: !bulkText.trim() ? 0.5 : 1 }}>
+                    {addLoading ? <><RefreshCw size={13} style={{ animation: 'spin 0.8s linear infinite' }} />Adding...</> : <><UserPlus size={13} />Add All</>}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Per-entry results */}
+          {addResults.length > 0 && (
+            <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              {addResults.map((r, i) => {
+                const isOk = r.status === 'added'
+                const isSkip = r.status === 'skipped'
+                const bg = isOk ? 'rgba(52,211,153,0.07)' : isSkip ? 'rgba(245,158,11,0.07)' : 'rgba(239,68,68,0.07)'
+                const border = isOk ? 'rgba(52,211,153,0.2)' : isSkip ? 'rgba(245,158,11,0.2)' : 'rgba(239,68,68,0.2)'
+                const color = isOk ? '#34d399' : isSkip ? '#fbbf24' : '#f87171'
+                const Icon = isOk ? CheckCircle : isSkip ? AlertCircle : XCircle
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', background: bg, border: `1px solid ${border}`, borderRadius: '7px' }}>
+                    <Icon size={13} color={color} style={{ flexShrink: 0 }} />
+                    <span style={{ fontSize: '12px', color: '#94a3b8', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.identifier}</span>
+                    <span style={{ fontSize: '11px', color, fontWeight: 500, flexShrink: 0 }}>
+                      {isOk ? `Added as ${r.role}` : r.reason ?? r.status}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Join panel — for non-members on approved programmes */}
       {isApproved && !canManage && !isMember && (

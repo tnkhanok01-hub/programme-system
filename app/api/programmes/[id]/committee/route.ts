@@ -63,34 +63,39 @@ export async function GET(
   return NextResponse.json({ members })
 }
 
-/* ── POST (JOIN / ADD) ───────────────────────────── */
-export async function POST(req: Request) {
+/* ── POST (JOIN / ADD BY IDENTIFIER) ───────────────── */
+export async function POST(
+  req: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   const user = await getUser(req)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { programme_id, member_role, join_self } = await req.json()
+  const { id: programme_id } = await context.params
+  const body = await req.json()
+  const { member_role, join_self, add_members } = body
 
-  const roleToAssign = member_role || 'Member'
-
-  if (SINGLE_ROLE_LIMIT.includes(roleToAssign)) {
-    const { data: existing } = await supabaseAdmin
-      .from('programme_roles')
-      .select('user_id')
-      .eq('programme_id', programme_id)
-      .eq('role', roleToAssign)
-      .eq('status', 'approved')
-      .maybeSingle()
-
-    if (existing) {
-      return NextResponse.json(
-        { error: 'This role is already taken.' },
-        { status: 400 }
-      )
-    }
-  }
-
-  // 🔹 Self join → always pending
+  /* ── Self-join ── */
   if (join_self) {
+    const roleToAssign = member_role || 'Member'
+
+    if (SINGLE_ROLE_LIMIT.includes(roleToAssign)) {
+      const { data: existing } = await supabaseAdmin
+        .from('programme_roles')
+        .select('user_id')
+        .eq('programme_id', programme_id)
+        .eq('role', roleToAssign)
+        .eq('status', 'approved')
+        .maybeSingle()
+
+      if (existing) {
+        return NextResponse.json(
+          { error: 'This role is already taken.' },
+          { status: 400 }
+        )
+      }
+    }
+
     const { data, error } = await supabaseAdmin
       .from('programme_roles')
       .insert({
@@ -115,6 +120,93 @@ export async function POST(req: Request) {
     return NextResponse.json({ member: data }, { status: 201 })
   }
 
+  /* ── PD adds members by matric number or full name ── */
+  if (add_members) {
+    // Only the Programme Director may use this action
+    const { data: prog } = await supabaseAdmin
+      .from('programmes')
+      .select('programme_director_id')
+      .eq('id', programme_id)
+      .single()
+
+    if (prog?.programme_director_id !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    
+    const entries: { identifier: string; role: string }[] = add_members
+
+    if (!Array.isArray(entries) || entries.length === 0) {
+      return NextResponse.json({ error: 'No entries provided' }, { status: 400 })
+    }
+
+    const results: {
+      identifier: string
+      role: string
+      status: 'added' | 'skipped' | 'not_found' | 'error'
+      reason?: string
+    }[] = []
+
+    for (const entry of entries) {
+      const { identifier, role: roleToAssign } = entry
+
+      if (!identifier || !roleToAssign) {
+        results.push({ identifier: identifier ?? '', role: roleToAssign ?? '', status: 'skipped', reason: 'Missing identifier or role' })
+        continue
+      }
+
+      // Lookup by matric_number first, then fall back to full_name (case-insensitive)
+      const { data: matchedUser } = await supabaseAdmin
+        .from('users')
+        .select('id, full_name, matric_number')
+        .or(`matric_number.ilike.${identifier},full_name.ilike.${identifier}`)
+        .maybeSingle()
+
+      if (!matchedUser) {
+        results.push({ identifier, role: roleToAssign, status: 'not_found', reason: 'No user found with that matric number or name' })
+        continue
+      }
+
+      // Enforce SINGLE_ROLE_LIMIT
+      if (SINGLE_ROLE_LIMIT.includes(roleToAssign)) {
+        const { data: existing } = await supabaseAdmin
+          .from('programme_roles')
+          .select('user_id')
+          .eq('programme_id', programme_id)
+          .eq('role', roleToAssign)
+          .eq('status', 'approved')
+          .maybeSingle()
+
+        if (existing) {
+          results.push({ identifier, role: roleToAssign, status: 'skipped', reason: `Role "${roleToAssign}" is already filled` })
+          continue
+        }
+      }
+
+      // Insert directly as approved (PD is explicitly assigning)
+      const { error: insertError } = await supabaseAdmin
+        .from('programme_roles')
+        .insert({
+          programme_id,
+          user_id: matchedUser.id,
+          role: roleToAssign,
+          status: 'approved',
+        })
+
+      if (insertError) {
+        if (insertError.code === '23505') {
+          results.push({ identifier, role: roleToAssign, status: 'skipped', reason: 'This person has already joined' })
+        } else {
+          results.push({ identifier, role: roleToAssign, status: 'error', reason: insertError.message })
+        }
+        continue
+      }
+
+      results.push({ identifier, role: roleToAssign, status: 'added' })
+    }
+
+    return NextResponse.json({ results }, { status: 207 })
+  }
+
   return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
 }
 
@@ -126,7 +218,6 @@ export async function PATCH(req: Request) {
   const { programme_id, member_id, action } = await req.json()
   const user_id = member_id.split('__')[1]
 
-  // 🔒 Only Programme Director
   const { data: prog } = await supabaseAdmin
     .from('programmes')
     .select('programme_director_id')
@@ -137,7 +228,6 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  // 🔹 Get member role
   const { data: member } = await supabaseAdmin
     .from('programme_roles')
     .select('role')
@@ -149,7 +239,6 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: 'Member not found' }, { status: 404 })
   }
 
-  // 🔒 Enforce role limit on approve
   if (action === 'approve') {
     if (SINGLE_ROLE_LIMIT.includes(member.role)) {
       const { data: existing } = await supabaseAdmin
@@ -204,7 +293,6 @@ export async function DELETE(req: Request) {
     .eq('id', programme_id)
     .single()
 
-  // 🚫 Prevent director from leaving
   if (prog?.programme_director_id === user_id) {
     return NextResponse.json(
       { error: 'Programme Director cannot leave the programme.' },

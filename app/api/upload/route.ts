@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js"
 import { NextResponse } from "next/server"
+import { SINGLE_ROLE_LIMIT } from "@/lib/constants"
 
 // Service role client — used for storage upload + DB insert
 const supabaseAdmin = createClient(
@@ -28,22 +29,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // ── 2. Check role ────────────────────────────────────────────────────
+    // ── 2. Check global role ─────────────────────────────────────────────
     const { data: profile } = await supabaseAdmin
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .single()
 
-    const role = profile?.role?.toLowerCase() ?? ""
-    const isAdmin = role === "admin" || role === "superadmin"
+    const globalRole = profile?.role?.toLowerCase() ?? ""
+    const isAdmin = globalRole === "admin" || globalRole === "superadmin"
 
     // ── 3. Parse form data ───────────────────────────────────────────────
     const formData = await req.formData()
     const file = formData.get("file") as File
     const programme_id = formData.get("programme_id") as string
     const phase = (formData.get("phase") as string) ?? "pre"
-    const doc_type = (formData.get("doc_type") as string) || null  // ← NEW
+    const doc_type = (formData.get("doc_type") as string) || null
 
     if (!file || !programme_id) {
       return NextResponse.json(
@@ -52,7 +53,8 @@ export async function POST(req: Request) {
       )
     }
 
-    // ── 4. If student, verify they are the programme director ────────────
+    // ── 4. Authorise: admin, programme director, or approved committee
+    //       member with a role in SINGLE_ROLE_LIMIT ──────────────────────
     if (!isAdmin) {
       const { data: programme } = await supabaseAdmin
         .from("programmes")
@@ -60,11 +62,31 @@ export async function POST(req: Request) {
         .eq("id", programme_id)
         .single()
 
-      if (!programme || programme.programme_director_id !== user.id) {
-        return NextResponse.json(
-          { error: "Forbidden: you are not the programme director" },
-          { status: 403 }
-        )
+      const isDirector = programme?.programme_director_id === user.id
+
+      if (!isDirector) {
+        // Check for an approved elevated committee role on this programme
+        const { data: committeeEntry } = await supabaseAdmin
+          .from("programme_roles")
+          .select("role")
+          .eq("programme_id", programme_id)
+          .eq("user_id", user.id)
+          .eq("status", "approved")
+          .maybeSingle()
+
+        const isElevatedMember =
+          committeeEntry !== null &&
+          SINGLE_ROLE_LIMIT.includes(committeeEntry.role)
+
+        if (!isElevatedMember) {
+          return NextResponse.json(
+            {
+              error:
+                "Forbidden: only the Programme Director or an authorised committee member may upload documents",
+            },
+            { status: 403 }
+          )
+        }
       }
     }
 
@@ -87,7 +109,7 @@ export async function POST(req: Request) {
         file_name: file.name,
         file_path: filePath,
         phase,
-        doc_type,  // ← NEW: null for during/post, 'paperwork'/'oshe'/'poster' for pre
+        doc_type,
       }])
 
     if (dbError) {

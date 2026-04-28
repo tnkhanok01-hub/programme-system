@@ -15,7 +15,7 @@ import CommitteeSection from '@/components/programmes/CommitteeSection'
 import ChecklistPhaseTab from '@/components/programmes/ChecklistPhaseTab'
 import DuringPhaseTab from '@/components/programmes/DuringPhaseTab'
 import DocRow from '@/components/programmes/DocRow'
-import { PHASES, PRE_CHECKLIST, POST_CHECKLIST } from '@/lib/constants'
+import { PHASES, PRE_CHECKLIST, POST_CHECKLIST, SINGLE_ROLE_LIMIT } from '@/lib/constants'
 
 interface Programme {
   id: string; name: string; description: string; category: string
@@ -77,6 +77,7 @@ export default function ProgrammeDetailPage() {
 
   const [isAdmin, setIsAdmin] = useState(false)
   const [isOwner, setIsOwner] = useState(false)
+  const [isElevatedMember, setIsElevatedMember] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -96,6 +97,20 @@ export default function ProgrammeDetailPage() {
       const data = await res.json()
       const prog: Programme = data.programme
       setIsOwner(!!data.isDirector)
+
+      // Check if user is an approved committee member with an elevated role
+      if (!data.isDirector) {
+        const { data: committeeEntry } = await supabase
+          .from("programme_roles")
+          .select("role")
+          .eq("programme_id", id)
+          .eq("user_id", session.user.id)
+          .eq("status", "approved")
+          .maybeSingle()
+        setIsElevatedMember(
+          committeeEntry != null && SINGLE_ROLE_LIMIT.includes(committeeEntry.role)
+        )
+      }
       setProgramme(prog)
       setForm({
         name: prog.name ?? '', category: prog.category ?? '', venue: prog.venue ?? '',
@@ -145,7 +160,7 @@ export default function ProgrammeDetailPage() {
     setSaving(false)
   }
 
-  const canUpload     = isAdmin || isOwner
+  const canUpload     = isAdmin || isOwner || isElevatedMember
   const canManageCommittee = isAdmin || isOwner
 
   const tabDocCount = (phase: Phase) => {
