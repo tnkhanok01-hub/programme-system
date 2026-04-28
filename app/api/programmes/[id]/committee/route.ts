@@ -1,12 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
+import { SINGLE_ROLE_LIMIT } from '@/lib/constants'
+
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// ── Auth helper ───────────────────────────────────────────────────────────
 async function getUser(req: Request) {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim()
   if (!token) return null
@@ -16,138 +17,212 @@ async function getUser(req: Request) {
 
 async function getRole(userId: string) {
   const { data } = await supabaseAdmin
-    .from('users').select('roles(name)').eq('id', userId).single()
+    .from('users')
+    .select('roles(name)')
+    .eq('id', userId)
+    .single()
+
   return (data?.roles as any)?.name?.toLowerCase() ?? 'student'
 }
 
-/* ── GET /api/committee?programme_id=xxx ────────────────────────────────── */
-export async function GET(req: Request) {
+/* ── GET ───────────────────────────────────────────── */
+export async function GET(
+  req: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   const user = await getUser(req)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { searchParams } = new URL(req.url)
-  const programme_id = searchParams.get('programme_id')
-  if (!programme_id) return NextResponse.json({ error: 'programme_id is required.' }, { status: 400 })
+  const { id: programme_id } = await context.params
 
-  const { data, error } = await supabaseAdmin
-    .from('committee_members')
-    .select(`
-      id,
-      role,
-      created_at,
-      user_id,
-      users ( id, full_name, matric_number, phone )
-    `)
+  const { data: roles, error } = await supabaseAdmin
+    .from('programme_roles')
+    .select('programme_id, user_id, role, assigned_at, status')
     .eq('programme_id', programme_id)
-    .order('created_at', { ascending: true })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
-  return NextResponse.json({ members: data ?? [] })
+  const userIds = roles?.map(r => r.user_id) || []
+
+  const { data: usersData } = await supabaseAdmin
+    .from('users')
+    .select('id, full_name, matric_number, phone')
+    .in('id', userIds)
+
+  const usersMap = Object.fromEntries((usersData || []).map(u => [u.id, u]))
+
+  const members = roles.map((r: any) => ({
+    id: `${r.programme_id}__${r.user_id}`,
+    role: r.role,
+    status: r.status,
+    created_at: r.assigned_at,
+    user_id: r.user_id,
+    users: usersMap[r.user_id] ?? null,
+  }))
+
+  return NextResponse.json({ members })
 }
 
-/* ── POST /api/committee ────────────────────────────────────────────────── */
+/* ── POST (JOIN / ADD) ───────────────────────────── */
 export async function POST(req: Request) {
   const user = await getUser(req)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { programme_id, matric_number, member_role, join_self } = await req.json()
+  const { programme_id, member_role, join_self } = await req.json()
 
-  if (!programme_id) return NextResponse.json({ error: 'programme_id is required.' }, { status: 400 })
+  const roleToAssign = member_role || 'Member'
 
-  const role = await getRole(user.id)
-  const isAdmin = role === 'admin' || role === 'superadmin'
+  if (SINGLE_ROLE_LIMIT.includes(roleToAssign)) {
+    const { data: existing } = await supabaseAdmin
+      .from('programme_roles')
+      .select('user_id')
+      .eq('programme_id', programme_id)
+      .eq('role', roleToAssign)
+      .eq('status', 'approved')
+      .maybeSingle()
 
-  // ── SELF-JOIN: student joining themselves ────────────────────────────
+    if (existing) {
+      return NextResponse.json(
+        { error: 'This role is already taken.' },
+        { status: 400 }
+      )
+    }
+  }
+
+  // 🔹 Self join → always pending
   if (join_self) {
-    // Programme must be Approved
-    const { data: prog } = await supabaseAdmin
-      .from('programmes').select('status, programme_director_id').eq('id', programme_id).single()
-
-    if (!prog) return NextResponse.json({ error: 'Programme not found.' }, { status: 404 })
-    if (prog.status !== 'Approved') {
-      return NextResponse.json({ error: 'You can only join an approved programme.' }, { status: 400 })
-    }
-    if (prog.programme_director_id === user.id) {
-      return NextResponse.json({ error: 'You are the programme director.' }, { status: 400 })
-    }
-
     const { data, error } = await supabaseAdmin
-      .from('committee_members')
-      .insert({ programme_id, user_id: user.id, role: member_role || 'Member' })
-      .select(`id, role, created_at, user_id, users ( id, full_name, matric_number, phone )`)
+      .from('programme_roles')
+      .insert({
+        programme_id,
+        user_id: user.id,
+        role: roleToAssign,
+        status: 'pending',
+      })
+      .select()
       .single()
 
     if (error) {
-      if (error.code === '23505') return NextResponse.json({ error: 'You have already joined this committee.' }, { status: 409 })
+      if (error.code === '23505') {
+        return NextResponse.json(
+          { error: 'You already joined.' },
+          { status: 409 }
+        )
+      }
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
+
     return NextResponse.json({ member: data }, { status: 201 })
   }
 
-  // ── ADMIN/DIRECTOR ADD by matric ─────────────────────────────────────
-  if (!matric_number) return NextResponse.json({ error: 'Matric number is required.' }, { status: 400 })
-
-  if (!isAdmin) {
-    const { data: prog } = await supabaseAdmin
-      .from('programmes').select('programme_director_id').eq('id', programme_id).single()
-    if (prog?.programme_director_id !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-  }
-
-  const { data: member } = await supabaseAdmin
-    .from('users').select('id, full_name, matric_number').eq('matric_number', matric_number.trim()).single()
-
-  if (!member) {
-    return NextResponse.json({ error: `No student found with matric number "${matric_number}".` }, { status: 404 })
-  }
-  if (member.id === user.id) {
-    return NextResponse.json({ error: 'You cannot add yourself as a committee member.' }, { status: 400 })
-  }
-
-  const { data, error } = await supabaseAdmin
-    .from('committee_members')
-    .insert({ programme_id, user_id: member.id, role: member_role || 'member' })
-    .select(`id, role, created_at, user_id, users ( id, full_name, matric_number, phone )`)
-    .single()
-
-  if (error) {
-    if (error.code === '23505') {
-      return NextResponse.json({ error: `${member.full_name} is already a committee member.` }, { status: 409 })
-    }
-    return NextResponse.json({ error: error.message }, { status: 400 })
-  }
-
-  return NextResponse.json({ member: data }, { status: 201 })
+  return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
 }
 
-/* ── DELETE /api/committee ──────────────────────────────────────────────── */
+/* ── PATCH (APPROVE / REJECT) ───────────────────── */
+export async function PATCH(req: Request) {
+  const user = await getUser(req)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { programme_id, member_id, action } = await req.json()
+  const user_id = member_id.split('__')[1]
+
+  // 🔒 Only Programme Director
+  const { data: prog } = await supabaseAdmin
+    .from('programmes')
+    .select('programme_director_id')
+    .eq('id', programme_id)
+    .single()
+
+  if (prog?.programme_director_id !== user.id) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  // 🔹 Get member role
+  const { data: member } = await supabaseAdmin
+    .from('programme_roles')
+    .select('role')
+    .eq('programme_id', programme_id)
+    .eq('user_id', user_id)
+    .single()
+
+  if (!member) {
+    return NextResponse.json({ error: 'Member not found' }, { status: 404 })
+  }
+
+  // 🔒 Enforce role limit on approve
+  if (action === 'approve') {
+    if (SINGLE_ROLE_LIMIT.includes(member.role)) {
+      const { data: existing } = await supabaseAdmin
+        .from('programme_roles')
+        .select('id')
+        .eq('programme_id', programme_id)
+        .eq('role', member.role)
+        .eq('status', 'approved')
+        .maybeSingle()
+
+      if (existing) {
+        return NextResponse.json(
+          { error: 'Role already assigned.' },
+          { status: 400 }
+        )
+      }
+    }
+
+    await supabaseAdmin
+      .from('programme_roles')
+      .update({ status: 'approved' })
+      .eq('programme_id', programme_id)
+      .eq('user_id', user_id)
+
+    return NextResponse.json({ success: true })
+  }
+
+  if (action === 'reject') {
+    await supabaseAdmin
+      .from('programme_roles')
+      .delete()
+      .eq('programme_id', programme_id)
+      .eq('user_id', user_id)
+
+    return NextResponse.json({ success: true })
+  }
+
+  return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
+}
+
+/* ── DELETE (LEAVE / REMOVE) ───────────────────── */
 export async function DELETE(req: Request) {
   const user = await getUser(req)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { programme_id, member_id } = await req.json()
+  const user_id = member_id.split('__')[1]
 
-  if (!programme_id || !member_id) {
-    return NextResponse.json({ error: 'programme_id and member_id are required.' }, { status: 400 })
+  const { data: prog } = await supabaseAdmin
+    .from('programmes')
+    .select('programme_director_id')
+    .eq('id', programme_id)
+    .single()
+
+  // 🚫 Prevent director from leaving
+  if (prog?.programme_director_id === user_id) {
+    return NextResponse.json(
+      { error: 'Programme Director cannot leave the programme.' },
+      { status: 400 }
+    )
   }
 
-  const role = await getRole(user.id)
-  const isAdmin = role === 'admin' || role === 'superadmin'
+  const isSelf = user_id === user.id
 
-  if (!isAdmin) {
-    const { data: prog } = await supabaseAdmin
-      .from('programmes').select('programme_director_id').eq('id', programme_id).single()
-    if (prog?.programme_director_id !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+  if (!isSelf && prog?.programme_director_id !== user.id) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { error } = await supabaseAdmin
-    .from('committee_members').delete().eq('id', member_id)
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  await supabaseAdmin
+    .from('programme_roles')
+    .delete()
+    .eq('programme_id', programme_id)
+    .eq('user_id', user_id)
 
   return NextResponse.json({ success: true })
 }

@@ -178,7 +178,7 @@ export default function StudentHomepage() {
       if (!session) { router.replace('/login'); return }
 
       const { data: profileData } = await supabase
-        .from('profiles').select('*').eq('id', session.user.id).single()
+        .from('users').select('*').eq('id', session.user.id).single()
 
       setUserId(session.user.id)
       if (profileData) setProfile(profileData)

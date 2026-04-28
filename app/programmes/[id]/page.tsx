@@ -10,6 +10,13 @@ import {
   Users, UserPlus, UserX, Hash,
 } from 'lucide-react'
 
+import {getDocuments} from '@/services/documentService'
+import CommitteeSection from '@/components/programmes/CommitteeSection'
+import ChecklistPhaseTab from '@/components/programmes/ChecklistPhaseTab'
+import DuringPhaseTab from '@/components/programmes/DuringPhaseTab'
+import DocRow from '@/components/programmes/DocRow'
+import { PHASES, PRE_CHECKLIST, POST_CHECKLIST } from '@/lib/constants'
+
 interface Programme {
   id: string; name: string; description: string; category: string
   venue: string; budget: number; start_date: string; end_date: string
@@ -33,419 +40,10 @@ interface CommitteeMember {
 
 type Phase = 'pre' | 'during' | 'post'
 
-const PRE_CHECKLIST = [
-  { key: 'paperwork', label: 'Paperwork',   hint: 'e.g. approval forms, permission letters' },
-  { key: 'oshe',      label: 'OSHE HIRARC', hint: 'Hazard identification & risk assessment' },
-  { key: 'poster',    label: 'Poster',      hint: 'Event poster or promotional material' },
-]
-
-const POST_CHECKLIST = [
-  { key: 'program_report',   label: 'Program Report',   hint: 'Overall summary and outcomes of the programme' },
-  { key: 'financial_report', label: 'Financial Report', hint: 'Budget breakdown and expenditure record' },
-  { key: 'survey_report',    label: 'Survey Report',    hint: 'Participant feedback and survey results' },
-]
-
-const PHASES: { id: Phase; label: string; color: string; activeBg: string; activeBorder: string }[] = [
-  { id: 'pre',    label: 'Pre',    color: '#60a5fa', activeBg: 'rgba(96,165,250,0.15)',  activeBorder: 'rgba(96,165,250,0.4)'  },
-  { id: 'during', label: 'During', color: '#34d399', activeBg: 'rgba(52,211,153,0.15)',  activeBorder: 'rgba(52,211,153,0.4)'  },
-  { id: 'post',   label: 'Post',   color: '#a78bfa', activeBg: 'rgba(167,139,250,0.15)', activeBorder: 'rgba(167,139,250,0.4)' },
-]
-
 const statusConfig: Record<string, { color: string; bg: string; border: string; icon: React.ElementType }> = {
   Pending:  { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  border: 'rgba(245,158,11,0.2)',  icon: AlertCircle },
   Approved: { color: '#10b981', bg: 'rgba(16,185,129,0.1)',  border: 'rgba(16,185,129,0.2)',  icon: CheckCircle },
   Rejected: { color: '#ef4444', bg: 'rgba(239,68,68,0.1)',   border: 'rgba(239,68,68,0.2)',   icon: XCircle },
-}
-
-const COMMITTEE_ROLES = ['Member', 'Secretary', 'Treasurer', 'Logistics', 'Publicity', 'Welfare']
-
-/* ─── DocRow ────────────────────────────────────────────────────────────── */
-function DocRow({ doc, phaseInfo, canUpload, onPreview, onDownload, onDelete }: {
-  doc: PhaseDoc; phaseInfo: typeof PHASES[0]; canUpload: boolean
-  onPreview: (d: PhaseDoc) => void; onDownload: (d: PhaseDoc) => void; onDelete: (d: PhaseDoc) => void
-}) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 12px', background: '#0c1526', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '9px', minWidth: 0 }}>
-        <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: phaseInfo.activeBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <FileText size={13} color={phaseInfo.color} />
-        </div>
-        <div style={{ minWidth: 0 }}>
-          <p style={{ margin: 0, fontSize: '12px', color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>{doc.file_name}</p>
-          <p style={{ margin: '1px 0 0', fontSize: '10px', color: '#475569' }}>
-            {new Date(doc.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
-          </p>
-        </div>
-      </div>
-      <div style={{ display: 'flex', gap: '4px', flexShrink: 0, marginLeft: '8px' }}>
-        <button onClick={() => onPreview(doc)} style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '4px 8px', borderRadius: '5px', border: '1px solid rgba(96,165,250,0.2)', background: 'rgba(96,165,250,0.1)', color: '#60a5fa', fontSize: '11px', cursor: 'pointer' }}>
-          <Eye size={11} />View
-        </button>
-        <button onClick={() => onDownload(doc)} style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '4px 8px', borderRadius: '5px', border: '1px solid rgba(52,211,153,0.2)', background: 'rgba(52,211,153,0.1)', color: '#34d399', fontSize: '11px', cursor: 'pointer' }}>
-          <Download size={11} />
-        </button>
-        {canUpload && (
-          <button onClick={() => onDelete(doc)} style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '4px 8px', borderRadius: '5px', border: '1px solid rgba(248,113,113,0.15)', background: 'rgba(248,113,113,0.08)', color: '#f87171', fontSize: '11px', cursor: 'pointer' }}>
-            <Trash2 size={11} />
-          </button>
-        )}
-      </div>
-    </div>
-  )
-}
-
-/* ─── ChecklistPhaseTab ─────────────────────────────────────────────────── */
-function ChecklistPhaseTab({ phase, checklist, programmeId, docs, onDocsChange, canUpload }: {
-  phase: 'pre' | 'post'; checklist: { key: string; label: string; hint: string }[]
-  programmeId: string; docs: PhaseDoc[]; onDocsChange: (u: PhaseDoc[]) => void; canUpload: boolean
-}) {
-  const phaseInfo = PHASES.find(p => p.id === phase)!
-  const phaseDocs = docs.filter(d => d.phase === phase)
-  const [uploadingKey, setUploadingKey] = useState<string | null>(null)
-  const [previewDoc, setPreviewDoc] = useState<PhaseDoc | null>(null)
-  const fileRefs = useRef<Record<string, HTMLInputElement | null>>({})
-  const docsForKey = (key: string) => phaseDocs.filter(d => d.doc_type === key)
-  const completedCount = checklist.filter(item => docsForKey(item.key).length > 0).length
-
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>, docKey: string) => {
-    const file = e.target.files?.[0]; if (!file) return
-    setUploadingKey(docKey)
-    const fd = new FormData()
-    fd.append('file', file); fd.append('programme_id', programmeId); fd.append('phase', phase); fd.append('doc_type', docKey)
-    const { data: { session } } = await supabase.auth.getSession()
-    const res = await fetch('/api/upload', { method: 'POST', headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}, body: fd })
-    if (res.ok) { const { data } = await supabase.from('programme_documents').select('*').eq('programme_id', programmeId); onDocsChange((data ?? []) as PhaseDoc[]) }
-    else { const err = await res.json().catch(() => ({})); alert('Upload failed: ' + (err.error ?? 'Unknown error')) }
-    setUploadingKey(null); const ref = fileRefs.current[docKey]; if (ref) ref.value = ''
-  }
-  const handleDelete = async (doc: PhaseDoc) => {
-    if (!confirm(`Delete "${doc.file_name}"?`)) return
-    await supabase.from('programme_documents').delete().eq('id', doc.id)
-    onDocsChange(docs.filter(d => d.id !== doc.id))
-  }
-  const handleDownload = async (doc: PhaseDoc) => {
-    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${doc.file_path}`
-    const res = await fetch(url); const blob = await res.blob(); const blobUrl = window.URL.createObjectURL(blob)
-    const a = document.createElement('a'); a.href = blobUrl; a.download = doc.file_name
-    document.body.appendChild(a); a.click(); document.body.removeChild(a); window.URL.revokeObjectURL(blobUrl)
-  }
-
-  return (
-    <div>
-      <div style={{ marginBottom: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-          <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Checklist Progress</p>
-          <span style={{ fontSize: '11px', fontWeight: 600, color: completedCount === checklist.length ? '#10b981' : phaseInfo.color }}>{completedCount} / {checklist.length} completed</span>
-        </div>
-        <div style={{ height: '5px', background: 'rgba(255,255,255,0.06)', borderRadius: '99px', overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${(completedCount / checklist.length) * 100}%`, background: completedCount === checklist.length ? 'linear-gradient(90deg, #10b981, #34d399)' : `linear-gradient(90deg, ${phaseInfo.color}aa, ${phaseInfo.color})`, borderRadius: '99px', transition: 'width 0.4s ease' }} />
-        </div>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {checklist.map(item => {
-          const itemDocs = docsForKey(item.key); const isDone = itemDocs.length > 0; const isUploading = uploadingKey === item.key
-          return (
-            <div key={item.key} style={{ border: `1px solid ${isDone ? 'rgba(16,185,129,0.25)' : 'rgba(255,255,255,0.07)'}`, borderRadius: '11px', overflow: 'hidden', background: isDone ? 'rgba(16,185,129,0.03)' : 'rgba(255,255,255,0.02)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px' }}>
-                <div style={{ flexShrink: 0 }}>
-                  {isDone
-                    ? <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(16,185,129,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CheckCircle size={16} color="#10b981" /></div>
-                    : <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><XCircle size={15} color="#ef4444" /></div>}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: isDone ? '#f1f5f9' : '#94a3b8' }}>
-                    {item.label}{isDone && <span style={{ marginLeft: '8px', fontSize: '10px', fontWeight: 500, color: '#10b981', background: 'rgba(16,185,129,0.12)', padding: '2px 7px', borderRadius: '4px' }}>Uploaded</span>}
-                  </p>
-                  <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#475569' }}>{item.hint}</p>
-                </div>
-                {canUpload && (
-                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 12px', borderRadius: '7px', cursor: isUploading ? 'not-allowed' : 'pointer', border: `1px solid ${isDone ? 'rgba(16,185,129,0.3)' : `${phaseInfo.color}4d`}`, background: isDone ? 'rgba(16,185,129,0.1)' : `${phaseInfo.color}1a`, color: isDone ? '#10b981' : phaseInfo.color, fontSize: '12px', fontWeight: 500, flexShrink: 0, opacity: isUploading ? 0.6 : 1 }}>
-                    {isUploading ? <><RefreshCw size={12} style={{ animation: 'spin 0.8s linear infinite' }} />Uploading...</> : <><Upload size={12} />{isDone ? 'Replace' : 'Upload'}</>}
-                    <input type="file" style={{ display: 'none' }} disabled={isUploading} ref={el => { fileRefs.current[item.key] = el }} onChange={e => handleUpload(e, item.key)} />
-                  </label>
-                )}
-              </div>
-              {itemDocs.length > 0 && (
-                <div style={{ padding: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {itemDocs.map(doc => <DocRow key={doc.id} doc={doc} phaseInfo={phaseInfo} canUpload={canUpload} onPreview={setPreviewDoc} onDownload={handleDownload} onDelete={handleDelete} />)}
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-      {previewDoc && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 80, backdropFilter: 'blur(6px)', padding: '16px' }}>
-          <div style={{ background: '#0c1526', border: '1px solid rgba(255,255,255,0.08)', width: '100%', maxWidth: '960px', height: '90vh', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                <div style={{ width: '32px', height: '32px', borderRadius: '7px', background: phaseInfo.activeBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><FileText size={15} color={phaseInfo.color} /></div>
-                <span style={{ color: '#e2e8f0', fontSize: '14px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{previewDoc.file_name}</span>
-              </div>
-              <button onClick={() => setPreviewDoc(null)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '7px', padding: '6px', color: '#64748b', cursor: 'pointer', display: 'flex', flexShrink: 0, marginLeft: '10px' }}><X size={16} /></button>
-            </div>
-            <iframe src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${previewDoc.file_path}`} style={{ width: '100%', flex: 1, background: 'white', borderRadius: '8px', border: 'none', minHeight: 0 }} />
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-/* ─── DuringPhaseTab ────────────────────────────────────────────────────── */
-function DuringPhaseTab({ programmeId, docs, onDocsChange, canUpload }: {
-  programmeId: string; docs: PhaseDoc[]; onDocsChange: (u: PhaseDoc[]) => void; canUpload: boolean
-}) {
-  const phaseInfo = PHASES[1]
-  const phaseDocs = docs.filter(d => d.phase === 'during')
-  const [uploading, setUploading] = useState(false)
-  const [previewDoc, setPreviewDoc] = useState<PhaseDoc | null>(null)
-  const fileRef = useRef<HTMLInputElement>(null)
-
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]; if (!file) return
-    setUploading(true)
-    const fd = new FormData()
-    fd.append('file', file); fd.append('programme_id', programmeId); fd.append('phase', 'during')
-    const { data: { session } } = await supabase.auth.getSession()
-    const res = await fetch('/api/upload', { method: 'POST', headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}, body: fd })
-    if (res.ok) { const { data } = await supabase.from('programme_documents').select('*').eq('programme_id', programmeId); onDocsChange((data ?? []) as PhaseDoc[]) }
-    else { const err = await res.json().catch(() => ({})); alert('Upload failed: ' + (err.error ?? 'Unknown error')) }
-    setUploading(false); if (fileRef.current) fileRef.current.value = ''
-  }
-  const handleDelete = async (doc: PhaseDoc) => {
-    if (!confirm(`Delete "${doc.file_name}"?`)) return
-    await supabase.from('programme_documents').delete().eq('id', doc.id); onDocsChange(docs.filter(d => d.id !== doc.id))
-  }
-  const handleDownload = async (doc: PhaseDoc) => {
-    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${doc.file_path}`
-    const res = await fetch(url); const blob = await res.blob(); const blobUrl = window.URL.createObjectURL(blob)
-    const a = document.createElement('a'); a.href = blobUrl; a.download = doc.file_name
-    document.body.appendChild(a); a.click(); document.body.removeChild(a); window.URL.revokeObjectURL(blobUrl)
-  }
-
-  return (
-    <div>
-      {canUpload && (
-        <div style={{ border: `1.5px dashed ${phaseInfo.activeBorder}`, borderRadius: '10px', padding: '20px', background: phaseInfo.activeBg, marginBottom: '16px', textAlign: 'center' }}>
-          <Upload size={22} color={phaseInfo.color} style={{ margin: '0 auto 8px', display: 'block' }} />
-          <p style={{ fontSize: '13px', color: '#94a3b8', margin: '0 0 12px' }}>Upload <strong style={{ color: phaseInfo.color }}>photos taken during the program</strong> — minimum <strong style={{ color: phaseInfo.color }}>5 photos</strong> required</p>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 18px', background: phaseInfo.activeBg, border: `1px solid ${phaseInfo.activeBorder}`, color: phaseInfo.color, borderRadius: '7px', cursor: uploading ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 500, opacity: uploading ? 0.6 : 1 }}>
-            {uploading ? <><RefreshCw size={13} style={{ animation: 'spin 0.8s linear infinite' }} />Uploading...</> : <><Upload size={13} />Choose File</>}
-            <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={handleUpload} disabled={uploading} />
-          </label>
-        </div>
-      )}
-      {phaseDocs.length === 0 && <div style={{ textAlign: 'center', padding: '24px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}><FileText size={24} color="#334155" style={{ margin: '0 auto 8px', display: 'block' }} /><p style={{ margin: 0, fontSize: '13px', color: '#475569' }}>No photos uploaded yet.</p></div>}
-      {phaseDocs.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <p style={{ fontSize: '10px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>During Documents ({phaseDocs.length}{phaseDocs.length < 5 ? ` — ${5 - phaseDocs.length} more needed` : ''})</p>
-          {phaseDocs.map(doc => <DocRow key={doc.id} doc={doc} phaseInfo={phaseInfo} canUpload={canUpload} onPreview={setPreviewDoc} onDownload={handleDownload} onDelete={handleDelete} />)}
-        </div>
-      )}
-      {previewDoc && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 80, backdropFilter: 'blur(6px)', padding: '16px' }}>
-          <div style={{ background: '#0c1526', border: '1px solid rgba(255,255,255,0.08)', width: '100%', maxWidth: '960px', height: '90vh', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                <div style={{ width: '32px', height: '32px', borderRadius: '7px', background: phaseInfo.activeBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><FileText size={15} color={phaseInfo.color} /></div>
-                <span style={{ color: '#e2e8f0', fontSize: '14px', fontWeight: 500 }}>{previewDoc.file_name}</span>
-              </div>
-              <button onClick={() => setPreviewDoc(null)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '7px', padding: '6px', color: '#64748b', cursor: 'pointer', display: 'flex', flexShrink: 0, marginLeft: '10px' }}><X size={16} /></button>
-            </div>
-            <iframe src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${previewDoc.file_path}`} style={{ width: '100%', flex: 1, background: 'white', borderRadius: '8px', border: 'none', minHeight: 0 }} />
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-/* ─── CommitteeSection ──────────────────────────────────────────────────── */
-function CommitteeSection({ programmeId, canManage, token, currentUserId, programmeStatus }: {
-  programmeId: string; canManage: boolean; token: string
-  currentUserId: string; programmeStatus: string
-}) {
-  const [members, setMembers] = useState<CommitteeMember[]>([])
-  const [loading, setLoading] = useState(true)
-  const [joining, setJoining] = useState(false)
-  const [joinRole, setJoinRole] = useState('Member')
-  const [joinError, setJoinError] = useState('')
-  const [removingId, setRemovingId] = useState<string | null>(null)
-
-  const isApproved = programmeStatus === 'Approved'
-  const isMember = members.some(m => m.user_id === currentUserId)
-
-  useEffect(() => {
-    const fetchMembers = async () => {
-      const res = await fetch(`/api/committee?programme_id=${programmeId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (res.ok) { const data = await res.json(); setMembers(data.members ?? []) }
-      setLoading(false)
-    }
-    fetchMembers()
-  }, [programmeId, token])
-
-  const handleJoin = async () => {
-    setJoinError(''); setJoining(true)
-    const res = await fetch('/api/committee', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ programme_id: programmeId, join_self: true, member_role: joinRole }),
-    })
-    const data = await res.json()
-    if (!res.ok) { setJoinError(data.error ?? 'Failed to join.'); setJoining(false); return }
-    setMembers(prev => [...prev, data.member])
-    setJoining(false)
-  }
-
-  const handleLeave = async () => {
-    const mine = members.find(m => m.user_id === currentUserId)
-    if (!mine || !confirm('Leave this committee?')) return
-    setRemovingId(mine.id)
-    const res = await fetch('/api/committee', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ programme_id: programmeId, member_id: mine.id }),
-    })
-    if (res.ok) setMembers(prev => prev.filter(m => m.id !== mine.id))
-    setRemovingId(null)
-  }
-
-  const handleRemove = async (memberId: string) => {
-    if (!confirm('Remove this committee member?')) return
-    setRemovingId(memberId)
-    const res = await fetch('/api/committee', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ programme_id: programmeId, member_id: memberId }),
-    })
-    if (res.ok) setMembers(prev => prev.filter(m => m.id !== memberId))
-    setRemovingId(null)
-  }
-
-  const getInitials = (name: string) =>
-    name?.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || '?'
-
-  const roleColor = (role: string) => {
-    switch (role.toLowerCase()) {
-      case 'secretary':  return { bg: 'rgba(96,165,250,0.12)',  color: '#60a5fa' }
-      case 'treasurer':  return { bg: 'rgba(52,211,153,0.12)',  color: '#34d399' }
-      case 'logistics':  return { bg: 'rgba(251,191,36,0.12)',  color: '#fbbf24' }
-      case 'publicity':  return { bg: 'rgba(167,139,250,0.12)', color: '#a78bfa' }
-      case 'welfare':    return { bg: 'rgba(251,113,133,0.12)', color: '#fb7185' }
-      default:           return { bg: 'rgba(148,163,184,0.1)',  color: '#94a3b8' }
-    }
-  }
-
-  return (
-    <div style={{ background: '#0c1526', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '14px', overflow: 'hidden', marginBottom: '24px' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
-          <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'rgba(99,102,241,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Users size={15} color="#818cf8" />
-          </div>
-          <div>
-            <h2 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#f1f5f9' }}>Committee Members</h2>
-            <p style={{ margin: 0, fontSize: '11px', color: '#475569' }}>{members.length} member{members.length !== 1 ? 's' : ''}</p>
-          </div>
-        </div>
-
-        {/* Join / Leave button — shown to non-director students on Approved programmes */}
-        {isApproved && !canManage && (
-          isMember ? (
-            <button onClick={handleLeave} disabled={!!removingId}
-              style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '7px', padding: '6px 12px', color: '#f87171', fontSize: '12px', fontWeight: 500, cursor: removingId ? 'not-allowed' : 'pointer', opacity: removingId ? 0.6 : 1 }}>
-              <UserX size={13} />Leave
-            </button>
-          ) : (
-            <button onClick={() => { setJoinError(''); document.getElementById('join-panel-' + programmeId)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) }}
-              style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '7px', padding: '6px 12px', color: '#818cf8', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>
-              <UserPlus size={13} />Join Programme
-            </button>
-          )
-        )}
-      </div>
-
-      {/* Join panel — for non-members on approved programmes */}
-      {isApproved && !canManage && !isMember && (
-        <div id={'join-panel-' + programmeId} style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(99,102,241,0.04)' }}>
-          <p style={{ margin: '0 0 10px', fontSize: '12px', color: '#818cf8', fontWeight: 500 }}>Select your role and join this committee:</p>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: '120px' }}>
-              <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Your Role</label>
-              <select value={joinRole} onChange={e => setJoinRole(e.target.value)}
-                style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: '#0a1628', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none' }}>
-                {COMMITTEE_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
-            </div>
-            <button onClick={handleJoin} disabled={joining}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 18px', borderRadius: '7px', border: 'none', background: joining ? 'rgba(99,102,241,0.4)' : 'linear-gradient(135deg, #4f46e5, #6366f1)', color: 'white', fontSize: '13px', fontWeight: 600, cursor: joining ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-              {joining ? <><RefreshCw size={13} style={{ animation: 'spin 0.8s linear infinite' }} />Joining...</> : <><UserPlus size={13} />Confirm Join</>}
-            </button>
-          </div>
-          {joinError && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px', padding: '8px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '7px' }}>
-              <AlertCircle size={13} color="#ef4444" style={{ flexShrink: 0 }} />
-              <p style={{ margin: 0, fontSize: '12px', color: '#ef4444' }}>{joinError}</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Not approved notice */}
-      {!isApproved && !canManage && (
-        <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(245,158,11,0.04)' }}>
-          <p style={{ margin: 0, fontSize: '12px', color: '#d97706', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <AlertCircle size={13} />Committee sign-up opens once the programme is approved.
-          </p>
-        </div>
-      )}
-
-      {/* Members list */}
-      <div style={{ padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {loading ? (
-          <p style={{ margin: 0, fontSize: '13px', color: '#475569', textAlign: 'center', padding: '16px' }}>Loading...</p>
-        ) : members.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '28px', color: '#374151' }}>
-            <Users size={24} style={{ margin: '0 auto 8px', display: 'block', opacity: 0.4 }} />
-            <p style={{ margin: 0, fontSize: '13px' }}>No committee members yet.</p>
-            {canManage && <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#4b5563' }}>Click "Add Member" to get started.</p>}
-          </div>
-        ) : members.map(m => {
-          const rc = roleColor(m.role)
-          return (
-            <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '10px' }}>
-              {/* Avatar */}
-              <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'linear-gradient(135deg, #1d4ed8, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
-                {getInitials(m.users?.full_name ?? '')}
-              </div>
-              {/* Info */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {m.users?.full_name ?? '—'}
-                </p>
-                <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#475569' }}>{m.users?.matric_number ?? '—'}</p>
-              </div>
-              {/* Role badge */}
-              <span style={{ fontSize: '11px', fontWeight: 500, background: rc.bg, color: rc.color, padding: '3px 9px', borderRadius: '5px', flexShrink: 0 }}>
-                {m.role}
-              </span>
-              {/* Remove */}
-              {canManage && (
-                <button onClick={() => handleRemove(m.id)} disabled={removingId === m.id}
-                  style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: '6px', padding: '5px 7px', color: '#f87171', cursor: 'pointer', display: 'flex', alignItems: 'center', opacity: removingId === m.id ? 0.5 : 1 }}>
-                  <UserX size={13} />
-                </button>
-              )}
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -477,8 +75,8 @@ export default function ProgrammeDetailPage() {
     check(); window.addEventListener('resize', check); return () => window.removeEventListener('resize', check)
   }, [])
 
-  const isAdminRef = useRef(false)
-  const isOwnerRef = useRef(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [isOwner, setIsOwner] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -488,16 +86,16 @@ export default function ProgrammeDetailPage() {
       setSessionToken(session.access_token)
       setCurrentUserId(session.user.id)
 
-      const { data: profileData } = await supabase.from('profiles').select('role').eq('id', session.user.id).single()
-      const role = profileData?.role?.toLowerCase() ?? 'student'
-      isAdminRef.current = role === 'admin' || role === 'superadmin'
+      const { data: userData } = await supabase.from('users').select('roles(name)').eq('id', session.user.id).single()
+      const role = (userData?.roles as any)?.name?.toLowerCase() ?? 'student'
+      setIsAdmin(role === 'admin' || role === 'superadmin')
 
       const res = await fetch(`/api/programmes/${id}`, { headers: { Authorization: `Bearer ${session.access_token}` } })
       if (!res.ok) { setError('Programme not found or you do not have access.'); setLoading(false); return }
 
       const data = await res.json()
       const prog: Programme = data.programme
-      isOwnerRef.current = !!data.isDirector
+      setIsOwner(!!data.isDirector)
       setProgramme(prog)
       setForm({
         name: prog.name ?? '', category: prog.category ?? '', venue: prog.venue ?? '',
@@ -507,12 +105,13 @@ export default function ProgrammeDetailPage() {
         description: prog.description ?? '',
       })
 
-      const { data: docs } = await supabase.from('programme_documents').select('*').eq('programme_id', id)
-      setPhaseDocs((docs ?? []) as PhaseDoc[])
+      const docs = await getDocuments(id)
+      const docsData = Array.isArray(docs) ? docs : docs.data
+      setPhaseDocs(docsData ?? [])
       setLoading(false)
     }
     init()
-  }, [id])
+  }, [id, router])
 
   const validateResubmitDates = (start: string, end: string) => {
     if (start && end && new Date(end) < new Date(start)) { setResubmitDateError('End date cannot be before the start date.'); return false }
@@ -546,8 +145,6 @@ export default function ProgrammeDetailPage() {
     setSaving(false)
   }
 
-  const isAdmin       = isAdminRef.current
-  const isOwner       = isOwnerRef.current
   const canUpload     = isAdmin || isOwner
   const canManageCommittee = isAdmin || isOwner
 
