@@ -517,7 +517,7 @@ export default function AdminHomepage() {
 
   const navItems: { id: NavItem; icon: React.ElementType; label: string }[] = [
     { id: 'dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
-    { id: 'programmes', icon: BookOpen,         label: 'Programmes' },
+    { id: 'programmes', icon: BookOpen,         label: 'Add Programmes' },
     { id: 'users',      icon: Users,            label: 'Users' },
     { id: 'settings',   icon: Settings,         label: 'Settings' },
   ]
@@ -525,7 +525,7 @@ export default function AdminHomepage() {
   const handleNavClick = (id: NavItem) => {
     setActiveNav(id)
     if (id === 'dashboard')  router.push('/admin')
-    if (id === 'programmes') router.push('/create-programme')
+    if (id === 'programmes') router.push('/create-programme-form')
     if (id === 'users')      router.push('/admin/users')
     if (id === 'settings')   router.push('/profile')
   }
@@ -698,9 +698,6 @@ export default function AdminHomepage() {
           })}
           <div style={{ marginTop: '20px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
             <p style={{ fontSize: '9px', fontWeight: 600, color: '#374151', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0 10px', marginBottom: '6px' }}>Quick Actions</p>
-            <button onClick={() => router.push('/create-programme-form')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'rgba(124,58,237,0.08)', color: '#a78bfa', fontSize: '13px', fontWeight: 500, textAlign: 'left' }}>
-              <CirclePlus size={15} />New Programme
-            </button>
           </div>
         </nav>
         <div style={{ padding: '14px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
@@ -730,9 +727,6 @@ export default function AdminHomepage() {
             <button style={{ position: 'relative', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '9px', width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280' }}>
               <Bell size={15} />
               {stats.pending > 0 && <span style={{ position: 'absolute', top: '7px', right: '7px', width: '7px', height: '7px', borderRadius: '50%', background: '#f59e0b', border: '1.5px solid #080f1a' }} />}
-            </button>
-            <button onClick={() => router.push('/create-programme-form')} style={{ display: 'flex', alignItems: 'center', gap: '7px', background: 'linear-gradient(135deg, #6d28d9, #7c3aed)', border: 'none', borderRadius: '9px', padding: '9px 16px', color: 'white', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}>
-              <CirclePlus size={14} />New Programme
             </button>
           </div>
         </div>

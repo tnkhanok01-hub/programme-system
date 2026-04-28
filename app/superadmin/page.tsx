@@ -527,7 +527,7 @@ export default function SuperAdminDashboard() {
 
   const navItems: { id: NavItem; icon: React.ElementType; label: string; path: string }[] = [
     { id: 'dashboard',     icon: LayoutDashboard, label: 'Dashboard',      path: '/superadmin' },
-    { id: 'programmes',    icon: BookOpen,         label: 'Programmes',     path: '/create-programme' },
+    { id: 'programmes',    icon: BookOpen,         label: 'Add Programmes',     path: '/create-programme-form' },
     { id: 'createAdmin',   icon: CirclePlus,       label: 'Create Admin',   path: '/superadmin/create-admin' },
     { id: 'exchangeAdmin', icon: ArrowRightLeft,   label: 'Exchange Admin', path: '/superadmin/exchange-admin' },
     { id: 'settings',      icon: Settings,         label: 'Settings',       path: '/profile' },

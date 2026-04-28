@@ -237,7 +237,7 @@ export default function AdminUsersPage() {
 
   const navItems: { id: NavItem; icon: React.ElementType; label: string; path: string }[] = [
     { id: 'dashboard',  icon: LayoutDashboard, label: 'Dashboard',  path: '/admin' },
-    { id: 'programmes', icon: BookOpen,         label: 'Programmes', path: '/create-programme' },
+    { id: 'programmes', icon: BookOpen,         label: 'Add Programmes', path: '/create-programme-form' },
     { id: 'users',      icon: Users,            label: 'Users',      path: '/admin/users' },
     { id: 'settings',   icon: Settings,         label: 'Settings',   path: '/profile' },
   ]

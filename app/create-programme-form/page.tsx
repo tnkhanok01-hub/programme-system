@@ -194,12 +194,6 @@ export default function CreateProgrammePage() {
           ) : (
             /* Desktop header */
             <div style={{ marginBottom: '28px' }}>
-              <button
-                onClick={() => router.back()}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', fontSize: '13px', marginBottom: '20px', padding: 0 }}
-              >
-                <ArrowLeft size={14} />Back
-              </button>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
                 <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg, #4f46e5, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <CalendarPlus size={18} color="white" />

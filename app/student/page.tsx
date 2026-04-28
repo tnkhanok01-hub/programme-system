@@ -228,14 +228,12 @@ export default function StudentHomepage() {
 
   const navItems = [
     { id: 'dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
-    { id: 'programmes', icon: BookOpen,         label: 'Programmes' },
     { id: 'schedule',   icon: Calendar,         label: 'Schedule' },
     { id: 'profile',    icon: User,             label: 'Profile' },
   ]
 
   const handleNavClick = (id: string) => {
     setActiveNav(id)
-    if (id === 'programmes') router.push('/create-programme')
     if (id === 'profile')    router.push('/profile')
     if (id === 'dashboard')  router.push('/student')
   }
@@ -325,10 +323,6 @@ export default function StudentHomepage() {
                   <h2 style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#f1f5f9' }}>Available Programmes</h2>
                   <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#64748b' }}>Explore and enroll</p>
                 </div>
-                <button onClick={() => router.push('/create-programme')} style={{ background: '#1d4ed8', border: 'none', borderRadius: '7px', padding: '6px 10px', color: 'white', fontSize: '11px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
-                  View all <ChevronRight size={12} />
-                </button>
-
                 <button onClick={() => router.push('/create-programme-form')} style={{ background: '#1d4ed8', border: 'none', borderRadius: '7px', padding: '6px 10px', color: 'white', fontSize: '11px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
                   Add Programme <Plus size={12} />
                 </button>
@@ -483,9 +477,6 @@ export default function StudentHomepage() {
                 <input type="text" placeholder="Search programmes..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                   style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 12px 8px 32px', color: '#f1f5f9', fontSize: '13px', outline: 'none', width: '200px' }} />
               </div>
-              <button onClick={() => router.push('/create-programme')} style={{ background: '#1d4ed8', border: 'none', borderRadius: '8px', padding: '8px 16px', color: 'white', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
-                View all <ChevronRight size={14} />
-              </button>
               <button onClick={() => router.push('/create-programme-form')} style={{ background: '#1d4ed8', border: 'none', borderRadius: '8px', padding: '8px 16px', color: 'white', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
                 New Programme <Plus size={14} />
               </button>
