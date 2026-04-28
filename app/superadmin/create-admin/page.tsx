@@ -6,7 +6,7 @@ import { supabase } from '../../../lib/supabaseClient'
 import {
   LayoutDashboard, BookOpen, Users, Settings, LogOut,
   CirclePlus, Shield, Search, ArrowUpCircle, ArrowDownCircle,
-  Trash2, X, Crown, ArrowRightLeft,
+  Trash2, X, Crown, ArrowRightLeft, UserCheck,
 } from 'lucide-react'
 
 interface SystemUser {
@@ -52,7 +52,42 @@ function HighlightText({ text = '', query = '' }) {
   )
 }
 
-/* ─── USER ROW (shared between mobile + desktop) ─────────────────────────── */
+/* ─── FILTER BAR ─────────────────────────────────────────────────────────── */
+function FilterBar({ roleFilter, setRoleFilter }: {
+  roleFilter: 'all' | 'admin' | 'student'
+  setRoleFilter: (f: 'all' | 'admin' | 'student') => void
+}) {
+  const filters: { key: 'all' | 'admin' | 'student'; label: string }[] = [
+    { key: 'all',     label: 'All' },
+    { key: 'admin',   label: 'Admin' },
+    { key: 'student', label: 'Student' },
+  ]
+  return (
+    <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }}>
+      {filters.map(f => {
+        const isActive = roleFilter === f.key
+        const activeBg    = f.key === 'admin' ? SA.accentBg : f.key === 'student' ? 'rgba(56,189,248,0.1)' : 'rgba(255,255,255,0.07)'
+        const activeColor = f.key === 'admin' ? SA.accentText : f.key === 'student' ? '#38bdf8' : '#e2e8f0'
+        const activeBorder= f.key === 'admin' ? SA.accentBorder : f.key === 'student' ? 'rgba(56,189,248,0.3)' : 'rgba(255,255,255,0.15)'
+        return (
+          <button key={f.key} onClick={() => setRoleFilter(f.key)}
+            style={{
+              padding: '6px 14px', borderRadius: '20px', border: '1px solid',
+              fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+              transition: 'all 0.12s',
+              background:   isActive ? activeBg     : 'transparent',
+              color:        isActive ? activeColor  : '#4b5563',
+              borderColor:  isActive ? activeBorder : 'rgba(255,255,255,0.06)',
+            }}>
+            {f.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ─── USER ROW ───────────────────────────────────────────────────────────── */
 function UserRow({
   u, search, isSelected, isAdmin, onClick, onPromote, onDemote, onDelete,
 }: {
@@ -120,16 +155,37 @@ function CreateModal({ show, loading, formError, form, onChange, onSubmit, onClo
     <div onClick={e => { if (e.target === e.currentTarget) onClose() }}
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, backdropFilter: 'blur(4px)', padding: '16px' }}>
       <div style={{ background: '#0f1a24', border: `1px solid ${SA.accentBorder}`, borderRadius: '14px', padding: '24px', width: '100%', maxWidth: '460px', maxHeight: '90vh', overflowY: 'auto' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
           <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <CirclePlus size={15} color={SA.accentText} />Create Admin
           </h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280' }}><X size={18} /></button>
         </div>
+
+        {/* Staff-only notice banner */}
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: '10px',
+          background: 'rgba(139,92,246,0.08)',
+          border: '1px solid rgba(139,92,246,0.25)',
+          borderRadius: '9px',
+          padding: '10px 13px',
+          marginBottom: '18px',
+        }}>
+          <UserCheck size={15} color="#a78bfa" style={{ flexShrink: 0, marginTop: '1px' }} />
+          <div>
+            <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: '#a78bfa' }}>Staff Accounts Only</p>
+            <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#6b7280', lineHeight: 1.5 }}>
+              This form creates <strong style={{ color: '#c4b5fd' }}>ADMIN</strong> role accounts for <strong style={{ color: '#c4b5fd' }}>STAFF</strong> only.
+            </p>
+          </div>
+        </div>
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {[
             { label: 'Full Name *',        key: 'fullName',        type: 'text' },
-            { label: 'Matric Number *',    key: 'matricNumber',    type: 'text' },
+            { label: 'Staff ID *',         key: 'matricNumber',    type: 'text' },
             { label: 'UTM Email *',        key: 'email',           type: 'email' },
             { label: 'Phone Number',       key: 'phone',           type: 'tel' },
             { label: 'Password *',         key: 'password',        type: 'password' },
@@ -193,6 +249,7 @@ export default function CreateAdminPage() {
   const [profile, setProfile] = useState<any>(null)
   const [allUsers, setAllUsers] = useState<SystemUser[]>([])
   const [search, setSearch] = useState('')
+  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'student'>('all')
   const [showForm, setShowForm] = useState(false)
   const [rolesMap, setRolesMap] = useState<Record<string, string>>({})
   const [selectedUser, setSelectedUser] = useState<SystemUser | null>(null)
@@ -201,7 +258,6 @@ export default function CreateAdminPage() {
   const [loading, setLoading] = useState(false)
   const [formError, setFormError] = useState('')
 
-  // null = not yet measured — prevents desktop flash on mobile
   const [isMobile, setIsMobile] = useState<boolean | null>(null)
 
   useEffect(() => {
@@ -265,10 +321,11 @@ export default function CreateAdminPage() {
   }
 
   const filtered = allUsers.filter(u =>
-    u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
-    u.matric_number?.toLowerCase().includes(search.toLowerCase())
+    (u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+    u.matric_number?.toLowerCase().includes(search.toLowerCase())) &&
+    (roleFilter === 'all' || u.role === roleFilter)
   )
-  const adminsList = filtered.filter(u => u.role === 'admin')
+  const adminsList   = filtered.filter(u => u.role === 'admin')
   const studentsList = filtered.filter(u => u.role === 'student')
 
   const userRowProps = (u: SystemUser, isAdmin: boolean) => ({
@@ -282,7 +339,6 @@ export default function CreateAdminPage() {
     onDelete:  () => setConfirmDialog({ isOpen: true, type: 'delete', target: u }),
   })
 
-  /* ── Wait for viewport ── */
   if (isMobile === null) return <div style={{ minHeight: '100vh', background: '#080f1a' }} />
 
   const sharedModals = (
@@ -320,9 +376,7 @@ export default function CreateAdminPage() {
           </div>
         </div>
 
-        {/* Content */}
         <div style={{ padding: '16px' }}>
-
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '14px', gap: '10px' }}>
             <div>
@@ -339,39 +393,50 @@ export default function CreateAdminPage() {
           </div>
 
           {/* Search */}
-          <div style={{ position: 'relative', marginBottom: '16px' }}>
+          <div style={{ position: 'relative', marginBottom: '10px' }}>
             <Search size={12} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#4b5563' }} />
             <input type="text" placeholder="Search by name or matric..." value={search} onChange={e => setSearch(e.target.value)}
               style={{ width: '100%', background: '#0b1118', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '9px 12px 9px 30px', color: '#e2e8f0', fontSize: '12px', outline: 'none', boxSizing: 'border-box' }} />
           </div>
 
+          {/* Filter buttons */}
+          <FilterBar roleFilter={roleFilter} setRoleFilter={setRoleFilter} />
+
           {/* Admins list */}
-          <p style={{ fontSize: '9px', fontWeight: 600, color: SA.accent, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '8px', opacity: 0.7 }}>
-            Administrators ({adminsList.length})
-          </p>
-          <div style={{ background: '#0b1118', border: `1px solid ${SA.accentBorder}`, borderRadius: '12px', overflow: 'hidden', marginBottom: '16px' }}>
-            {adminsList.length === 0 ? (
-              <p style={{ padding: '20px', fontSize: '13px', color: '#374151', textAlign: 'center' }}>No admins found.</p>
-            ) : adminsList.map((u, i) => (
-              <div key={u.id} style={{ borderBottom: i < adminsList.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
-                <UserRow {...userRowProps(u, true)} />
+          {(roleFilter === 'all' || roleFilter === 'admin') && (
+            <>
+              <p style={{ fontSize: '9px', fontWeight: 600, color: SA.accent, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '8px', opacity: 0.7 }}>
+                Administrators ({adminsList.length})
+              </p>
+              <div style={{ background: '#0b1118', border: `1px solid ${SA.accentBorder}`, borderRadius: '12px', overflow: 'hidden', marginBottom: '16px' }}>
+                {adminsList.length === 0 ? (
+                  <p style={{ padding: '20px', fontSize: '13px', color: '#374151', textAlign: 'center' }}>No admins found.</p>
+                ) : adminsList.map((u, i) => (
+                  <div key={u.id} style={{ borderBottom: i < adminsList.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                    <UserRow {...userRowProps(u, true)} />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          )}
 
           {/* Students list */}
-          <p style={{ fontSize: '9px', fontWeight: 600, color: '#374151', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '8px' }}>
-            Students ({studentsList.length})
-          </p>
-          <div style={{ background: '#0b1118', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', overflow: 'hidden' }}>
-            {studentsList.length === 0 ? (
-              <p style={{ padding: '20px', fontSize: '13px', color: '#374151', textAlign: 'center' }}>No students found.</p>
-            ) : studentsList.map((u, i) => (
-              <div key={u.id} style={{ borderBottom: i < studentsList.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
-                <UserRow {...userRowProps(u, false)} />
+          {(roleFilter === 'all' || roleFilter === 'student') && (
+            <>
+              <p style={{ fontSize: '9px', fontWeight: 600, color: '#374151', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '8px' }}>
+                Students ({studentsList.length})
+              </p>
+              <div style={{ background: '#0b1118', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', overflow: 'hidden' }}>
+                {studentsList.length === 0 ? (
+                  <p style={{ padding: '20px', fontSize: '13px', color: '#374151', textAlign: 'center' }}>No students found.</p>
+                ) : studentsList.map((u, i) => (
+                  <div key={u.id} style={{ borderBottom: i < studentsList.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                    <UserRow {...userRowProps(u, false)} />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          )}
         </div>
 
         {/* Fixed bottom tab bar */}
@@ -395,7 +460,7 @@ export default function CreateAdminPage() {
   }
 
   /* ══════════════════════════════════════════════════════
-     DESKTOP LAYOUT  (unchanged from original)
+     DESKTOP LAYOUT
   ══════════════════════════════════════════════════════ */
   return (
     <div style={{ minHeight: '100vh', background: '#080f1a', display: 'flex', fontFamily: "'Inter', -apple-system, sans-serif", color: '#e2e8f0' }}>
@@ -494,39 +559,51 @@ export default function CreateAdminPage() {
           </button>
         </div>
 
-        <div style={{ position: 'relative', marginBottom: '24px', maxWidth: '400px' }}>
+        {/* Search */}
+        <div style={{ position: 'relative', marginBottom: '10px', maxWidth: '400px' }}>
           <Search size={13} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#4b5563' }} />
           <input type="text" placeholder="Search users by name or matric..." value={search} onChange={e => setSearch(e.target.value)}
             style={{ width: '100%', background: '#0b1118', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '9px', padding: '9px 12px 9px 34px', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
         </div>
 
+        {/* Filter buttons */}
+        <FilterBar roleFilter={roleFilter} setRoleFilter={setRoleFilter} />
+
         {/* Admins */}
-        <p style={{ fontSize: '9px', fontWeight: 600, color: SA.accent, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '10px', opacity: 0.7 }}>
-          Administrators ({adminsList.length})
-        </p>
-        <div style={{ background: '#0b1118', border: `1px solid ${SA.accentBorder}`, borderRadius: '12px', overflow: 'hidden', marginBottom: '24px' }}>
-          {adminsList.length === 0 ? (
-            <p style={{ padding: '20px', fontSize: '13px', color: '#374151', textAlign: 'center' }}>No admins found.</p>
-          ) : adminsList.map((u, i) => (
-            <div key={u.id} style={{ borderBottom: i < adminsList.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
-              <UserRow {...userRowProps(u, true)} />
+        {(roleFilter === 'all' || roleFilter === 'admin') && (
+          <>
+            <p style={{ fontSize: '9px', fontWeight: 600, color: SA.accent, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '10px', opacity: 0.7 }}>
+              Administrators ({adminsList.length})
+            </p>
+            <div style={{ background: '#0b1118', border: `1px solid ${SA.accentBorder}`, borderRadius: '12px', overflow: 'hidden', marginBottom: '24px' }}>
+              {adminsList.length === 0 ? (
+                <p style={{ padding: '20px', fontSize: '13px', color: '#374151', textAlign: 'center' }}>No admins found.</p>
+              ) : adminsList.map((u, i) => (
+                <div key={u.id} style={{ borderBottom: i < adminsList.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                  <UserRow {...userRowProps(u, true)} />
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </>
+        )}
 
         {/* Students */}
-        <p style={{ fontSize: '9px', fontWeight: 600, color: '#374151', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '10px' }}>
-          Students ({studentsList.length})
-        </p>
-        <div style={{ background: '#0b1118', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', overflow: 'hidden' }}>
-          {studentsList.length === 0 ? (
-            <p style={{ padding: '20px', fontSize: '13px', color: '#374151', textAlign: 'center' }}>No students found.</p>
-          ) : studentsList.map((u, i) => (
-            <div key={u.id} style={{ borderBottom: i < studentsList.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
-              <UserRow {...userRowProps(u, false)} />
+        {(roleFilter === 'all' || roleFilter === 'student') && (
+          <>
+            <p style={{ fontSize: '9px', fontWeight: 600, color: '#374151', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '10px' }}>
+              Students ({studentsList.length})
+            </p>
+            <div style={{ background: '#0b1118', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', overflow: 'hidden' }}>
+              {studentsList.length === 0 ? (
+                <p style={{ padding: '20px', fontSize: '13px', color: '#374151', textAlign: 'center' }}>No students found.</p>
+              ) : studentsList.map((u, i) => (
+                <div key={u.id} style={{ borderBottom: i < studentsList.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                  <UserRow {...userRowProps(u, false)} />
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </>
+        )}
       </main>
 
       {sharedModals}
