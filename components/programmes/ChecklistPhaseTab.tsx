@@ -11,14 +11,7 @@ import {
 import { uploadDocument, getDocuments, deleteDocument } from '@/services/documentService'
 import { PHASES } from '@/lib/constants'
 import DocRow from '@/components/programmes/DocRow'
-
-type PhaseDoc = {
-  id: string
-  phase: 'pre' | 'during' | 'post'
-  doc_type: string
-  file_url?: string
-  [key: string]: any
-}
+import { PhaseDoc } from '@/lib/types'
 
 /* ─── ChecklistPhaseTab ─────────────────────────────────────────────────── */
 export default function ChecklistPhaseTab({ phase, checklist, programmeId, docs, onDocsChange, canUpload }: {
