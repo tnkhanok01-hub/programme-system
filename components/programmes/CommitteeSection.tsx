@@ -1,4 +1,5 @@
 'use client'
+import { CommitteeMember } from '@/lib/types'
 import { useState, useEffect } from 'react'
 import {
   ArrowLeft, CheckCircle, XCircle, AlertCircle, Clock,
