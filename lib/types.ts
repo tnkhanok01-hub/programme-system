@@ -11,3 +11,11 @@ export type PhaseDoc = {
   file_url?: string
   [key: string]: any
 }
+
+export type CommitteeMember = {
+  id: string
+  name: string
+  role: string
+  email?: string
+  [key: string]: any
+}
