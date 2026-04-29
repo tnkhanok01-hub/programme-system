@@ -1,5 +1,6 @@
 'use client'
 
+import { PhaseDoc } from '@/lib/types'
 import React, { useState, useEffect, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { supabase } from '../../../lib/supabaseClient'
@@ -22,12 +23,6 @@ interface Programme {
   venue: string; budget: number; start_date: string; end_date: string
   status: string; created_at: string; rejection_reason: string | null
   programme_director_id: string
-}
-
-interface PhaseDoc {
-  id: string; file_name: string; file_path: string
-  phase: 'pre' | 'during' | 'post'; doc_type?: string
-  programme_id: string; created_at: string
 }
 
 interface CommitteeMember {
@@ -309,9 +304,9 @@ export default function ProgrammeDetailPage() {
                 })}
               </div>
               <div style={{ padding: isMobile ? '14px' : '20px' }}>
-                {activeTab === 'pre'    && <ChecklistPhaseTab key="pre"    phase="pre"  checklist={PRE_CHECKLIST}  programmeId={programme.id} docs={phaseDocs} onDocsChange={setPhaseDocs} canUpload={canUpload} />}
+                {activeTab === 'pre'    && <ChecklistPhaseTab key="pre"    phase="pre"  checklist={PRE_CHECKLIST}  programmeId={programme.id} docs={phaseDocs} onDocsChange={(u) => setPhaseDocs(u)} canUpload={canUpload} />}
                 {activeTab === 'during' && <DuringPhaseTab    key="during"              programmeId={programme.id} docs={phaseDocs} onDocsChange={setPhaseDocs} canUpload={canUpload} />}
-                {activeTab === 'post'   && <ChecklistPhaseTab key="post"   phase="post" checklist={POST_CHECKLIST} programmeId={programme.id} docs={phaseDocs} onDocsChange={setPhaseDocs} canUpload={canUpload} />}
+                {activeTab === 'post'   && <ChecklistPhaseTab key="post"   phase="post" checklist={POST_CHECKLIST} programmeId={programme.id} docs={phaseDocs} onDocsChange={(u) => setPhaseDocs(u)} canUpload={canUpload} />}
               </div>
             </div>
 
