@@ -21,7 +21,13 @@ export default function DocRow({ doc, phaseInfo, canUpload, onPreview, onDownloa
         <div style={{ minWidth: 0 }}>
           <p style={{ margin: 0, fontSize: '12px', color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>{doc.file_name}</p>
           <p style={{ margin: '1px 0 0', fontSize: '10px', color: '#475569' }}>
-            {new Date(doc.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+            {doc.created_at
+  ? new Date(doc.created_at).toLocaleDateString('en-MY', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    })
+  : 'No date'}
           </p>
         </div>
       </div>
