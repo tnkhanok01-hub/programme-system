@@ -103,6 +103,12 @@ export default function ProfilePage() {
     setEditing(false)
   }
 
+  const capitalizeName = (name: string) => {
+    return name
+      .toLowerCase()
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
   const handleSave = async () => {
     if (!editForm.name.trim()) { setSaveError('Name cannot be empty.'); return }
     setSaving(true)
@@ -111,11 +117,13 @@ export default function ProfilePage() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) { router.replace('/login'); return }
 
-    // Update users table using column names from /api/profile
+    const formattedName = capitalizeName(editForm.name.trim());
+
     const updates: Record<string, string | null> = {
-      full_name: editForm.name.trim(),
+      full_name: formattedName,
       phone: editForm.phone.trim() || null,
-    }
+    };
+
     if (!isAdmin) updates.matric_number = editForm.matric.trim() || null
     else updates.staff_number = editForm.staff.trim() || null
 
@@ -133,7 +141,7 @@ export default function ProfilePage() {
     // Update local state
     setUser(prev => prev ? {
       ...prev,
-      name: editForm.name.trim(),
+      name: formattedName,
       phone: editForm.phone.trim() || null,
       matric: isAdmin ? prev.matric : (editForm.matric.trim() || null),
       staff: isAdmin ? (editForm.staff.trim() || null) : prev.staff,
