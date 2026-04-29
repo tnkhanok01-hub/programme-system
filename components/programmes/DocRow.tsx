@@ -1,3 +1,4 @@
+import { PhaseDoc } from '@/lib/types'
 import {
   ArrowLeft, CheckCircle, XCircle, AlertCircle, Clock,
   Calendar, MapPin, DollarSign, BookOpen, RefreshCw,
