@@ -19,3 +19,5 @@ export type CommitteeMember = {
   email?: string
   [key: string]: any
 }
+
+export type Phase = 'pre' | 'during' | 'post'
