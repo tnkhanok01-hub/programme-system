@@ -73,7 +73,7 @@ export default function DuringPhaseTab({ programmeId, docs, onDocsChange, canUpl
 
     const a = document.createElement('a')
     a.href = blobUrl
-    a.download = doc.file_name
+    a.download = doc.file_name || 'file'
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
