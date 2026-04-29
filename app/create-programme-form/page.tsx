@@ -6,7 +6,9 @@ import { supabase } from '../../lib/supabaseClient'
 import {
   ArrowLeft, CalendarPlus, CirclePlus, Loader2,
   BookOpen, MapPin, DollarSign, Calendar, AlignLeft, Tag,
+  CheckCircle, XCircle, Upload, X, FileText,
 } from 'lucide-react'
+import { PRE_CHECKLIST } from '../../lib/constants'
 
 export default function CreateProgrammePage() {
   const router = useRouter()
@@ -16,6 +18,8 @@ export default function CreateProgrammePage() {
   const [budgetCents, setBudgetCents] = useState(0)
   const [dateError, setDateError] = useState('')
   const [isMobile, setIsMobile] = useState(false)
+  const [preFiles, setPreFiles] = useState<Record<string, File | null>>({ paperwork: null, oshe: null, poster: null })
+  const [uploadStep, setUploadStep] = useState('')
 
   const [form, setForm] = useState({
     name: '',
@@ -108,6 +112,8 @@ export default function CreateProgrammePage() {
     if (budgetError || dateError) return
     if (budgetCents <= 0) { setBudgetError('Budget must be more than RM 0.00'); return }
     if (budgetCents > 499999) { setBudgetError('Budget must be below RM 5,000.00'); return }
+    if (PRE_CHECKLIST.some(item => !preFiles[item.key])) return
+
     setSubmitting(true)
 
     const { data: { session } } = await supabase.auth.getSession()
@@ -129,7 +135,28 @@ export default function CreateProgrammePage() {
       return
     }
 
+    const programmeId = result.programme.id
+
+    for (const item of PRE_CHECKLIST) {
+      const file = preFiles[item.key]
+      if (!file) continue
+      setUploadStep(`Uploading ${item.label}...`)
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('programme_id', programmeId)
+      fd.append('phase', 'pre')
+      fd.append('doc_type', item.key)
+      try {
+        await fetch('/api/upload', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          body: fd,
+        })
+      } catch (_) {}
+    }
+
     setSubmitting(false)
+    setUploadStep('')
     router.push('/student')
   }
 
@@ -351,6 +378,85 @@ export default function CreateProgrammePage() {
 
             </div>
 
+            {/* ── PRE-PROGRAMME CHECKLIST ── */}
+            {isMobile && <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '0' }} />}
+            <div style={{
+              background: isMobile ? 'transparent' : '#0c1526',
+              border: isMobile ? 'none' : '1px solid rgba(255,255,255,0.06)',
+              borderRadius: isMobile ? 0 : '16px',
+              padding: isMobile ? '16px' : '28px',
+              marginTop: isMobile ? '0' : '16px',
+            }}>
+              {(() => {
+                const preDoneCount = PRE_CHECKLIST.filter(item => !!preFiles[item.key]).length
+                const preAllDone = preDoneCount === PRE_CHECKLIST.length
+                return (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: isMobile ? '14px' : '18px' }}>
+                      <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'rgba(96,165,250,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <FileText size={13} color="#60a5fa" />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#f1f5f9' }}>Pre-Programme Checklist</p>
+                        <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#4b5563' }}>Upload all required documents before submitting your proposal</p>
+                      </div>
+                      <span style={{ fontSize: '11px', fontWeight: 600, color: preAllDone ? '#10b981' : '#60a5fa', background: preAllDone ? 'rgba(16,185,129,0.1)' : 'rgba(96,165,250,0.1)', padding: '3px 9px', borderRadius: '5px', flexShrink: 0 }}>
+                        {preDoneCount}/{PRE_CHECKLIST.length}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {PRE_CHECKLIST.map(item => {
+                        const file = preFiles[item.key]
+                        const done = !!file
+                        return (
+                          <div key={item.key} style={{ border: `1px solid ${done ? 'rgba(16,185,129,0.25)' : 'rgba(255,255,255,0.07)'}`, borderRadius: '10px', padding: '12px 14px', background: done ? 'rgba(16,185,129,0.03)' : 'rgba(255,255,255,0.02)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div style={{ flexShrink: 0 }}>
+                                {done ? (
+                                  <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: 'rgba(16,185,129,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <CheckCircle size={14} color="#10b981" />
+                                  </div>
+                                ) : (
+                                  <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <XCircle size={13} color="#ef4444" />
+                                  </div>
+                                )}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: done ? '#f1f5f9' : '#94a3b8' }}>{item.label}</p>
+                                {done ? (
+                                  <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#60a5fa', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</p>
+                                ) : (
+                                  <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#475569' }}>{item.hint}</p>
+                                )}
+                              </div>
+                              <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                                {done && (
+                                  <button type="button" onClick={() => setPreFiles(prev => ({ ...prev, [item.key]: null }))}
+                                    style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '6px', padding: '5px 7px', cursor: 'pointer', color: '#ef4444', display: 'flex', alignItems: 'center' }}>
+                                    <X size={12} />
+                                  </button>
+                                )}
+                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 11px', borderRadius: '7px', cursor: 'pointer', border: `1px solid ${done ? 'rgba(16,185,129,0.3)' : 'rgba(96,165,250,0.35)'}`, background: done ? 'rgba(16,185,129,0.1)' : 'rgba(96,165,250,0.1)', color: done ? '#10b981' : '#60a5fa', fontSize: '12px', fontWeight: 500 }}>
+                                  <Upload size={12} />
+                                  {done ? 'Replace' : 'Upload'}
+                                  <input type="file" style={{ display: 'none' }} onChange={e => {
+                                    const f = e.target.files?.[0]
+                                    if (f) setPreFiles(prev => ({ ...prev, [item.key]: f }))
+                                    e.target.value = ''
+                                  }} />
+                                </label>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </>
+                )
+              })()}
+            </div>
+
             {/* ── ACTION BUTTONS ── */}
             <div style={{
               display: 'flex',
@@ -384,28 +490,32 @@ export default function CreateProgrammePage() {
                 <ArrowLeft size={14} />Cancel
               </button>
 
-              <button
-                type="submit"
-                disabled={submitting || !!budgetError || !!dateError}
-                style={{
-                  flex: isMobile ? 2 : undefined,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px',
-                  padding: isMobile ? '13px' : '10px 22px',
-                  borderRadius: '10px', border: 'none',
-                  background: submitting || budgetError || dateError
-                    ? 'rgba(99,102,241,0.35)'
-                    : 'linear-gradient(135deg, #4f46e5, #6366f1)',
-                  color: 'white',
-                  fontSize: isMobile ? '14px' : '13px',
-                  fontWeight: 600,
-                  cursor: submitting || budgetError || dateError ? 'not-allowed' : 'pointer',
-                  fontFamily: 'inherit', transition: 'opacity 0.15s',
-                }}
-              >
-                {submitting
-                  ? <><Loader2 size={15} style={{ animation: 'spin 0.8s linear infinite' }} />Creating...</>
-                  : <><CirclePlus size={15} />Create Programme</>}
-              </button>
+              {(() => {
+                const preAllDone = PRE_CHECKLIST.every(item => !!preFiles[item.key])
+                const isDisabled = submitting || !!budgetError || !!dateError || !preAllDone
+                return (
+                  <button
+                    type="submit"
+                    disabled={isDisabled}
+                    style={{
+                      flex: isMobile ? 2 : undefined,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px',
+                      padding: isMobile ? '13px' : '10px 22px',
+                      borderRadius: '10px', border: 'none',
+                      background: isDisabled ? 'rgba(99,102,241,0.35)' : 'linear-gradient(135deg, #4f46e5, #6366f1)',
+                      color: 'white',
+                      fontSize: isMobile ? '14px' : '13px',
+                      fontWeight: 600,
+                      cursor: isDisabled ? 'not-allowed' : 'pointer',
+                      fontFamily: 'inherit', transition: 'opacity 0.15s',
+                    }}
+                  >
+                    {submitting
+                      ? <><Loader2 size={15} style={{ animation: 'spin 0.8s linear infinite' }} />{uploadStep || 'Creating...'}</>
+                      : <><CirclePlus size={15} />Submit Proposal</>}
+                  </button>
+                )
+              })()}
             </div>
           </form>
 

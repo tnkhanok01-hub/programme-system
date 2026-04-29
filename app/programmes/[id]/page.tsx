@@ -61,6 +61,7 @@ export default function ProgrammeDetailPage() {
   const [form, setForm] = useState({ name: '', category: '', venue: '', budget: '', start_date: '', end_date: '', description: '' })
   const [resubmitDateError, setResubmitDateError] = useState('')
   const [resubmitBudgetError, setResubmitBudgetError] = useState('')
+  const [resubmitBudgetCents, setResubmitBudgetCents] = useState(0)
   const [resubmitSuccess, setResubmitSuccess] = useState(false)
   const [resubmitApiError, setResubmitApiError] = useState('')
   const [isMobile, setIsMobile] = useState(false)
@@ -109,11 +110,12 @@ export default function ProgrammeDetailPage() {
       setProgramme(prog)
       setForm({
         name: prog.name ?? '', category: prog.category ?? '', venue: prog.venue ?? '',
-        budget: prog.budget != null ? String(prog.budget) : '',
+        budget: prog.budget != null ? Number(prog.budget).toFixed(2) : '0.00',
         start_date: prog.start_date ? prog.start_date.slice(0, 10) : '',
         end_date: prog.end_date ? prog.end_date.slice(0, 10) : '',
         description: prog.description ?? '',
       })
+      setResubmitBudgetCents(prog.budget != null ? Math.round(prog.budget * 100) : 0)
 
       const docs = await getDocuments(id)
       const docsData = Array.isArray(docs) ? docs : docs.data
@@ -128,20 +130,48 @@ export default function ProgrammeDetailPage() {
     setResubmitDateError(''); return true
   }
 
-  const validateResubmitBudget = (value: string) => {
-    if (!value) { setResubmitBudgetError('Budget is required.'); return false }
-    if (!/^\d+(\.\d{2})$/.test(value)) { setResubmitBudgetError('Must be exactly 2 decimal places (e.g. 4999.99)'); return false }
-    const num = Number(value)
-    if (num <= 0) { setResubmitBudgetError('Budget must be more than RM 0.00'); return false }
-    if (num >= 5000) { setResubmitBudgetError('Budget must be below RM 5,000.00'); return false }
-    setResubmitBudgetError(''); return true
+  const centsToDisplay = (cents: number) => {
+    const ringgit = Math.floor(cents / 100)
+    const sen = cents % 100
+    return `${ringgit.toLocaleString('en-MY')}.${sen.toString().padStart(2, '0')}`
+  }
+
+  const handleResubmitBudgetKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key >= '0' && e.key <= '9') {
+      e.preventDefault()
+      const next = resubmitBudgetCents * 10 + Number(e.key)
+      setResubmitBudgetCents(next)
+      setForm(prev => ({ ...prev, budget: (next / 100).toFixed(2) }))
+      if (next > 499999) { setResubmitBudgetError('Budget must be below RM 5,000.00'); return }
+      setResubmitBudgetError('')
+    } else if (e.key === 'Backspace') {
+      e.preventDefault()
+      const next = Math.floor(resubmitBudgetCents / 10)
+      setResubmitBudgetCents(next)
+      setForm(prev => ({ ...prev, budget: (next / 100).toFixed(2) }))
+      setResubmitBudgetError('')
+    } else if (e.key === 'Delete') {
+      e.preventDefault()
+      setResubmitBudgetCents(0)
+      setForm(prev => ({ ...prev, budget: '0.00' }))
+      setResubmitBudgetError('')
+    } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault()
+    }
+  }
+
+  const handleResubmitBudgetBlur = () => {
+    if (resubmitBudgetCents <= 0) { setResubmitBudgetError('Budget must be more than RM 0.00'); return }
+    if (resubmitBudgetCents > 499999) { setResubmitBudgetError('Budget must be below RM 5,000.00'); return }
+    setResubmitBudgetError('')
   }
 
   const handleResubmit = async () => {
     if (!form.name || !form.start_date || !form.end_date) { setResubmitApiError('Name, start date, and end date are required.'); return }
     const datesOk = validateResubmitDates(form.start_date, form.end_date)
-    const budgetOk = validateResubmitBudget(form.budget)
-    if (!datesOk || !budgetOk) return
+    if (!datesOk) return
+    if (resubmitBudgetCents <= 0) { setResubmitBudgetError('Budget must be more than RM 0.00'); return }
+    if (resubmitBudgetCents > 499999) { setResubmitBudgetError('Budget must be below RM 5,000.00'); return }
     setSaving(true)
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) { router.replace('/login'); return }
@@ -338,9 +368,10 @@ export default function ProgrammeDetailPage() {
                   <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px' }}>
                     <div>
                       <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Budget (RM)</label>
-                      <input type="text" inputMode="decimal" placeholder="e.g. 4999.99" style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${resubmitBudgetError ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.08)'}`, color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} value={form.budget}
-                        onChange={e => { const v = e.target.value; if (!/^\d*\.?\d*$/.test(v)) return; setForm(prev => ({ ...prev, budget: v })); validateResubmitBudget(v) }}
-                        onBlur={() => { if (form.budget && !isNaN(Number(form.budget))) { const fixed = Number(form.budget).toFixed(2); setForm(prev => ({ ...prev, budget: fixed })); validateResubmitBudget(fixed) } }} />
+                      <input type="text" inputMode="numeric" style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${resubmitBudgetError ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.08)'}`, color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }} value={centsToDisplay(resubmitBudgetCents)}
+                        onChange={() => {}}
+                        onKeyDown={handleResubmitBudgetKeyDown}
+                        onBlur={handleResubmitBudgetBlur} />
                       {resubmitBudgetError && <ErrorBox msg={resubmitBudgetError} />}
                     </div>
                     <div>

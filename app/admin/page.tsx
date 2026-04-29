@@ -7,8 +7,9 @@ import {
   LayoutDashboard, BookOpen, Users, Settings, LogOut, Bell,
   CirclePlus, Pencil, Trash, Save, CircleX, TrendingUp, Clock,
   CheckCircle, XCircle, AlertCircle, Search, Shield, Calendar,
-  MapPin, DollarSign, Activity, Eye
+  MapPin, DollarSign, Activity, Eye, FileText
 } from 'lucide-react'
+import { PRE_CHECKLIST } from '../../lib/constants'
 
 /* ─── TYPES ──────────────────────────────────────────────────────────────── */
 interface Programme {
@@ -147,21 +148,24 @@ function EditModal({ show, isMobile, editForm, actionLoading, onClose, onChange,
 }
 
 /* ─── REVIEW MODAL ───────────────────────────────────────────────────────── */
-function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoading, onClose, onCommentChange, onApprove, onReject }: {
+function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoading, preDocs, preDocsLoading, onClose, onCommentChange, onApprove, onReject }: {
   prog: Programme | null; isMobile: boolean; rejectComment: string; actionLoading: boolean; rejectLoading: boolean
+  preDocs: Array<{ phase: string; doc_type?: string; file_name?: string }>; preDocsLoading: boolean
   onClose: () => void; onCommentChange: (v: string) => void; onApprove: () => void; onReject: () => void
 }) {
   if (!prog) return null
   return (
     <div onClick={e => { if (e.target === e.currentTarget) onClose() }}
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, backdropFilter: 'blur(4px)', padding: '16px' }}>
-      <div style={{ background: '#0f1e30', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '560px', maxHeight: '90vh', overflowY: 'auto' }}>
+      <div style={{ background: '#0f1e30', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '620px', maxHeight: '90vh', overflowY: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
           <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Shield size={15} color="#818cf8" />Review Programme
           </h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280' }}><CircleX size={18} /></button>
         </div>
+
+        {/* Programme details */}
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '10px', marginBottom: '18px' }}>
           {[
             { label: 'Programme Name', value: prog.name,         span: isMobile ? 1 : 2 },
@@ -178,7 +182,44 @@ function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoadi
             </div>
           ))}
         </div>
+
         <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', marginBottom: '18px' }} />
+
+        {/* Pre-phase documents */}
+        <div style={{ marginBottom: '18px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+            <FileText size={13} color="#60a5fa" />
+            <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Pre-Phase Documents</p>
+            {preDocsLoading && (
+              <div style={{ width: '12px', height: '12px', borderRadius: '50%', border: '2px solid rgba(96,165,250,0.25)', borderTopColor: '#60a5fa', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />
+            )}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+            {PRE_CHECKLIST.map(item => {
+              const doc = preDocs.find(d => d.phase === 'pre' && d.doc_type === item.key)
+              return (
+                <div key={item.key} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 13px', background: doc ? 'rgba(16,185,129,0.04)' : 'rgba(239,68,68,0.04)', border: `1px solid ${doc ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}`, borderRadius: '8px' }}>
+                  {doc
+                    ? <CheckCircle size={14} color="#10b981" style={{ flexShrink: 0 }} />
+                    : <XCircle size={14} color="#ef4444" style={{ flexShrink: 0 }} />}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: doc ? '#e2e8f0' : '#94a3b8' }}>{item.label}</p>
+                    <p style={{ margin: '1px 0 0', fontSize: '11px', color: doc ? '#60a5fa' : '#4b5563', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {doc ? (doc.file_name || 'Uploaded') : 'Not uploaded'}
+                    </p>
+                  </div>
+                  {doc && (
+                    <span style={{ fontSize: '10px', fontWeight: 500, color: '#10b981', background: 'rgba(16,185,129,0.12)', padding: '2px 7px', borderRadius: '4px', flexShrink: 0 }}>Done</span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', marginBottom: '18px' }} />
+
+        {/* Rejection comment */}
         <div style={{ marginBottom: '18px' }}>
           <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', fontWeight: 500, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Rejection Comment <span style={{ color: '#ef4444' }}>*</span>
@@ -376,6 +417,8 @@ export default function AdminHomepage() {
   const [rejectComment, setRejectComment] = useState('')
   const [rejectLoading, setRejectLoading] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState(false)
+  const [reviewDocs, setReviewDocs] = useState<Array<{ phase: string; doc_type?: string; file_name?: string }>>([])
+  const [reviewDocsLoading, setReviewDocsLoading] = useState(false)
 
   // KEY FIX: null = not yet measured (server). After mount, set real value.
   const [isMobile, setIsMobile] = useState<boolean | null>(null)
@@ -425,6 +468,30 @@ export default function AdminHomepage() {
   const getToken = async () => {
     const { data: { session } } = await supabase.auth.getSession()
     return session?.access_token ?? null
+  }
+
+  const handleOpenReview = async (prog: Programme) => {
+    setReviewProg(prog)
+    setRejectComment('')
+    setReviewDocs([])
+    setReviewDocsLoading(true)
+    try {
+      const token = await getToken()
+      const res = await fetch(`/api/programmes/${prog.id}/documents`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setReviewDocs(Array.isArray(data) ? data : (data.data ?? []))
+      }
+    } catch (_) {}
+    setReviewDocsLoading(false)
+  }
+
+  const handleCloseReview = () => {
+    setReviewProg(null)
+    setRejectComment('')
+    setReviewDocs([])
   }
 
   const handleLogout = async () => {
@@ -534,7 +601,7 @@ export default function AdminHomepage() {
     filtered,
     onEdit:   handleEdit,
     onDelete: handleDelete,
-    onReview: (p: Programme) => { setReviewProg(p); setRejectComment('') },
+    onReview: handleOpenReview,
     onView:   (id: string) => router.push(`/programmes/${id}`),
   }
 
@@ -542,6 +609,8 @@ export default function AdminHomepage() {
     actionLoading,
     rejectLoading,
     rejectComment,
+    preDocs: reviewDocs,
+    preDocsLoading: reviewDocsLoading,
   }
 
   // ── Loading screen ──
@@ -656,7 +725,7 @@ export default function AdminHomepage() {
         />
         <ReviewModal
           prog={reviewProg} isMobile={true} {...modalProps}
-          onClose={() => { setReviewProg(null); setRejectComment('') }}
+          onClose={handleCloseReview}
           onCommentChange={setRejectComment} onApprove={handleApprove} onReject={handleReject}
         />
         <LoadingOverlay actionLoading={actionLoading} rejectLoading={rejectLoading} deleteLoading={deleteLoading} rejectComment={rejectComment} />
