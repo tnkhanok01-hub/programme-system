@@ -1,5 +1,5 @@
 'use client'
-
+import { PhaseDoc } from '@/lib/types'
 import { useState, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import {
