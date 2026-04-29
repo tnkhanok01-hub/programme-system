@@ -1,5 +1,5 @@
 'use client'
-
+import { PhaseDoc } from '@/lib/types'
 import { useState, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import {
@@ -11,7 +11,7 @@ import {
 import { uploadDocument, getDocuments, deleteDocument } from '@/services/documentService'
 import { PHASES } from '@/lib/constants'
 import DocRow from '@/components/programmes/DocRow'
-import { PhaseDoc } from '@/lib/types'
+
 
 /* ─── ChecklistPhaseTab ─────────────────────────────────────────────────── */
 export default function ChecklistPhaseTab({ phase, checklist, programmeId, docs, onDocsChange, canUpload }: {
