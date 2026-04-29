@@ -1,6 +1,5 @@
 'use client'
-import { CommitteeMember } from '@/lib/types'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   CheckCircle, XCircle, AlertCircle, Clock, RefreshCw,
   X, Users, UserPlus, UserX, Search,
@@ -214,8 +213,15 @@ export default function CommitteeSection({
       const addedMatrics = new Set(results.filter(r => r.status === 'added').map(r => r.identifier))
       if (addedMatrics.size > 0) {
         const updated = await getCommittee(programmeId, token)
-        setMembers(updated.members ?? [])
+        const freshMembers: CommitteeMember[] = updated.members ?? []
+        setMembers(freshMembers)
         setPendingMembers(prev => prev.filter(p => !addedMatrics.has(p.user.matric_number)))
+
+        // PD added themselves — auto-approve so they don't have to approve their own entry
+        const selfEntry = freshMembers.find(m => m.user_id === currentUserId && m.status === 'pending')
+        if (selfEntry) {
+          await handleApprove(selfEntry.id)
+        }
       }
     } catch (err: any) {
       setAddResults(pendingMembers.map(p => ({ identifier: p.user.full_name, role: p.role, status: 'error', reason: err.message })))
