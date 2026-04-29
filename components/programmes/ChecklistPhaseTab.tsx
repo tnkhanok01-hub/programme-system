@@ -79,7 +79,7 @@ export default function ChecklistPhaseTab({ phase, checklist, programmeId, docs,
 
     const a = document.createElement('a')
     a.href = blobUrl
-    a.download = doc.file_name
+    a.download = doc.file_name || 'file'
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
