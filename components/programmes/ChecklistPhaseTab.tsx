@@ -14,7 +14,7 @@ import DocRow from '@/components/programmes/DocRow'
 
 type PhaseDoc = {
   id: string
-  phase: 'pre' | 'post'
+  phase: 'pre' | 'during' | 'post'
   doc_type: string
   file_url?: string
   [key: string]: any
