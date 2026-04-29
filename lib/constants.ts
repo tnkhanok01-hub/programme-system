@@ -1,3 +1,5 @@
+import { Phase } from '@/lib/types'
+
 export const PHASES: { id: Phase; label: string; color: string; activeBg: string; activeBorder: string }[] = [
   { id: 'pre',    label: 'Pre',    color: '#60a5fa', activeBg: 'rgba(96,165,250,0.15)',  activeBorder: 'rgba(96,165,250,0.4)'  },
   { id: 'during', label: 'During', color: '#34d399', activeBg: 'rgba(52,211,153,0.15)',  activeBorder: 'rgba(52,211,153,0.4)'  },
