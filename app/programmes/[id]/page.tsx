@@ -309,9 +309,9 @@ export default function ProgrammeDetailPage() {
                 })}
               </div>
               <div style={{ padding: isMobile ? '14px' : '20px' }}>
-                {activeTab === 'pre'    && <ChecklistPhaseTab key="pre"    phase="pre"  checklist={PRE_CHECKLIST}  programmeId={programme.id} docs={phaseDocs} onDocsChange={setPhaseDocs} canUpload={canUpload} />}
+                {activeTab === 'pre'    && <ChecklistPhaseTab key="pre"    phase="pre"  checklist={PRE_CHECKLIST}  programmeId={programme.id} docs={phaseDocs} onDocsChange={(u) => setPhaseDocs(u)} canUpload={canUpload} />}
                 {activeTab === 'during' && <DuringPhaseTab    key="during"              programmeId={programme.id} docs={phaseDocs} onDocsChange={setPhaseDocs} canUpload={canUpload} />}
-                {activeTab === 'post'   && <ChecklistPhaseTab key="post"   phase="post" checklist={POST_CHECKLIST} programmeId={programme.id} docs={phaseDocs} onDocsChange={setPhaseDocs} canUpload={canUpload} />}
+                {activeTab === 'post'   && <ChecklistPhaseTab key="post"   phase="post" checklist={POST_CHECKLIST} programmeId={programme.id} docs={phaseDocs} onDocsChange={(u) => setPhaseDocs(u)} canUpload={canUpload} />}
               </div>
             </div>
 
