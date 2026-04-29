@@ -1,3 +1,4 @@
+import { PHASES } from '@/lib/constants'
 import { PhaseDoc } from '@/lib/types'
 import {
   ArrowLeft, CheckCircle, XCircle, AlertCircle, Clock,
