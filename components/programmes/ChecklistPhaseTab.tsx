@@ -22,7 +22,7 @@ type PhaseDoc = {
 
 /* ─── ChecklistPhaseTab ─────────────────────────────────────────────────── */
 export default function ChecklistPhaseTab({ phase, checklist, programmeId, docs, onDocsChange, canUpload }: {
-  phase: 'pre' | 'post'; checklist: { key: string; label: string; hint: string }[]
+  phase: 'pre' | 'during' | 'post'; checklist: { key: string; label: string; hint: string }[]
   programmeId: string; docs: PhaseDoc[]; onDocsChange: (u: PhaseDoc[]) => void; canUpload: boolean
 }) {
   const phaseInfo = PHASES.find(p => p.id === phase)!
