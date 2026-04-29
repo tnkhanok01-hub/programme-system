@@ -122,14 +122,14 @@ export async function POST(
 
   /* ── PD adds members by matric number or full name ── */
   if (add_members) {
-    // Only the Programme Director may use this action
     const { data: prog } = await supabaseAdmin
       .from('programmes')
       .select('programme_director_id')
       .eq('id', programme_id)
       .single()
 
-    if (prog?.programme_director_id !== user.id) {
+    const callerRole = await getRole(user.id)
+    if (prog?.programme_director_id !== user.id && callerRole !== 'superadmin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
     
@@ -224,7 +224,8 @@ export async function PATCH(req: Request) {
     .eq('id', programme_id)
     .single()
 
-  if (prog?.programme_director_id !== user.id) {
+  const callerRole = await getRole(user.id)
+  if (prog?.programme_director_id !== user.id && callerRole !== 'superadmin') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -301,8 +302,9 @@ export async function DELETE(req: Request) {
   }
 
   const isSelf = user_id === user.id
+  const callerRole = await getRole(user.id)
 
-  if (!isSelf && prog?.programme_director_id !== user.id) {
+  if (!isSelf && prog?.programme_director_id !== user.id && callerRole !== 'superadmin') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

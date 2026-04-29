@@ -59,7 +59,7 @@ export async function POST(request: Request) {
     );
   }
 
-  if (new Date(end_date) <= new Date(start_date)) {
+  if (new Date(end_date) < new Date(start_date)) {
     return NextResponse.json(
       { error: 'End date must be after start date.' },
       { status: 400 }

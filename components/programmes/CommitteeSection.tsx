@@ -1,10 +1,8 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
-  ArrowLeft, CheckCircle, XCircle, AlertCircle, Clock,
-  Calendar, MapPin, DollarSign, BookOpen, RefreshCw,
-  Upload, FileText, Download, Eye, X, Trash2,
-  Users, UserPlus, UserX, Hash,
+  CheckCircle, XCircle, AlertCircle, Clock, RefreshCw,
+  X, Users, UserPlus, UserX, Search,
 } from 'lucide-react'
 import {
   getCommittee,
@@ -13,6 +11,21 @@ import {
   addCommitteeMembers,
 } from '@/services/committeeService'
 import { COMMITTEE_ROLES } from '@/lib/constants'
+
+interface CommitteeMember {
+  id: string
+  role: string
+  status: string
+  created_at: string
+  user_id: string
+  users: { id: string; full_name: string; matric_number: string; phone?: string } | null
+}
+
+interface SearchUser {
+  id: string
+  full_name: string
+  matric_number: string
+}
 
 /* ─── CommitteeSection ──────────────────────────────────────────────────── */
 export default function CommitteeSection({
@@ -37,13 +50,16 @@ export default function CommitteeSection({
 
   // PD — add members panel
   const [showAddPanel, setShowAddPanel] = useState(false)
-  const [addMode, setAddMode] = useState<'single' | 'bulk'>('single')
-  const [addIdentifier, setAddIdentifier] = useState('')
-  const [addRole, setAddRole] = useState('Member')
-  const [bulkText, setBulkText] = useState('')
-  const [bulkRole, setBulkRole] = useState('Member')
+  const [pendingMembers, setPendingMembers] = useState<{ user: SearchUser; role: string }[]>([])
   const [addLoading, setAddLoading] = useState(false)
   const [addResults, setAddResults] = useState<{ identifier: string; role: string; status: string; reason?: string }[]>([])
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<SearchUser[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [showDropdown, setShowDropdown] = useState(false)
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const isApproved = programmeStatus === 'Approved'
   const isMember = members.some((m) => m.user_id === currentUserId)
@@ -65,6 +81,28 @@ export default function CommitteeSection({
 
     fetchMembers()
   }, [programmeId, token])
+
+  useEffect(() => {
+    if (searchTimer.current) clearTimeout(searchTimer.current)
+    if (searchQuery.length < 2) { setSearchResults([]); setShowDropdown(false); return }
+    searchTimer.current = setTimeout(async () => {
+      setSearchLoading(true)
+      try {
+        const res = await fetch(`/api/users/search?q=${encodeURIComponent(searchQuery)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const data = await res.json()
+        const exclude = new Set([...members.map(m => m.user_id), ...pendingMembers.map(p => p.user.id)])
+        const filtered = (data.users ?? []).filter((u: SearchUser) => !exclude.has(u.id))
+        setSearchResults(filtered)
+        setShowDropdown(true)
+      } catch {
+        setSearchResults([])
+      } finally {
+        setSearchLoading(false)
+      }
+    }, 300)
+  }, [searchQuery, token, members, pendingMembers])
 
   const handleJoin = async () => {
     setJoinError('')
@@ -162,47 +200,24 @@ export default function CommitteeSection({
     }
   }
 
-  const handleAddSingle = async () => {
-    if (!addIdentifier.trim()) return
+  const handleAddAll = async () => {
+    if (!pendingMembers.length) return
     setAddLoading(true)
     setAddResults([])
     try {
-      const { results } = await addCommitteeMembers(programmeId, token, [
-        { identifier: addIdentifier.trim(), role: addRole },
-      ])
-      setAddResults(results)
-      if (results[0]?.status === 'added') {
-        const updated = await getCommittee(programmeId, token)
-        setMembers(updated.members ?? [])
-        setAddIdentifier('')
-      }
-    } catch (err: any) {
-      setAddResults([{ identifier: addIdentifier, role: addRole, status: 'error', reason: err.message }])
-    } finally {
-      setAddLoading(false)
-    }
-  }
-
-  const handleAddBulk = async () => {
-    const lines = bulkText
-      .split('\n')
-      .map(l => l.trim())
-      .filter(Boolean)
-    if (!lines.length) return
-    const entries = lines.map(line => ({ identifier: line, role: bulkRole }))
-    setAddLoading(true)
-    setAddResults([])
-    try {
+      const entries = pendingMembers.map(p => ({ identifier: p.user.matric_number, role: p.role }))
       const { results } = await addCommitteeMembers(programmeId, token, entries)
-      setAddResults(results)
-      const anyAdded = results.some(r => r.status === 'added')
-      if (anyAdded) {
+      // map results back using matric_number so we can show full_name
+      const enriched = results.map((r, i) => ({ ...r, identifier: pendingMembers[i]?.user.full_name ?? r.identifier }))
+      setAddResults(enriched)
+      const addedMatrics = new Set(results.filter(r => r.status === 'added').map(r => r.identifier))
+      if (addedMatrics.size > 0) {
         const updated = await getCommittee(programmeId, token)
         setMembers(updated.members ?? [])
-        setBulkText('')
+        setPendingMembers(prev => prev.filter(p => !addedMatrics.has(p.user.matric_number)))
       }
     } catch (err: any) {
-      setAddResults(entries.map(e => ({ ...e, status: 'error', reason: err.message })))
+      setAddResults(pendingMembers.map(p => ({ identifier: p.user.full_name, role: p.role, status: 'error', reason: err.message })))
     } finally {
       setAddLoading(false)
     }
@@ -345,7 +360,7 @@ export default function CommitteeSection({
 
         {canManage && (
           <button
-            onClick={() => { setShowAddPanel(v => !v); setAddResults([]) }}
+            onClick={() => { setShowAddPanel(v => !v); setAddResults([]); setPendingMembers([]); setSearchQuery('') }}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -369,77 +384,87 @@ export default function CommitteeSection({
       {/* Add Members panel — PD only */}
       {canManage && showAddPanel && (
         <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(99,102,241,0.04)' }}>
-          {/* Mode toggle */}
-          <div style={{ display: 'flex', gap: '6px', marginBottom: '14px' }}>
-            {(['single', 'bulk'] as const).map(m => (
-              <button key={m} onClick={() => { setAddMode(m); setAddResults([]) }}
-                style={{
-                  padding: '5px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: 500,
-                  cursor: 'pointer', border: '1px solid',
-                  background: addMode === m ? 'rgba(99,102,241,0.2)' : 'transparent',
-                  borderColor: addMode === m ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.08)',
-                  color: addMode === m ? '#818cf8' : '#6b7280',
-                  fontFamily: 'inherit',
-                }}>
-                {m === 'single' ? 'Single' : 'Bulk (list)'}
-              </button>
-            ))}
+
+          {/* Search input */}
+          <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>
+            Search Student
+          </label>
+          <div style={{ position: 'relative' }}>
+            <input
+              value={searchQuery}
+              onChange={e => { setSearchQuery(e.target.value); setShowDropdown(true) }}
+              onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
+              onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
+              placeholder="Search by name or matric no."
+              style={{ width: '100%', padding: '9px 11px 9px 34px', borderRadius: '7px', background: '#0a1628', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+            />
+            <div style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+              {searchLoading
+                ? <RefreshCw size={14} color="#6b7280" style={{ animation: 'spin 0.8s linear infinite' }} />
+                : <Search size={14} color="#6b7280" />}
+            </div>
+            {showDropdown && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#0d1c35', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', marginTop: '4px', zIndex: 50, overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}>
+                {searchResults.length === 0 ? (
+                  <p style={{ margin: 0, padding: '12px 14px', fontSize: '12px', color: '#475569', textAlign: 'center' }}>
+                    {searchQuery.length < 2 ? 'Type at least 2 characters…' : 'No students found'}
+                  </p>
+                ) : (
+                  searchResults.map((u, i) => (
+                    <button key={u.id}
+                      onMouseDown={() => {
+                        setPendingMembers(prev => [...prev, { user: u, role: 'Member' }])
+                        setSearchQuery('')
+                        setShowDropdown(false)
+                        setAddResults([])
+                      }}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', background: 'transparent', border: 'none', borderBottom: i < searchResults.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
+                      <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'linear-gradient(135deg, #1d4ed8, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
+                        {getInitials(u.full_name)}
+                      </div>
+                      <div>
+                        <p style={{ margin: 0, fontSize: '13px', color: '#f1f5f9', fontWeight: 500 }}>{u.full_name}</p>
+                        <p style={{ margin: 0, fontSize: '11px', color: '#4b5563' }}>{u.matric_number}</p>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
           </div>
 
-          {addMode === 'single' ? (
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-              <div style={{ flex: 2, minWidth: '140px' }}>
-                <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>
-                  Matric No. or Full Name
-                </label>
-                <input
-                  value={addIdentifier}
-                  onChange={e => setAddIdentifier(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleAddSingle()}
-                  placeholder="e.g. A22EC0001 or Ahmad bin Ali"
-                  style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: '#0a1628', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
-                />
-              </div>
-              <div style={{ flex: 1, minWidth: '120px' }}>
-                <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Role</label>
-                <select value={addRole} onChange={e => setAddRole(e.target.value)}
-                  style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: '#0a1628', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none' }}>
-                  {COMMITTEE_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
-              </div>
-              <button onClick={handleAddSingle} disabled={addLoading || !addIdentifier.trim()}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 18px', borderRadius: '7px', border: 'none', background: addLoading ? 'rgba(99,102,241,0.4)' : 'linear-gradient(135deg, #4f46e5, #6366f1)', color: 'white', fontSize: '13px', fontWeight: 600, cursor: addLoading || !addIdentifier.trim() ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', opacity: !addIdentifier.trim() ? 0.5 : 1 }}>
-                {addLoading ? <><RefreshCw size={13} style={{ animation: 'spin 0.8s linear infinite' }} />Adding...</> : <><UserPlus size={13} />Add</>}
-              </button>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                <div style={{ flex: 1, minWidth: '200px' }}>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>
-                    One matric number or name per line
-                  </label>
-                  <textarea
-                    value={bulkText}
-                    onChange={e => setBulkText(e.target.value)}
-                    placeholder={'A22EC0001\nA22EC0002\nAhmad bin Ali'}
-                    rows={4}
-                    style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: '#0a1628', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }}
-                  />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '140px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Role for all</label>
-                    <select value={bulkRole} onChange={e => setBulkRole(e.target.value)}
-                      style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: '#0a1628', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none' }}>
-                      {COMMITTEE_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                    </select>
+          {/* Pending queue */}
+          {pendingMembers.length > 0 && (
+            <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {pendingMembers.map((p, i) => (
+                <div key={p.user.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px' }}>
+                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'linear-gradient(135deg, #1d4ed8, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
+                    {getInitials(p.user.full_name)}
                   </div>
-                  <button onClick={handleAddBulk} disabled={addLoading || !bulkText.trim()}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '9px 14px', borderRadius: '7px', border: 'none', background: addLoading ? 'rgba(99,102,241,0.4)' : 'linear-gradient(135deg, #4f46e5, #6366f1)', color: 'white', fontSize: '13px', fontWeight: 600, cursor: addLoading || !bulkText.trim() ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: !bulkText.trim() ? 0.5 : 1 }}>
-                    {addLoading ? <><RefreshCw size={13} style={{ animation: 'spin 0.8s linear infinite' }} />Adding...</> : <><UserPlus size={13} />Add All</>}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.user.full_name}</p>
+                    <p style={{ margin: 0, fontSize: '11px', color: '#475569' }}>{p.user.matric_number}</p>
+                  </div>
+                  <select
+                    value={p.role}
+                    onChange={e => setPendingMembers(prev => prev.map((x, j) => j === i ? { ...x, role: e.target.value } : x))}
+                    style={{ padding: '5px 8px', borderRadius: '6px', background: '#0a1628', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '12px', outline: 'none', flexShrink: 0 }}
+                  >
+                    {COMMITTEE_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                  <button onClick={() => setPendingMembers(prev => prev.filter((_, j) => j !== i))}
+                    style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                    <X size={14} />
                   </button>
                 </div>
+              ))}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+                <button onClick={handleAddAll} disabled={addLoading}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 18px', borderRadius: '7px', border: 'none', background: addLoading ? 'rgba(99,102,241,0.4)' : 'linear-gradient(135deg, #4f46e5, #6366f1)', color: 'white', fontSize: '13px', fontWeight: 600, cursor: addLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                  {addLoading
+                    ? <><RefreshCw size={13} style={{ animation: 'spin 0.8s linear infinite' }} />Adding...</>
+                    : <><UserPlus size={13} />{pendingMembers.length === 1 ? 'Add Member' : `Add All (${pendingMembers.length})`}</>}
+                </button>
               </div>
             </div>
           )}
