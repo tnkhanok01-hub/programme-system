@@ -13,6 +13,7 @@ export default function CreateProgrammePage() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [budgetError, setBudgetError] = useState('')
+  const [budgetCents, setBudgetCents] = useState(0)
   const [dateError, setDateError] = useState('')
   const [isMobile, setIsMobile] = useState(false)
 
@@ -66,20 +67,47 @@ export default function CreateProgrammePage() {
     setDateError('')
   }
 
-  const handleBudgetChange = (value: string) => {
-    if (!/^\d*\.?\d*$/.test(value)) return
-    set('budget', value)
-    if (!value) { setBudgetError(''); return }
-    const num = Number(value)
-    if (!/^\d+(\.\d{2})$/.test(value)) { setBudgetError('Must be exactly 2 decimal places (e.g. 2000.00)'); return }
-    if (num >= 5000) { setBudgetError('Budget must be below RM 5,000.00'); return }
-    if (num <= 0) { setBudgetError('Budget must be more than RM 0.00'); return }
+  const centsToDisplay = (cents: number) => {
+    const ringgit = Math.floor(cents / 100)
+    const sen = cents % 100
+    return `${ringgit.toLocaleString('en-MY')}.${sen.toString().padStart(2, '0')}`
+  }
+
+  const handleBudgetKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key >= '0' && e.key <= '9') {
+      e.preventDefault()
+      const next = budgetCents * 10 + Number(e.key)
+      setBudgetCents(next)
+      set('budget', (next / 100).toFixed(2))
+      if (next > 499999) { setBudgetError('Budget must be below RM 5,000.00'); return }
+      setBudgetError('')
+    } else if (e.key === 'Backspace') {
+      e.preventDefault()
+      const next = Math.floor(budgetCents / 10)
+      setBudgetCents(next)
+      set('budget', (next / 100).toFixed(2))
+      setBudgetError('')
+    } else if (e.key === 'Delete') {
+      e.preventDefault()
+      setBudgetCents(0)
+      set('budget', '0.00')
+      setBudgetError('')
+    } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault()
+    }
+  }
+
+  const handleBudgetBlur = () => {
+    if (budgetCents <= 0) { setBudgetError('Budget must be more than RM 0.00'); return }
+    if (budgetCents > 499999) { setBudgetError('Budget must be below RM 5,000.00'); return }
     setBudgetError('')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (budgetError || dateError) return
+    if (budgetCents <= 0) { setBudgetError('Budget must be more than RM 0.00'); return }
+    if (budgetCents > 499999) { setBudgetError('Budget must be below RM 5,000.00'); return }
     setSubmitting(true)
 
     const { data: { session } } = await supabase.auth.getSession()
@@ -298,19 +326,12 @@ export default function CreateProgrammePage() {
                   <label style={labelStyle}><DollarSign size={11} />Budget (RM)</label>
                   <input
                     type="text"
-                    inputMode="decimal"
-                    style={{ ...inputStyle, borderColor: budgetError ? 'rgba(239,68,68,0.5)' : undefined }}
-                    value={form.budget}
-                    onChange={e => handleBudgetChange(e.target.value)}
-                    onBlur={() => {
-                      if (form.budget && !isNaN(Number(form.budget))) {
-                        const fixed = Number(form.budget).toFixed(2)
-                        set('budget', fixed)
-                        handleBudgetChange(fixed)
-                      }
-                    }}
-                    placeholder="e.g. 2000.00"
-                    required
+                    inputMode="numeric"
+                    style={{ ...inputStyle, borderColor: budgetError ? 'rgba(239,68,68,0.5)' : undefined, textAlign: 'left', fontVariantNumeric: 'tabular-nums' }}
+                    value={centsToDisplay(budgetCents)}
+                    onChange={() => {}}
+                    onKeyDown={handleBudgetKeyDown}
+                    onBlur={handleBudgetBlur}
                   />
                   {budgetError && (
                     <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#ef4444', lineHeight: 1.4 }}>{budgetError}</p>
