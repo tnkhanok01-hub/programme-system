@@ -113,8 +113,26 @@ export async function DELETE(
     );
   }
 
-  // 3. Delete via service client (bypasses RLS)
-  const { error: deleteError } = await makeServiceClient()
+  const svc = makeServiceClient();
+
+  // 3. Fetch document file paths so we can clean up storage
+  const { data: docs } = await svc
+    .from("programme_documents")
+    .select("file_path")
+    .eq("programme_id", programmeId);
+
+  // 4. Remove storage files
+  if (docs && docs.length > 0) {
+    const paths = docs.map((d: { file_path: string }) => d.file_path);
+    await svc.storage.from("documents").remove(paths);
+  }
+
+  // 5. Delete child rows that reference this programme
+  await svc.from("programme_documents").delete().eq("programme_id", programmeId);
+  await svc.from("programme_roles").delete().eq("programme_id", programmeId);
+
+  // 6. Delete the programme itself
+  const { error: deleteError } = await svc
     .from("programmes")
     .delete()
     .eq("id", programmeId);
