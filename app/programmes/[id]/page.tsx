@@ -74,6 +74,7 @@ export default function ProgrammeDetailPage() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [isOwner, setIsOwner] = useState(false)
   const [isElevatedMember, setIsElevatedMember] = useState(false)
+  const [userRole, setUserRole] = useState('student')
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
@@ -88,6 +89,7 @@ export default function ProgrammeDetailPage() {
 
       const { data: userData } = await supabase.from('users').select('roles(name)').eq('id', session.user.id).single()
       const role = (userData?.roles as any)?.name?.toLowerCase() ?? 'student'
+      setUserRole(role)
       setIsAdmin(role === 'admin' || role === 'superadmin')
 
       const res = await fetch(`/api/programmes/${id}`, { headers: { Authorization: `Bearer ${session.access_token}` } })
@@ -198,7 +200,8 @@ export default function ProgrammeDetailPage() {
       headers: { Authorization: `Bearer ${session.access_token}` },
     })
     if (res.ok) {
-      router.replace('/programmes')
+      const dest = userRole === 'superadmin' ? '/superadmin' : userRole === 'admin' ? '/admin' : '/student'
+      router.replace(dest)
     } else {
       const data = await res.json()
       setDeleteError(data.error ?? 'Failed to delete programme.')
