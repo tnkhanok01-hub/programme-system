@@ -29,14 +29,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // ── 2. Check global role ─────────────────────────────────────────────
+    // ── 2. Check global role (profiles table, with fallback to users/roles) ─
     const { data: profile } = await supabaseAdmin
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .single()
 
-    const globalRole = profile?.role?.toLowerCase() ?? ""
+    let globalRole = profile?.role?.toLowerCase() ?? ""
+
+    if (!globalRole || (globalRole !== "admin" && globalRole !== "superadmin")) {
+      const { data: userData } = await supabaseAdmin
+        .from("users")
+        .select("roles(name)")
+        .eq("id", user.id)
+        .single()
+      const roleViaUsers = (userData?.roles as any)?.name?.toLowerCase() ?? ""
+      if (roleViaUsers) globalRole = roleViaUsers
+    }
+
     const isAdmin = globalRole === "admin" || globalRole === "superadmin"
 
     // ── 3. Parse form data ───────────────────────────────────────────────
