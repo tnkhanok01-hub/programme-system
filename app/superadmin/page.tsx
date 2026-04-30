@@ -43,6 +43,7 @@ function getStatusConfig(status: string) {
   }
 }
 
+
 /* ─── STAT CARDS ─────────────────────────────────────────────────────────── */
 function StatCards({ stats, userCount, adminCount, isMobile }: {
   stats: { total: number; pending: number; approved: number; rejected: number; totalBudget: number }
@@ -112,49 +113,205 @@ function EditModal({ show, isMobile, editForm, actionLoading, onClose, onChange,
   show: boolean; isMobile: boolean; editForm: Partial<Programme>; actionLoading: boolean
   onClose: () => void; onChange: (f: Partial<Programme>) => void; onUpdate: () => void
 }) {
+  // Initialise cents from the editForm budget when the modal opens
+  const [budgetCents, setBudgetCents] = useState(0)
+  const [budgetError, setBudgetError] = useState('')
+
+  // Sync cents whenever the modal is opened with a new programme
+  useEffect(() => {
+    if (show) {
+      const cents = Math.round((Number(editForm.budget) || 0) * 100)
+      setBudgetCents(cents)
+      setBudgetError('')
+    }
+  }, [show, editForm.id])
+
   if (!show) return null
+
+  /* ── date-only validation (budget handled separately) ── */
+  const dateError = (editForm.start_date && editForm.end_date && editForm.end_date < editForm.start_date)
+    ? 'End date must be after start date.'
+    : ''
+
+  const hasErrors = !!budgetError || !!dateError
+
+  /* ── cent-based budget helpers ── */
+  const centsToDisplay = (cents: number) => {
+    const ringgit = Math.floor(cents / 100)
+    const sen     = cents % 100
+    return `${ringgit.toLocaleString('en-MY')}.${sen.toString().padStart(2, '0')}`
+  }
+
+  const handleBudgetKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key >= '0' && e.key <= '9') {
+      e.preventDefault()
+      const next = budgetCents * 10 + Number(e.key)
+      setBudgetCents(next)
+      onChange({ ...editForm, budget: parseFloat((next / 100).toFixed(2)) as any })
+      setBudgetError(next > 499999 ? 'Budget must be below RM 5,000.00' : '')
+    } else if (e.key === 'Backspace') {
+      e.preventDefault()
+      const next = Math.floor(budgetCents / 10)
+      setBudgetCents(next)
+      onChange({ ...editForm, budget: parseFloat((next / 100).toFixed(2)) as any })
+      setBudgetError('')
+    } else if (e.key === 'Delete') {
+      e.preventDefault()
+      setBudgetCents(0)
+      onChange({ ...editForm, budget: 0 as any })
+      setBudgetError('')
+    } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault()
+    }
+  }
+
+  const handleBudgetBlur = () => {
+    if (budgetCents <= 0)      { setBudgetError('Budget must be more than RM 0.00'); return }
+    if (budgetCents > 499999)  { setBudgetError('Budget must be below RM 5,000.00'); return }
+    setBudgetError('')
+  }
+
+  const fieldErrStyle: React.CSSProperties = {
+    fontSize: '11px', color: '#f87171',
+    marginTop: '4px', marginBottom: 0, marginLeft: 0, marginRight: 0,
+    display: 'flex', alignItems: 'center', gap: '4px',
+  }
+
   return (
-    <div onClick={e => { if (e.target === e.currentTarget) onClose() }}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '16px' }}>
+    <div
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '16px' }}
+    >
       <div style={{ background: '#0f1a24', border: `1px solid ${SA.accentBorder}`, borderRadius: '14px', padding: '24px', width: '100%', maxWidth: '540px', maxHeight: '90vh', overflowY: 'auto' }}>
+
+        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
           <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Pencil size={15} color={SA.accentText} />Edit Programme
           </h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280' }}><CircleX size={18} /></button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280' }}>
+            <CircleX size={18} />
+          </button>
         </div>
+
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px' }}>
-          {[
-            { label: 'Programme Name', name: 'name',       type: 'text',   span: isMobile ? 1 : 2 },
-            { label: 'Venue',          name: 'venue',      type: 'text',   span: isMobile ? 1 : 2 },
-            { label: 'Budget (RM)',    name: 'budget',     type: 'number', span: 1 },
-            { label: 'Start Date',     name: 'start_date', type: 'date',   span: 1 },
-            { label: 'End Date',       name: 'end_date',   type: 'date',   span: 1 },
-          ].map(field => (
-            <div key={field.name} style={{ gridColumn: `span ${field.span}` }}>
-              <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>{field.label}</label>
-              <input type={field.type} value={(editForm as any)[field.name] || ''}
-                onChange={e => onChange({ ...editForm, [field.name]: e.target.value })}
-                style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
-            </div>
-          ))}
+
+          {/* Programme Name */}
+          <div style={{ gridColumn: isMobile ? 'span 1' : 'span 2' }}>
+            <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Programme Name</label>
+            <input
+              type="text"
+              value={editForm.name || ''}
+              onChange={e => onChange({ ...editForm, name: e.target.value })}
+              style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+            />
+          </div>
+
+          {/* Venue */}
+          <div style={{ gridColumn: isMobile ? 'span 1' : 'span 2' }}>
+            <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Venue</label>
+            <input
+              type="text"
+              value={editForm.venue || ''}
+              onChange={e => onChange({ ...editForm, venue: e.target.value })}
+              style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+            />
+          </div>
+
+          {/* Budget — cent-based keyboard input */}
+          <div>
+            <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Budget (RM)</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={centsToDisplay(budgetCents)}
+              onChange={() => {}}
+              onKeyDown={handleBudgetKeyDown}
+              onBlur={handleBudgetBlur}
+              style={{
+                width: '100%', padding: '9px 11px', borderRadius: '7px',
+                background: 'rgba(255,255,255,0.04)',
+                border: `1px solid ${budgetError ? 'rgba(248,113,113,0.5)' : 'rgba(255,255,255,0.08)'}`,
+                color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            />
+            {budgetError
+              ? <p style={fieldErrStyle}><AlertCircle size={11} />{budgetError}</p>
+              : <p style={{ fontSize: '10px', color: '#4b5563', marginTop: '4px', marginBottom: 0, marginLeft: 0, marginRight: 0 }}>Max RM 5,000.00 · type digits to fill</p>
+            }
+          </div>
+
+          {/* Start Date */}
+          <div>
+            <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Start Date</label>
+            <input
+              type="date"
+              value={editForm.start_date || ''}
+              onChange={e => onChange({ ...editForm, start_date: e.target.value })}
+              style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box', colorScheme: 'dark' }}
+            />
+          </div>
+
+          {/* End Date */}
+          <div>
+            <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>End Date</label>
+            <input
+              type="date"
+              value={editForm.end_date || ''}
+              min={editForm.start_date || undefined}
+              onChange={e => onChange({ ...editForm, end_date: e.target.value })}
+              style={{
+                width: '100%', padding: '9px 11px', borderRadius: '7px',
+                background: 'rgba(255,255,255,0.04)',
+                border: `1px solid ${dateError ? 'rgba(248,113,113,0.5)' : 'rgba(255,255,255,0.08)'}`,
+                color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box', colorScheme: 'dark',
+              }}
+            />
+            {dateError && (
+              <p style={fieldErrStyle}><AlertCircle size={11} />{dateError}</p>
+            )}
+          </div>
+
+          {/* Category */}
           <div>
             <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Category</label>
-            <select value={editForm.category || ''} onChange={e => onChange({ ...editForm, category: e.target.value })}
-              style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: '#0b1118', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none' }}>
+            <select
+              value={editForm.category || ''}
+              onChange={e => onChange({ ...editForm, category: e.target.value })}
+              style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: '#0b1118', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none' }}
+            >
               {['Academic', 'Sports', 'Community Service', 'Others'].map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
+
         </div>
+
+        {/* Error summary banner */}
+        {hasErrors && (
+          <div style={{ marginTop: '16px', padding: '10px 13px', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertCircle size={13} color="#f87171" style={{ flexShrink: 0 }} />
+            <p style={{ margin: 0, fontSize: '12px', color: '#f87171' }}>Please fix the errors above before saving.</p>
+          </div>
+        )}
+
+        {/* Actions */}
         <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-          <button onClick={onClose} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: '#6b7280', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+          <button
+            onClick={onClose}
+            style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: '#6b7280', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+          >
             <CircleX size={14} />Cancel
           </button>
-          <button onClick={onUpdate} disabled={actionLoading}
-            style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: SA.gradientBtn, color: 'white', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: actionLoading ? 0.7 : 1 }}>
+          <button
+            onClick={onUpdate}
+            disabled={actionLoading || hasErrors}
+            style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: hasErrors ? 'rgba(180,83,9,0.25)' : SA.gradientBtn, color: hasErrors ? '#6b7280' : 'white', fontSize: '13px', fontWeight: 500, cursor: hasErrors ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: actionLoading ? 0.7 : 1 }}
+          >
             <Save size={14} />{actionLoading ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
+
       </div>
     </div>
   )
@@ -530,7 +687,14 @@ export default function SuperAdminDashboard() {
     const res = await fetch(`/api/programmes/${editForm.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ name: editForm.name, category: editForm.category, venue: editForm.venue, budget: editForm.budget, start_date: editForm.start_date, end_date: editForm.end_date }),
+      body: JSON.stringify({
+        name: editForm.name,
+        category: editForm.category,
+        venue: editForm.venue,
+        budget: parseFloat(Number(editForm.budget).toFixed(2)),
+        start_date: editForm.start_date,
+        end_date: editForm.end_date,
+      }),
     })
     const data = await res.json()
     if (res.ok) { setProgrammes(prev => prev.map(p => p.id === editForm.id ? data.programme : p)); setShowEditModal(false) }
@@ -594,7 +758,7 @@ export default function SuperAdminDashboard() {
 
   const navItems: { id: NavItem; icon: React.ElementType; label: string; path: string }[] = [
     { id: 'dashboard',     icon: LayoutDashboard, label: 'Dashboard',      path: '/superadmin' },
-    { id: 'programmes',    icon: BookOpen,         label: 'Add Programmes',     path: '/create-programme-form' },
+    { id: 'programmes',    icon: BookOpen,         label: 'Add Programmes', path: '/create-programme-form' },
     { id: 'createAdmin',   icon: CirclePlus,       label: 'Create Admin',   path: '/superadmin/create-admin' },
     { id: 'exchangeAdmin', icon: ArrowRightLeft,   label: 'Exchange Admin', path: '/superadmin/exchange-admin' },
     { id: 'settings',      icon: Settings,         label: 'Settings',       path: '/profile' },
@@ -676,8 +840,8 @@ export default function SuperAdminDashboard() {
           {/* Superadmin quick-access cards */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
             {[
-              { icon: CirclePlus,     label: 'Create Admin',   desc: 'Register new admin', path: '/superadmin/create-admin' },
-              { icon: ArrowRightLeft, label: 'Exchange Admin',  desc: 'Transfer privileges', path: '/superadmin/exchange-admin' },
+              { icon: CirclePlus,     label: 'Create Admin',  desc: 'Register new admin',    path: '/superadmin/create-admin' },
+              { icon: ArrowRightLeft, label: 'Exchange Admin', desc: 'Transfer privileges',   path: '/superadmin/exchange-admin' },
             ].map((item, i) => {
               const Icon = item.icon
               return (
@@ -717,7 +881,10 @@ export default function SuperAdminDashboard() {
                 {(['All', 'Pending', 'Approved', 'Rejected'] as const).map(s => (
                   <button key={s} onClick={() => setFilterStatus(s)}
                     style={{ padding: '5px 10px', borderRadius: '5px', border: 'none', cursor: 'pointer', fontSize: '10px', fontWeight: 500, whiteSpace: 'nowrap', flexShrink: 0, background: filterStatus === s ? SA.accentBg : 'rgba(255,255,255,0.04)', color: filterStatus === s ? SA.accentText : '#6b7280' }}>
-                    {s}{s !== 'All' && ` (${s === 'Pending' ? stats.pending : s === 'Approved' ? stats.approved : stats.rejected})`}
+                    <>
+                      {s}
+                      {s !== 'All' && ` (${s === 'Pending' ? stats.pending : s === 'Approved' ? stats.approved : stats.rejected})`}
+                    </>
                   </button>
                 ))}
               </div>
@@ -760,7 +927,7 @@ export default function SuperAdminDashboard() {
   }
 
   /* ══════════════════════════════════════════════════════
-     DESKTOP LAYOUT  (unchanged from original)
+     DESKTOP LAYOUT
   ══════════════════════════════════════════════════════ */
   return (
     <div style={{ minHeight: '100vh', background: '#080f1a', display: 'flex', fontFamily: "'Inter', -apple-system, sans-serif", color: '#e2e8f0' }}>
@@ -868,8 +1035,8 @@ export default function SuperAdminDashboard() {
         {/* Superadmin quick-access cards */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
           {[
-            { icon: CirclePlus, label: 'Create Admin', desc: 'Register a new admin account', path: '/superadmin/create-admin' },
-            { icon: ArrowRightLeft, label: 'Exchange Admin', desc: 'Transfer superadmin privileges', path: '/superadmin/exchange-admin' },
+            { icon: CirclePlus,     label: 'Create Admin',   desc: 'Register a new admin account',       path: '/superadmin/create-admin' },
+            { icon: ArrowRightLeft, label: 'Exchange Admin',  desc: 'Transfer superadmin privileges',     path: '/superadmin/exchange-admin' },
           ].map((item, i) => {
             const Icon = item.icon
             return (
@@ -906,7 +1073,10 @@ export default function SuperAdminDashboard() {
                 {['All', 'Pending', 'Approved', 'Rejected'].map(s => (
                   <button key={s} onClick={() => setFilterStatus(s)}
                     style={{ padding: '6px 10px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: 500, background: filterStatus === s ? SA.accentBg : 'rgba(255,255,255,0.04)', color: filterStatus === s ? SA.accentText : '#6b7280' }}>
-                    {s}{s !== 'All' && <span style={{ marginLeft: '4px', fontSize: '10px', opacity: 0.7 }}>({s === 'Pending' ? stats.pending : s === 'Approved' ? stats.approved : stats.rejected})</span>}
+                    <>
+                      {s}
+                      {s !== 'All' && <span style={{ marginLeft: '4px', fontSize: '10px', opacity: 0.7 }}>({s === 'Pending' ? stats.pending : s === 'Approved' ? stats.approved : stats.rejected})</span>}
+                    </>
                   </button>
                 ))}
               </div>

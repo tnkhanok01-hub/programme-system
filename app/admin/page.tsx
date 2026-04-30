@@ -99,7 +99,64 @@ function EditModal({ show, isMobile, editForm, actionLoading, onClose, onChange,
   show: boolean; isMobile: boolean; editForm: Partial<Programme>; actionLoading: boolean
   onClose: () => void; onChange: (f: Partial<Programme>) => void; onUpdate: () => void
 }) {
-  if (!show) return null
+
+  const [budgetCents, setBudgetCents] = useState(0)
+  const [budgetError, setBudgetError] = useState('')
+
+  useEffect(() => {
+    const cents = Math.round((Number(editForm.budget) || 0) * 100)
+    setBudgetCents(cents)
+    setBudgetError('')
+  }, [editForm.id])
+
+    if (!show) return null
+
+    const centsToDisplay = (cents: number) => {
+    const ringgit = Math.floor(cents / 100)
+    const sen     = cents % 100
+    return `${ringgit.toLocaleString('en-MY')}.${sen.toString().padStart(2, '0')}`
+  }
+
+  const handleBudgetKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key >= '0' && e.key <= '9') {
+      e.preventDefault()
+      const next = budgetCents * 10 + Number(e.key)
+      setBudgetCents(next)
+      onChange({ ...editForm, budget: parseFloat((next / 100).toFixed(2)) as any })
+      setBudgetError(next > 499999 ? 'Budget must be below RM 5,000.00' : '')
+    } else if (e.key === 'Backspace') {
+      e.preventDefault()
+      const next = Math.floor(budgetCents / 10)
+      setBudgetCents(next)
+      onChange({ ...editForm, budget: parseFloat((next / 100).toFixed(2)) as any })
+      setBudgetError('')
+    } else if (e.key === 'Delete') {
+      e.preventDefault()
+      setBudgetCents(0)
+      onChange({ ...editForm, budget: 0 as any })
+      setBudgetError('')
+    } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault()
+    }
+  }
+
+  const handleBudgetBlur = () => {
+    if (budgetCents <= 0)     { setBudgetError('Budget must be more than RM 0.00'); return }
+    if (budgetCents > 499999) { setBudgetError('Budget must be below RM 5,000.00'); return }
+    setBudgetError('')
+  }
+
+  // Only error if end date is strictly before start date — same day is allowed
+  const dateError =
+    editForm.start_date && editForm.end_date && editForm.end_date < editForm.start_date
+      ? 'End date cannot be earlier than start date.'
+      : ''
+
+  const fieldErrStyle: React.CSSProperties = {
+    fontSize: '11px', color: '#f87171', margin: '4px 0 0',
+    display: 'flex', alignItems: 'center', gap: '4px',
+  }
+
   return (
     <div onClick={e => { if (e.target === e.currentTarget) onClose() }}
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '16px' }}>
@@ -110,21 +167,81 @@ function EditModal({ show, isMobile, editForm, actionLoading, onClose, onChange,
           </h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280' }}><CircleX size={18} /></button>
         </div>
+
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px' }}>
-          {[
-            { label: 'Programme Name', name: 'name',       type: 'text',   span: isMobile ? 1 : 2 },
-            { label: 'Venue',          name: 'venue',      type: 'text',   span: isMobile ? 1 : 2 },
-            { label: 'Budget (RM)',    name: 'budget',     type: 'number', span: 1 },
-            { label: 'Start Date',     name: 'start_date', type: 'date',   span: 1 },
-            { label: 'End Date',       name: 'end_date',   type: 'date',   span: 1 },
-          ].map(field => (
-            <div key={field.name} style={{ gridColumn: `span ${field.span}` }}>
-              <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>{field.label}</label>
-              <input type={field.type} value={(editForm as any)[field.name] || ''}
-                onChange={e => onChange({ ...editForm, [field.name]: e.target.value })}
-                style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
-            </div>
-          ))}
+
+          {/* Programme Name */}
+          <div style={{ gridColumn: isMobile ? 'span 1' : 'span 2' }}>
+            <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Programme Name</label>
+            <input type="text" value={editForm.name || ''}
+              onChange={e => onChange({ ...editForm, name: e.target.value })}
+              style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+          </div>
+
+          {/* Venue */}
+          <div style={{ gridColumn: isMobile ? 'span 1' : 'span 2' }}>
+            <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Venue</label>
+            <input type="text" value={editForm.venue || ''}
+              onChange={e => onChange({ ...editForm, venue: e.target.value })}
+              style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+          </div>
+
+          {/* Budget */}
+          <div>
+            <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Budget (RM)</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={centsToDisplay(budgetCents)}
+              onChange={() => {}}
+              onKeyDown={handleBudgetKeyDown}
+              onBlur={handleBudgetBlur}
+              style={{
+                width: '100%', padding: '9px 11px', borderRadius: '7px',
+                background: 'rgba(255,255,255,0.04)',
+                border: `1px solid ${budgetError ? 'rgba(248,113,113,0.5)' : 'rgba(255,255,255,0.08)'}`,
+                color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            />
+            {budgetError
+              ? <p style={fieldErrStyle}><AlertCircle size={11} />{budgetError}</p>
+              : <p style={{ fontSize: '10px', color: '#4b5563', marginTop: '4px', marginBottom: 0, marginLeft: 0, marginRight: 0 }}>Max RM 5,000.00 · type digits to fill</p>
+            }
+          </div>
+
+          {/* Start Date */}
+          <div>
+            <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Start Date</label>
+            <input
+              type="date"
+              value={editForm.start_date || ''}
+              onChange={e => onChange({ ...editForm, start_date: e.target.value })}
+              style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box', colorScheme: 'dark' }}
+            />
+          </div>
+
+          {/* End Date */}
+          <div>
+            <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>End Date</label>
+            <input
+              type="date"
+              value={editForm.end_date || ''}
+              min={editForm.start_date || undefined}
+              onChange={e => onChange({ ...editForm, end_date: e.target.value })}
+              style={{
+                width: '100%', padding: '9px 11px', borderRadius: '7px',
+                background: 'rgba(255,255,255,0.04)',
+                border: `1px solid ${dateError ? 'rgba(248,113,113,0.5)' : 'rgba(255,255,255,0.08)'}`,
+                color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box', colorScheme: 'dark',
+              }}
+            />
+            {dateError && (
+              <p style={fieldErrStyle}><AlertCircle size={11} />{dateError}</p>
+            )}
+          </div>
+
+          {/* Category */}
           <div>
             <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Category</label>
             <select value={editForm.category || ''} onChange={e => onChange({ ...editForm, category: e.target.value })}
@@ -132,13 +249,15 @@ function EditModal({ show, isMobile, editForm, actionLoading, onClose, onChange,
               {['Academic', 'Sports', 'Community Service', 'Others'].map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
+
         </div>
+
         <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
           <button onClick={onClose} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: '#6b7280', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
             <CircleX size={14} />Cancel
           </button>
-          <button onClick={onUpdate} disabled={actionLoading}
-            style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #6d28d9, #7c3aed)', color: 'white', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: actionLoading ? 0.7 : 1 }}>
+          <button onClick={onUpdate} disabled={actionLoading || !!dateError}
+            style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: dateError ? 'rgba(124,58,237,0.3)' : 'linear-gradient(135deg, #6d28d9, #7c3aed)', color: dateError ? '#6b7280' : 'white', fontSize: '13px', fontWeight: 500, cursor: dateError ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: actionLoading ? 0.7 : 1 }}>
             <Save size={14} />{actionLoading ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
@@ -150,100 +269,194 @@ function EditModal({ show, isMobile, editForm, actionLoading, onClose, onChange,
 /* ─── REVIEW MODAL ───────────────────────────────────────────────────────── */
 function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoading, preDocs, preDocsLoading, onClose, onCommentChange, onApprove, onReject }: {
   prog: Programme | null; isMobile: boolean; rejectComment: string; actionLoading: boolean; rejectLoading: boolean
-  preDocs: Array<{ phase: string; doc_type?: string; file_name?: string }>; preDocsLoading: boolean
+  preDocs: Array<{ id: string; phase: string; doc_type?: string; file_name?: string; file_path?: string }>; preDocsLoading: boolean
   onClose: () => void; onCommentChange: (v: string) => void; onApprove: () => void; onReject: () => void
 }) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewName, setPreviewName] = useState<string>('')
+  const [previewLoading, setPreviewLoading] = useState(false)
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
+
+  const getPublicUrl = (filePath: string) =>
+    `${supabaseUrl}/storage/v1/object/public/documents/${filePath}`
+
+  const handleView = async (doc: { file_name?: string; file_path?: string }) => {
+    if (!doc.file_path) return
+    setPreviewLoading(true)
+    setPreviewName(doc.file_name || 'Document')
+    setPreviewUrl(getPublicUrl(doc.file_path))
+    setPreviewLoading(false)
+  }
+
+  const handleDownload = async (doc: { file_name?: string; file_path?: string }) => {
+    if (!doc.file_path) return
+    const url = getPublicUrl(doc.file_path)
+    const res = await fetch(url)
+    const blob = await res.blob()
+    const blobUrl = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = blobUrl
+    a.download = doc.file_name || 'file'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(blobUrl)
+  }
+
+  const isImage = (name: string) => /\.(png|jpe?g|gif|webp|svg)$/i.test(name)
+  const isPdf = (name: string) => /\.pdf$/i.test(name)
+
   if (!prog) return null
+
   return (
-    <div onClick={e => { if (e.target === e.currentTarget) onClose() }}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, backdropFilter: 'blur(4px)', padding: '16px' }}>
-      <div style={{ background: '#0f1e30', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '620px', maxHeight: '90vh', overflowY: 'auto' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-          <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Shield size={15} color="#818cf8" />Review Programme
-          </h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280' }}><CircleX size={18} /></button>
-        </div>
-
-        {/* Programme details */}
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '10px', marginBottom: '18px' }}>
-          {[
-            { label: 'Programme Name', value: prog.name,         span: isMobile ? 1 : 2 },
-            { label: 'Category',       value: prog.category || '—', span: 1 },
-            { label: 'Venue',          value: prog.venue || '—',    span: 1 },
-            { label: 'Start Date', value: prog.start_date ? new Date(prog.start_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' }) : '—', span: 1 },
-            { label: 'End Date',   value: prog.end_date   ? new Date(prog.end_date).toLocaleDateString('en-MY',   { day: 'numeric', month: 'long', year: 'numeric' }) : '—', span: 1 },
-            { label: 'Budget',    value: prog.budget ? `RM ${Number(prog.budget).toLocaleString('en-MY', { minimumFractionDigits: 2 })}` : '—', span: 1 },
-            { label: 'Submitted', value: prog.created_at ? new Date(prog.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }) : '—', span: 1 },
-          ].map(f => (
-            <div key={f.label} style={{ gridColumn: `span ${f.span}`, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '10px 13px' }}>
-              <p style={{ margin: 0, fontSize: '10px', color: '#6b7280', fontWeight: 500, marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{f.label}</p>
-              <p style={{ margin: 0, fontSize: '13px', color: '#e2e8f0', fontWeight: 500 }}>{f.value}</p>
+    <>
+      {/* Document preview overlay */}
+      {previewUrl && (
+        <div onClick={() => setPreviewUrl(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '16px' }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: '#0f1e30', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', width: '100%', maxWidth: '820px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,0.07)', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                <FileText size={14} color="#60a5fa" />
+                <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{previewName}</p>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', flexShrink: 0, marginLeft: '12px' }}>
+                <a href={previewUrl} download={previewName} target="_blank" rel="noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', borderRadius: '7px', border: '1px solid rgba(52,211,153,0.25)', background: 'rgba(52,211,153,0.1)', color: '#34d399', fontSize: '12px', fontWeight: 500, textDecoration: 'none', cursor: 'pointer' }}>
+                  <Activity size={12} />Download
+                </a>
+                <button onClick={() => setPreviewUrl(null)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', borderRadius: '7px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: '#94a3b8', fontSize: '12px', cursor: 'pointer' }}>
+                  <CircleX size={12} />Close
+                </button>
+              </div>
             </div>
-          ))}
-        </div>
-
-        <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', marginBottom: '18px' }} />
-
-        {/* Pre-phase documents */}
-        <div style={{ marginBottom: '18px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-            <FileText size={13} color="#60a5fa" />
-            <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Pre-Phase Documents</p>
-            {preDocsLoading && (
-              <div style={{ width: '12px', height: '12px', borderRadius: '50%', border: '2px solid rgba(96,165,250,0.25)', borderTopColor: '#60a5fa', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />
-            )}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
-            {PRE_CHECKLIST.map(item => {
-              const doc = preDocs.find(d => d.phase === 'pre' && d.doc_type === item.key)
-              return (
-                <div key={item.key} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 13px', background: doc ? 'rgba(16,185,129,0.04)' : 'rgba(239,68,68,0.04)', border: `1px solid ${doc ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}`, borderRadius: '8px' }}>
-                  {doc
-                    ? <CheckCircle size={14} color="#10b981" style={{ flexShrink: 0 }} />
-                    : <XCircle size={14} color="#ef4444" style={{ flexShrink: 0 }} />}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: doc ? '#e2e8f0' : '#94a3b8' }}>{item.label}</p>
-                    <p style={{ margin: '1px 0 0', fontSize: '11px', color: doc ? '#60a5fa' : '#4b5563', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {doc ? (doc.file_name || 'Uploaded') : 'Not uploaded'}
-                    </p>
-                  </div>
-                  {doc && (
-                    <span style={{ fontSize: '10px', fontWeight: 500, color: '#10b981', background: 'rgba(16,185,129,0.12)', padding: '2px 7px', borderRadius: '4px', flexShrink: 0 }}>Done</span>
-                  )}
+            <div style={{ flex: 1, overflow: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', minHeight: '300px' }}>
+              {previewLoading ? (
+                <div style={{ width: '32px', height: '32px', borderRadius: '50%', border: '3px solid rgba(96,165,250,0.2)', borderTopColor: '#60a5fa', animation: 'spin 0.7s linear infinite' }} />
+              ) : isPdf(previewName) ? (
+                <iframe src={previewUrl} title={previewName}
+                  style={{ width: '100%', height: '100%', minHeight: '500px', border: 'none', borderRadius: '8px' }} />
+              ) : isImage(previewName) ? (
+                <img src={previewUrl} alt={previewName} style={{ maxWidth: '100%', maxHeight: '60vh', borderRadius: '8px', objectFit: 'contain' }} />
+              ) : (
+                <div style={{ textAlign: 'center', padding: '40px' }}>
+                  <FileText size={48} color="#374151" style={{ marginBottom: '12px' }} />
+                  <p style={{ color: '#6b7280', fontSize: '13px', marginBottom: '16px' }}>Preview not available for this file type.</p>
+                  <a href={previewUrl} download={previewName}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 18px', borderRadius: '8px', background: 'linear-gradient(135deg, #6d28d9, #7c3aed)', color: 'white', fontSize: '13px', fontWeight: 500, textDecoration: 'none' }}>
+                    <Activity size={14} />Download to view
+                  </a>
                 </div>
-              )
-            })}
+              )}
+            </div>
           </div>
         </div>
+      )}
 
-        <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', marginBottom: '18px' }} />
+      <div onClick={e => { if (e.target === e.currentTarget) onClose() }}
+        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, backdropFilter: 'blur(4px)', padding: '16px' }}>
+        <div style={{ background: '#0f1e30', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '680px', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+            <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Shield size={15} color="#818cf8" />Review Programme
+            </h2>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280' }}><CircleX size={18} /></button>
+          </div>
 
-        {/* Rejection comment */}
-        <div style={{ marginBottom: '18px' }}>
-          <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', fontWeight: 500, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Rejection Comment <span style={{ color: '#ef4444' }}>*</span>
-            <span style={{ color: '#374151', fontWeight: 400, textTransform: 'none', letterSpacing: 0, marginLeft: '6px' }}>(required only when rejecting)</span>
-          </label>
-          <textarea value={rejectComment} onChange={e => onCommentChange(e.target.value)}
-            placeholder="Explain why this programme is being rejected..." rows={3}
-            style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${rejectComment.trim() ? 'rgba(239,68,68,0.35)' : 'rgba(255,255,255,0.08)'}`, color: '#e2e8f0', fontSize: '13px', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.6 }} />
-        </div>
-        <div style={{ display: 'flex', gap: '8px', flexDirection: isMobile ? 'column' : 'row' }}>
-          <button onClick={onClose} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: '#6b7280', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-            <CircleX size={14} />Cancel
-          </button>
-          <button onClick={onReject} disabled={rejectLoading || !rejectComment.trim()}
-            style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: rejectComment.trim() ? 'rgba(239,68,68,0.85)' : 'rgba(239,68,68,0.25)', color: 'white', fontSize: '13px', fontWeight: 500, cursor: rejectComment.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: rejectLoading ? 0.7 : 1 }}>
-            <XCircle size={14} />{rejectLoading ? 'Rejecting...' : 'Reject'}
-          </button>
-          <button onClick={onApprove} disabled={actionLoading}
-            style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #059669, #10b981)', color: 'white', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: actionLoading ? 0.7 : 1 }}>
-            <CheckCircle size={14} />{actionLoading ? 'Approving...' : 'Approve'}
-          </button>
+          {/* Programme details */}
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '10px', marginBottom: '18px' }}>
+            {[
+              { label: 'Programme Name', value: prog.name,         span: isMobile ? 1 : 2 },
+              { label: 'Category',       value: prog.category || '—', span: 1 },
+              { label: 'Venue',          value: prog.venue || '—',    span: 1 },
+              { label: 'Start Date', value: prog.start_date ? new Date(prog.start_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' }) : '—', span: 1 },
+              { label: 'End Date',   value: prog.end_date   ? new Date(prog.end_date).toLocaleDateString('en-MY',   { day: 'numeric', month: 'long', year: 'numeric' }) : '—', span: 1 },
+              { label: 'Budget',    value: prog.budget ? `RM ${Number(prog.budget).toLocaleString('en-MY', { minimumFractionDigits: 2 })}` : '—', span: 1 },
+              { label: 'Submitted', value: prog.created_at ? new Date(prog.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }) : '—', span: 1 },
+            ].map(f => (
+              <div key={f.label} style={{ gridColumn: `span ${f.span}`, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '10px 13px' }}>
+                <p style={{ margin: 0, fontSize: '10px', color: '#6b7280', fontWeight: 500, marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{f.label}</p>
+                <p style={{ margin: 0, fontSize: '13px', color: '#e2e8f0', fontWeight: 500 }}>{f.value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', marginBottom: '18px' }} />
+
+          {/* Pre-phase documents */}
+          <div style={{ marginBottom: '18px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+              <FileText size={13} color="#60a5fa" />
+              <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Pre-Phase Documents</p>
+              {preDocsLoading && (
+                <div style={{ width: '12px', height: '12px', borderRadius: '50%', border: '2px solid rgba(96,165,250,0.25)', borderTopColor: '#60a5fa', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />
+              )}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+              {PRE_CHECKLIST.map(item => {
+                const doc = preDocs.find(d => d.phase === 'pre' && d.doc_type === item.key)
+                return (
+                  <div key={item.key} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 13px', background: doc ? 'rgba(16,185,129,0.04)' : 'rgba(239,68,68,0.04)', border: `1px solid ${doc ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}`, borderRadius: '8px' }}>
+                    {doc
+                      ? <CheckCircle size={14} color="#10b981" style={{ flexShrink: 0 }} />
+                      : <XCircle size={14} color="#ef4444" style={{ flexShrink: 0 }} />}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: doc ? '#e2e8f0' : '#94a3b8' }}>{item.label}</p>
+                      <p style={{ margin: '1px 0 0', fontSize: '11px', color: doc ? '#60a5fa' : '#4b5563', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {doc ? (doc.file_name || 'Uploaded') : 'Not uploaded'}
+                      </p>
+                    </div>
+                    {doc ? (
+                      <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                        <button onClick={() => handleView(doc)}
+                          style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '4px 9px', borderRadius: '5px', border: '1px solid rgba(96,165,250,0.25)', background: 'rgba(96,165,250,0.1)', color: '#60a5fa', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}>
+                          <Eye size={11} />View
+                        </button>
+                        <button onClick={() => handleDownload(doc)}
+                          style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '4px 9px', borderRadius: '5px', border: '1px solid rgba(52,211,153,0.25)', background: 'rgba(52,211,153,0.1)', color: '#34d399', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}>
+                          <Activity size={11} />
+                        </button>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: '10px', fontWeight: 500, color: '#4b5563', flexShrink: 0 }}>Missing</span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', marginBottom: '18px' }} />
+
+          {/* Rejection comment */}
+          <div style={{ marginBottom: '18px' }}>
+            <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', fontWeight: 500, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Rejection Comment <span style={{ color: '#ef4444' }}>*</span>
+              <span style={{ color: '#374151', fontWeight: 400, textTransform: 'none', letterSpacing: 0, marginLeft: '6px' }}>(required only when rejecting)</span>
+            </label>
+            <textarea value={rejectComment} onChange={e => onCommentChange(e.target.value)}
+              placeholder="Explain why this programme is being rejected..." rows={3}
+              style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${rejectComment.trim() ? 'rgba(239,68,68,0.35)' : 'rgba(255,255,255,0.08)'}`, color: '#e2e8f0', fontSize: '13px', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.6 }} />
+          </div>
+          <div style={{ display: 'flex', gap: '8px', flexDirection: isMobile ? 'column' : 'row' }}>
+            <button onClick={onClose} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: '#6b7280', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+              <CircleX size={14} />Cancel
+            </button>
+            <button onClick={onReject} disabled={rejectLoading || !rejectComment.trim()}
+              style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: rejectComment.trim() ? 'rgba(239,68,68,0.85)' : 'rgba(239,68,68,0.25)', color: 'white', fontSize: '13px', fontWeight: 500, cursor: rejectComment.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: rejectLoading ? 0.7 : 1 }}>
+              <XCircle size={14} />{rejectLoading ? 'Rejecting...' : 'Reject'}
+            </button>
+            <button onClick={onApprove} disabled={actionLoading}
+              style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #059669, #10b981)', color: 'white', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: actionLoading ? 0.7 : 1 }}>
+              <CheckCircle size={14} />{actionLoading ? 'Approving...' : 'Approve'}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
 
@@ -417,16 +630,14 @@ export default function AdminHomepage() {
   const [rejectComment, setRejectComment] = useState('')
   const [rejectLoading, setRejectLoading] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState(false)
-  const [reviewDocs, setReviewDocs] = useState<Array<{ phase: string; doc_type?: string; file_name?: string }>>([])
+  const [reviewDocs, setReviewDocs] = useState<Array<{ id: string; phase: string; doc_type?: string; file_name?: string; file_path?: string }>>([])
   const [reviewDocsLoading, setReviewDocsLoading] = useState(false)
 
-  // KEY FIX: null = not yet measured (server). After mount, set real value.
   const [isMobile, setIsMobile] = useState<boolean | null>(null)
 
-  // Runs once on client after hydration — sets the real viewport width
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
-    check() // set immediately on mount
+    check()
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
@@ -613,7 +824,6 @@ export default function AdminHomepage() {
     preDocsLoading: reviewDocsLoading,
   }
 
-  // ── Loading screen ──
   if (loading) return (
     <div style={{ minHeight: '100vh', background: '#080f1a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '16px' }}>
       <div style={{ width: '44px', height: '44px', borderRadius: '50%', border: '3px solid #1e3a5f', borderTopColor: '#3b82f6', animation: 'spin 0.8s linear infinite' }} />
@@ -622,8 +832,6 @@ export default function AdminHomepage() {
     </div>
   )
 
-  // ── Wait for client to measure viewport before rendering layout ──
-  // This prevents the desktop layout flashing on mobile before useEffect fires
   if (isMobile === null) return (
     <div style={{ minHeight: '100vh', background: '#080f1a' }} />
   )
@@ -636,7 +844,6 @@ export default function AdminHomepage() {
       <div style={{ minHeight: '100vh', background: '#080f1a', color: '#e2e8f0', fontFamily: "'Inter', -apple-system, sans-serif", paddingBottom: '70px' }}>
         <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
 
-        {/* Sticky top bar */}
         <div style={{ background: '#0c1526', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'linear-gradient(135deg,#7c3aed,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -658,7 +865,6 @@ export default function AdminHomepage() {
           </div>
         </div>
 
-        {/* Scrollable content */}
         <div style={{ padding: '16px' }}>
           <div style={{ marginBottom: '16px' }}>
             <h1 style={{ fontSize: '17px', fontWeight: 700, margin: 0, letterSpacing: '-0.02em', color: '#f8fafc' }}>Admin Dashboard</h1>
@@ -670,7 +876,6 @@ export default function AdminHomepage() {
           <StatCards stats={stats} userCount={userCount} isMobile={true} />
           <BudgetBanner stats={stats} isMobile={true} />
 
-          {/* Programme section */}
           <div style={{ background: '#0c1526', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', overflow: 'hidden' }}>
             <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
@@ -704,7 +909,6 @@ export default function AdminHomepage() {
           </div>
         </div>
 
-        {/* Fixed bottom tab bar */}
         <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#0c1526', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', zIndex: 20 }}>
           {navItems.map(item => {
             const Icon = item.icon
@@ -740,7 +944,6 @@ export default function AdminHomepage() {
     <div style={{ minHeight: '100vh', background: '#080f1a', display: 'flex', fontFamily: "'Inter', -apple-system, sans-serif", color: '#e2e8f0' }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
 
-      {/* SIDEBAR */}
       <aside style={{ width: '220px', background: '#0c1526', borderRight: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 20 }}>
         <div style={{ padding: '24px 20px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -785,7 +988,6 @@ export default function AdminHomepage() {
         </div>
       </aside>
 
-      {/* MAIN */}
       <main style={{ flex: 1, marginLeft: '220px', padding: '28px 32px', overflowX: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
           <div>
