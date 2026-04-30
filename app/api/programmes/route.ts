@@ -97,7 +97,8 @@ export async function POST(request: Request) {
     .insert({
       programme_id: programme.id,
       user_id: userId,
-      role: 'Programme Director'
+      role: 'Programme Director',
+      status: 'approved'
     });
 
   if (roleError) {

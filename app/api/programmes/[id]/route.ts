@@ -97,39 +97,23 @@ export async function DELETE(
   const { data: { user }, error: authError } = await userClient.auth.getUser(token);
   if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  // 2. Check global role (superadmin / admin)
-  const { data: profile } = await userClient
-    .from("profiles")
+  // 2. Check programme-level role — only the Programme Director may delete
+  const { data: programmeRole } = await userClient
+    .from("programme_roles")
     .select("role")
-    .eq("id", user.id)
+    .eq("programme_id", programmeId)
+    .eq("user_id", user.id)
+    .eq("role", "Programme Director")
     .single();
 
-  const isSuperAdmin = profile?.role === "superadmin";
-  const isAdmin = profile?.role === "admin";
-
-  // 3. If not superadmin/admin, check programme-level role
-  let isProgrammeDirector = false;
-  if (!isSuperAdmin && !isAdmin) {
-    const { data: programmeRole } = await userClient
-      .from("programme_roles")
-      .select("role")
-      .eq("programme_id", programmeId)
-      .eq("user_id", user.id)
-      .eq("role", "Programme Director")
-      .single();
-
-    isProgrammeDirector = !!programmeRole;
-  }
-
-  // 4. Deny if no matching role
-  if (!isSuperAdmin && !isAdmin && !isProgrammeDirector) {
+  if (!programmeRole) {
     return NextResponse.json(
-      { error: "Only a Super Admin, Admin, or Programme Director can delete this programme." },
+      { error: "Only the Programme Director can delete this programme." },
       { status: 403 }
     );
   }
 
-  // 5. Delete via service client (bypasses RLS for admin/superadmin)
+  // 3. Delete via service client (bypasses RLS)
   const { error: deleteError } = await makeServiceClient()
     .from("programmes")
     .delete()

@@ -74,6 +74,9 @@ export default function ProgrammeDetailPage() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [isOwner, setIsOwner] = useState(false)
   const [isElevatedMember, setIsElevatedMember] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   useEffect(() => {
     if (!id) return
@@ -185,6 +188,24 @@ export default function ProgrammeDetailPage() {
     setSaving(false)
   }
 
+  const handleDelete = async () => {
+    setIsDeleting(true)
+    setDeleteError('')
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) { router.replace('/login'); return }
+    const res = await fetch(`/api/programmes/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+    if (res.ok) {
+      router.replace('/programmes')
+    } else {
+      const data = await res.json()
+      setDeleteError(data.error ?? 'Failed to delete programme.')
+      setIsDeleting(false)
+    }
+  }
+
   const canUpload     = isAdmin || isOwner || isElevatedMember
   const canManageCommittee = isAdmin || isOwner
 
@@ -258,9 +279,16 @@ export default function ProgrammeDetailPage() {
                 <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 700, color: '#f1f5f9', letterSpacing: '-0.02em' }}>{programme.name}</h1>
                 <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#4b5563' }}>Submitted {new Date(programme.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
               </div>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`, borderRadius: '8px', padding: '6px 12px', fontSize: '12px', fontWeight: 600, flexShrink: 0 }}>
-                <StatusIcon size={13} />{programme.status}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`, borderRadius: '8px', padding: '6px 12px', fontSize: '12px', fontWeight: 600 }}>
+                  <StatusIcon size={13} />{programme.status}
+                </span>
+                {isOwner && (
+                  <button onClick={() => setShowDeleteModal(true)} title="Delete programme" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '34px', height: '34px', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', cursor: 'pointer' }}>
+                    <Trash2 size={15} />
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Rejection banner */}
@@ -417,6 +445,39 @@ export default function ProgrammeDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Delete confirmation modal */}
+      {showDeleteModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div onClick={() => { if (!isDeleting) setShowDeleteModal(false) }} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
+          <div style={{ position: 'relative', background: '#0c1526', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '16px', padding: '28px 28px 24px', maxWidth: '420px', width: '100%', boxShadow: '0 24px 48px rgba(0,0,0,0.5)' }}>
+            <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+              <Trash2 size={20} color="#ef4444" />
+            </div>
+            <h2 style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: 700, color: '#f1f5f9' }}>Delete Programme</h2>
+            <p style={{ margin: '0 0 6px', fontSize: '13px', color: '#94a3b8', lineHeight: 1.6 }}>
+              You are about to permanently delete <strong style={{ color: '#f1f5f9' }}>{programme.name}</strong>.
+            </p>
+            <p style={{ margin: '0 0 24px', fontSize: '13px', color: '#94a3b8', lineHeight: 1.6 }}>
+              This will remove all associated documents and committee records. This action cannot be undone.
+            </p>
+            {deleteError && (
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '10px 13px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '8px', marginBottom: '16px' }}>
+                <XCircle size={14} color="#ef4444" style={{ flexShrink: 0, marginTop: '1px' }} />
+                <p style={{ margin: 0, fontSize: '12px', color: '#ef4444', lineHeight: 1.5 }}>{deleteError}</p>
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button onClick={() => { setShowDeleteModal(false); setDeleteError('') }} disabled={isDeleting} style={{ padding: '9px 18px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#94a3b8', fontSize: '13px', fontWeight: 500, cursor: isDeleting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                Cancel
+              </button>
+              <button onClick={handleDelete} disabled={isDeleting} style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '9px 18px', borderRadius: '8px', background: isDeleting ? 'rgba(239,68,68,0.35)' : '#ef4444', border: 'none', color: 'white', fontSize: '13px', fontWeight: 600, cursor: isDeleting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                <Trash2 size={13} />{isDeleting ? 'Deleting…' : 'Delete Programme'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
