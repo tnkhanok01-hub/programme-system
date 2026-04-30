@@ -41,6 +41,38 @@ const statusConfig: Record<string, { color: string; bg: string; border: string; 
   Rejected: { color: '#ef4444', bg: 'rgba(239,68,68,0.1)',   border: 'rgba(239,68,68,0.2)',   icon: XCircle },
 }
 
+/* ─── LIFECYCLE BADGE ────────────────────────────────────────────────────── */
+function LifecycleBadge({ start, end }: { start: string; end: string }) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const s = new Date(start); s.setHours(0, 0, 0, 0)
+  const e = new Date(end);   e.setHours(0, 0, 0, 0)
+
+  let label: string, color: string, bg: string, border: string
+
+  if (today < s) {
+    label = 'Pre-Programme'; color = '#38bdf8'
+    bg = 'rgba(56,189,248,0.12)'; border = 'rgba(56,189,248,0.25)'
+  } else if (today <= e) {
+    label = 'In Progress'; color = '#10b981'
+    bg = 'rgba(16,185,129,0.12)'; border = 'rgba(16,185,129,0.25)'
+  } else {
+    label = 'Post-Programme'; color = '#94a3b8'
+    bg = 'rgba(148,163,184,0.12)'; border = 'rgba(148,163,184,0.25)'
+  }
+
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: '5px',
+      background: bg, color, border: `1px solid ${border}`,
+      borderRadius: '8px', padding: '5px 11px',
+      fontSize: '11px', fontWeight: 600, flexShrink: 0,
+    }}>
+      <Clock size={11} />{label}
+    </span>
+  )
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    MAIN PAGE
 ═══════════════════════════════════════════════════════════════════════════ */
@@ -210,7 +242,7 @@ export default function ProgrammeDetailPage() {
     }
   }
 
-  const canUpload     = isAdmin || isOwner || isElevatedMember
+  const canUpload          = isAdmin || isOwner || isElevatedMember
   const canManageCommittee = isAdmin || isOwner
 
   const tabDocCount = (phase: Phase) => {
@@ -247,9 +279,9 @@ export default function ProgrammeDetailPage() {
   )
 
   const sc = statusConfig[programme.status] ?? statusConfig['Pending']
-  const StatusIcon = sc.icon
-  const isRejected = programme.status === 'Rejected'
-  const canResubmit = isRejected && isOwner
+  const StatusIcon      = sc.icon
+  const isRejected      = programme.status === 'Rejected'
+  const canResubmit     = isRejected && isOwner
   const hasResubmitError = !!resubmitDateError || !!resubmitBudgetError
 
   return (
@@ -277,20 +309,32 @@ export default function ProgrammeDetailPage() {
 
           <div style={{ padding: isMobile ? '16px' : '0' }}>
 
-            {/* Header */}
+            {/* ── Header ── */}
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px', gap: '12px', flexWrap: 'wrap' }}>
-              <div>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 700, color: '#f1f5f9', letterSpacing: '-0.02em' }}>{programme.name}</h1>
-                <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#4b5563' }}>Submitted {new Date(programme.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#4b5563' }}>
+                  Submitted {new Date(programme.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </p>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`, borderRadius: '8px', padding: '6px 12px', fontSize: '12px', fontWeight: 600 }}>
-                  <StatusIcon size={13} />{programme.status}
-                </span>
-                {isOwner && (
-                  <button onClick={() => setShowDeleteModal(true)} title="Delete programme" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '34px', height: '34px', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', cursor: 'pointer' }}>
-                    <Trash2 size={15} />
-                  </button>
+
+              {/* Right: badges stacked + delete button */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px', flexShrink: 0 }}>
+                {/* Row: approval status + delete */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`, borderRadius: '8px', padding: '6px 12px', fontSize: '12px', fontWeight: 600 }}>
+                    <StatusIcon size={13} />{programme.status}
+                  </span>
+                  {isOwner && (
+                    <button onClick={() => setShowDeleteModal(true)} title="Delete programme"
+                      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '34px', height: '34px', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', cursor: 'pointer' }}>
+                      <Trash2 size={15} />
+                    </button>
+                  )}
+                </div>
+                {/* Lifecycle badge — only when Approved and dates exist */}
+                {programme.status === 'Approved' && programme.start_date && programme.end_date && (
+                  <LifecycleBadge start={programme.start_date} end={programme.end_date} />
                 )}
               </div>
             </div>
@@ -349,9 +393,9 @@ export default function ProgrammeDetailPage() {
             <div style={{ background: '#0c1526', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '14px', overflow: 'hidden', marginBottom: '24px' }}>
               <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                 {PHASES.map(phase => {
-                  const isActive = activeTab === phase.id
-                  const count = tabDocCount(phase.id)
-                  const total = checklistTotal(phase.id)
+                  const isActive   = activeTab === phase.id
+                  const count      = tabDocCount(phase.id)
+                  const total      = checklistTotal(phase.id)
                   const isComplete = total !== null && count === total
                   return (
                     <button key={phase.id} onClick={() => setActiveTab(phase.id)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: isMobile ? '12px 6px' : '14px 10px', border: 'none', borderBottom: isActive ? `2px solid ${phase.color}` : '2px solid transparent', background: isActive ? phase.activeBg : 'transparent', color: isActive ? phase.color : '#6b7280', fontSize: '13px', fontWeight: isActive ? 600 : 400, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", transition: 'all 0.15s' }}>
