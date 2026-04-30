@@ -7,7 +7,7 @@ import {
   LayoutDashboard, BookOpen, Users, Settings, LogOut, Bell,
   CirclePlus, Pencil, Trash, Save, CircleX, TrendingUp, Clock,
   CheckCircle, XCircle, AlertCircle, Search, Shield, Calendar,
-  MapPin, DollarSign, Activity, ArrowRightLeft, Crown, Eye, FileText
+  MapPin, DollarSign, Activity, ArrowRightLeft, Crown, Eye, FileText, Upload
 } from 'lucide-react'
 import { PRE_CHECKLIST } from '../../lib/constants'
 
@@ -318,13 +318,68 @@ function EditModal({ show, isMobile, editForm, actionLoading, onClose, onChange,
 }
 
 /* ─── REVIEW MODAL ───────────────────────────────────────────────────────── */
-function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoading, preDocs, preDocsLoading, onClose, onCommentChange, onApprove, onReject }: {
+function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoading, preDocs, preDocsLoading, getToken, onClose, onCommentChange, onApprove, onReject }: {
   prog: Programme | null; isMobile: boolean; rejectComment: string
   actionLoading: boolean; rejectLoading: boolean
   preDocs: Array<{ phase: string; doc_type?: string; file_name?: string }>; preDocsLoading: boolean
+  getToken: () => Promise<string | null>
   onClose: () => void; onCommentChange: (v: string) => void; onApprove: () => void; onReject: () => void
 }) {
+  const [approvalLetterFile, setApprovalLetterFile] = useState<File | null>(null)
+  const [updatedPaperworkFile, setUpdatedPaperworkFile] = useState<File | null>(null)
+  const [approvalLetterDoc, setApprovalLetterDoc] = useState<{ file_name: string } | null>(null)
+  const [updatedPaperworkDoc, setUpdatedPaperworkDoc] = useState<{ file_name: string } | null>(null)
+  const [uploadingApprovalLetter, setUploadingApprovalLetter] = useState(false)
+  const [uploadingUpdatedPaperwork, setUploadingUpdatedPaperwork] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setApprovalLetterFile(null)
+    setUpdatedPaperworkFile(null)
+    setApprovalLetterDoc(null)
+    setUpdatedPaperworkDoc(null)
+    setUploadError(null)
+  }, [prog?.id])
+
+  const uploadApprovalDoc = async (file: File, docType: 'approval_letter' | 'updated_paperwork') => {
+    if (!prog) return false
+    const token = await getToken()
+    if (!token) { setUploadError('Not authenticated'); return false }
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('programme_id', prog.id)
+    formData.append('phase', 'approval')
+    formData.append('doc_type', docType)
+    const res = await fetch('/api/upload', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: formData })
+    if (!res.ok) {
+      const data = await res.json()
+      setUploadError(data.error ?? 'Upload failed')
+      return false
+    }
+    setUploadError(null)
+    return true
+  }
+
+  const handleUploadApprovalLetter = async () => {
+    if (!approvalLetterFile) return
+    setUploadingApprovalLetter(true)
+    const ok = await uploadApprovalDoc(approvalLetterFile, 'approval_letter')
+    if (ok) { setApprovalLetterDoc({ file_name: approvalLetterFile.name }); setApprovalLetterFile(null) }
+    setUploadingApprovalLetter(false)
+  }
+
+  const handleUploadUpdatedPaperwork = async () => {
+    if (!updatedPaperworkFile) return
+    setUploadingUpdatedPaperwork(true)
+    const ok = await uploadApprovalDoc(updatedPaperworkFile, 'updated_paperwork')
+    if (ok) { setUpdatedPaperworkDoc({ file_name: updatedPaperworkFile.name }); setUpdatedPaperworkFile(null) }
+    setUploadingUpdatedPaperwork(false)
+  }
+
+  const bothDocsUploaded = !!approvalLetterDoc && !!updatedPaperworkDoc
+
   if (!prog) return null
+
   return (
     <div onClick={e => { if (e.target === e.currentTarget) onClose() }}
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, backdropFilter: 'blur(4px)', padding: '16px' }}>
@@ -390,6 +445,74 @@ function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoadi
 
         <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', marginBottom: '18px' }} />
 
+        {/* Approval documents — required before approving */}
+        <div style={{ marginBottom: '18px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+            <Upload size={13} color="#a78bfa" />
+            <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Approval Documents</p>
+            <span style={{ fontSize: '10px', color: '#f59e0b', fontWeight: 500 }}>(required to approve)</span>
+          </div>
+          {uploadError && (
+            <div style={{ padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '7px', marginBottom: '8px' }}>
+              <p style={{ margin: 0, fontSize: '11px', color: '#ef4444' }}>{uploadError}</p>
+            </div>
+          )}
+          {/* Approval Letter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 13px', background: approvalLetterDoc ? 'rgba(16,185,129,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${approvalLetterDoc ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.08)'}`, borderRadius: '8px', marginBottom: '6px' }}>
+            {approvalLetterDoc ? <CheckCircle size={14} color="#10b981" style={{ flexShrink: 0 }} /> : <Upload size={14} color="#6b7280" style={{ flexShrink: 0 }} />}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: approvalLetterDoc ? '#e2e8f0' : '#94a3b8' }}>Approval Letter</p>
+              <p style={{ margin: '1px 0 0', fontSize: '11px', color: approvalLetterDoc ? '#10b981' : (approvalLetterFile ? '#60a5fa' : '#4b5563'), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {approvalLetterDoc ? approvalLetterDoc.file_name : (approvalLetterFile ? approvalLetterFile.name : 'No file selected')}
+              </p>
+            </div>
+            {approvalLetterDoc ? (
+              <span style={{ fontSize: '10px', fontWeight: 600, color: '#10b981', flexShrink: 0 }}>Uploaded</span>
+            ) : (
+              <div style={{ display: 'flex', gap: '4px', flexShrink: 0, alignItems: 'center' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '4px 9px', borderRadius: '5px', border: '1px solid rgba(167,139,250,0.3)', background: 'rgba(167,139,250,0.1)', color: '#a78bfa', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}>
+                  <FileText size={11} />Choose
+                  <input type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" onChange={e => { setApprovalLetterFile(e.target.files?.[0] ?? null); e.target.value = '' }} style={{ display: 'none' }} />
+                </label>
+                {approvalLetterFile && (
+                  <button onClick={handleUploadApprovalLetter} disabled={uploadingApprovalLetter}
+                    style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '4px 9px', borderRadius: '5px', border: 'none', background: uploadingApprovalLetter ? 'rgba(16,185,129,0.4)' : '#059669', color: 'white', fontSize: '11px', fontWeight: 500, cursor: uploadingApprovalLetter ? 'not-allowed' : 'pointer' }}>
+                    <Upload size={11} />{uploadingApprovalLetter ? '...' : 'Upload'}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          {/* Updated Paperwork */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 13px', background: updatedPaperworkDoc ? 'rgba(16,185,129,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${updatedPaperworkDoc ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.08)'}`, borderRadius: '8px' }}>
+            {updatedPaperworkDoc ? <CheckCircle size={14} color="#10b981" style={{ flexShrink: 0 }} /> : <Upload size={14} color="#6b7280" style={{ flexShrink: 0 }} />}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: updatedPaperworkDoc ? '#e2e8f0' : '#94a3b8' }}>Updated Paperwork (Signed)</p>
+              <p style={{ margin: '1px 0 0', fontSize: '11px', color: updatedPaperworkDoc ? '#10b981' : (updatedPaperworkFile ? '#60a5fa' : '#4b5563'), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {updatedPaperworkDoc ? updatedPaperworkDoc.file_name : (updatedPaperworkFile ? updatedPaperworkFile.name : 'No file selected')}
+              </p>
+            </div>
+            {updatedPaperworkDoc ? (
+              <span style={{ fontSize: '10px', fontWeight: 600, color: '#10b981', flexShrink: 0 }}>Uploaded</span>
+            ) : (
+              <div style={{ display: 'flex', gap: '4px', flexShrink: 0, alignItems: 'center' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '4px 9px', borderRadius: '5px', border: '1px solid rgba(167,139,250,0.3)', background: 'rgba(167,139,250,0.1)', color: '#a78bfa', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}>
+                  <FileText size={11} />Choose
+                  <input type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" onChange={e => { setUpdatedPaperworkFile(e.target.files?.[0] ?? null); e.target.value = '' }} style={{ display: 'none' }} />
+                </label>
+                {updatedPaperworkFile && (
+                  <button onClick={handleUploadUpdatedPaperwork} disabled={uploadingUpdatedPaperwork}
+                    style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '4px 9px', borderRadius: '5px', border: 'none', background: uploadingUpdatedPaperwork ? 'rgba(16,185,129,0.4)' : '#059669', color: 'white', fontSize: '11px', fontWeight: 500, cursor: uploadingUpdatedPaperwork ? 'not-allowed' : 'pointer' }}>
+                    <Upload size={11} />{uploadingUpdatedPaperwork ? '...' : 'Upload'}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', marginBottom: '18px' }} />
+
         {/* Rejection comment */}
         <div style={{ marginBottom: '18px' }}>
           <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', fontWeight: 500, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
@@ -408,8 +531,9 @@ function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoadi
             style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: rejectComment.trim() ? 'rgba(239,68,68,0.85)' : 'rgba(239,68,68,0.25)', color: 'white', fontSize: '13px', fontWeight: 500, cursor: rejectComment.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: rejectLoading ? 0.7 : 1 }}>
             <XCircle size={14} />{rejectLoading ? 'Rejecting...' : 'Reject'}
           </button>
-          <button onClick={onApprove} disabled={actionLoading}
-            style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #059669, #10b981)', color: 'white', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: actionLoading ? 0.7 : 1 }}>
+          <button onClick={onApprove} disabled={actionLoading || !bothDocsUploaded}
+            title={!bothDocsUploaded ? 'Upload both approval documents first' : undefined}
+            style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: bothDocsUploaded ? 'linear-gradient(135deg, #059669, #10b981)' : 'rgba(16,185,129,0.2)', color: bothDocsUploaded ? 'white' : '#4b5563', fontSize: '13px', fontWeight: 500, cursor: bothDocsUploaded && !actionLoading ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: actionLoading ? 0.7 : 1 }}>
             <CheckCircle size={14} />{actionLoading ? 'Approving...' : 'Approve'}
           </button>
         </div>
@@ -918,6 +1042,7 @@ export default function SuperAdminDashboard() {
           prog={reviewProg} isMobile={true} rejectComment={rejectComment}
           actionLoading={actionLoading} rejectLoading={rejectLoading}
           preDocs={reviewDocs} preDocsLoading={reviewDocsLoading}
+          getToken={getToken}
           onClose={handleCloseReview}
           onCommentChange={setRejectComment} onApprove={handleApprove} onReject={handleReject}
         />
@@ -1094,6 +1219,7 @@ export default function SuperAdminDashboard() {
         prog={reviewProg} isMobile={false} rejectComment={rejectComment}
         actionLoading={actionLoading} rejectLoading={rejectLoading}
         preDocs={reviewDocs} preDocsLoading={reviewDocsLoading}
+        getToken={getToken}
         onClose={handleCloseReview}
         onCommentChange={setRejectComment} onApprove={handleApprove} onReject={handleReject}
       />
