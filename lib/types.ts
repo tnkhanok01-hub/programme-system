@@ -1,6 +1,6 @@
 export type PhaseDoc = {
   id: string
-  phase: 'pre' | 'during' | 'post'
+  phase: 'pre' | 'during' | 'post' | 'approval'
   doc_type?: string
 
   file_name?: string

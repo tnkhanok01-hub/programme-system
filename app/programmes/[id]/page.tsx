@@ -16,7 +16,7 @@ import CommitteeSection from '@/components/programmes/CommitteeSection'
 import ChecklistPhaseTab from '@/components/programmes/ChecklistPhaseTab'
 import DuringPhaseTab from '@/components/programmes/DuringPhaseTab'
 import DocRow from '@/components/programmes/DocRow'
-import { PHASES, PRE_CHECKLIST, POST_CHECKLIST, SINGLE_ROLE_LIMIT } from '@/lib/constants'
+import { PHASES, PRE_CHECKLIST, POST_CHECKLIST, SINGLE_ROLE_LIMIT, APPROVAL_CHECKLIST } from '@/lib/constants'
 
 interface Programme {
   id: string; name: string; description: string; category: string
@@ -78,6 +78,7 @@ export default function ProgrammeDetailPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  const [approvalPreviewDoc, setApprovalPreviewDoc] = useState<PhaseDoc | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -371,6 +372,64 @@ export default function ProgrammeDetailPage() {
               </div>
             </div>
 
+            {/* APPROVAL DOCUMENTS */}
+            {(isAdmin || isOwner) && phaseDocs.some(d => d.phase === 'approval') && (
+              <div style={{ background: '#0c1526', border: '1px solid rgba(167,139,250,0.15)', borderRadius: '14px', overflow: 'hidden', marginBottom: '24px' }}>
+                <div style={{ padding: isMobile ? '14px 14px 10px' : '18px 20px 12px', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'rgba(167,139,250,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <FileText size={13} color="#a78bfa" />
+                  </div>
+                  <div>
+                    <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#f1f5f9' }}>Approval Documentation</p>
+                    <p style={{ margin: '1px 0 0', fontSize: '11px', color: '#4b5563' }}>Documents issued upon programme approval</p>
+                  </div>
+                </div>
+                <div style={{ padding: isMobile ? '12px 14px' : '14px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {APPROVAL_CHECKLIST.map(item => {
+                    const doc = phaseDocs.find(d => d.phase === 'approval' && d.doc_type === item.key)
+                    return (
+                      <div key={item.key} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 13px', background: doc ? 'rgba(167,139,250,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${doc ? 'rgba(167,139,250,0.2)' : 'rgba(255,255,255,0.06)'}`, borderRadius: '9px' }}>
+                        {doc
+                          ? <CheckCircle size={14} color="#10b981" style={{ flexShrink: 0 }} />
+                          : <FileText size={14} color="#374151" style={{ flexShrink: 0 }} />}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: doc ? '#e2e8f0' : '#4b5563' }}>{item.label}</p>
+                          <p style={{ margin: '1px 0 0', fontSize: '11px', color: doc ? '#a78bfa' : '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {doc ? (doc.file_name || 'Uploaded') : 'Not yet available'}
+                          </p>
+                        </div>
+                        {doc && (
+                          <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                            <button
+                              onClick={() => setApprovalPreviewDoc(doc)}
+                              style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '4px 9px', borderRadius: '5px', border: '1px solid rgba(167,139,250,0.25)', background: 'rgba(167,139,250,0.1)', color: '#a78bfa', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}>
+                              <Eye size={11} />View
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (!doc.file_path) return
+                                const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${doc.file_path}`
+                                const res = await fetch(url)
+                                const blob = await res.blob()
+                                const blobUrl = window.URL.createObjectURL(blob)
+                                const a = document.createElement('a')
+                                a.href = blobUrl; a.download = doc.file_name || 'file'
+                                document.body.appendChild(a); a.click()
+                                document.body.removeChild(a)
+                                window.URL.revokeObjectURL(blobUrl)
+                              }}
+                              style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '4px 9px', borderRadius: '5px', border: '1px solid rgba(52,211,153,0.2)', background: 'rgba(52,211,153,0.08)', color: '#34d399', fontSize: '11px', cursor: 'pointer' }}>
+                              <Download size={11} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* RESUBMIT FORM */}
             {canResubmit && (
               <div style={{ background: '#0c1526', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '14px', padding: isMobile ? '16px' : '24px' }}>
@@ -448,6 +507,31 @@ export default function ProgrammeDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Approval document preview modal */}
+      {approvalPreviewDoc && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 80, backdropFilter: 'blur(6px)', padding: '16px' }}>
+          <div style={{ background: '#0c1526', border: '1px solid rgba(255,255,255,0.08)', width: '100%', maxWidth: '960px', height: '90vh', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '7px', background: 'rgba(167,139,250,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <FileText size={15} color="#a78bfa" />
+                </div>
+                <span style={{ color: '#e2e8f0', fontSize: '14px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {approvalPreviewDoc.file_name}
+                </span>
+              </div>
+              <button onClick={() => setApprovalPreviewDoc(null)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '7px', padding: '6px', color: '#64748b', cursor: 'pointer', flexShrink: 0, marginLeft: '12px' }}>
+                <X size={16} />
+              </button>
+            </div>
+            <iframe
+              src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${approvalPreviewDoc.file_path}`}
+              style={{ width: '100%', flex: 1, background: 'white', borderRadius: '8px', border: 'none' }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Delete confirmation modal */}
       {showDeleteModal && (

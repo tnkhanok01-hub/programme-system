@@ -288,10 +288,12 @@ function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoadi
   useEffect(() => {
     setApprovalLetterFile(null)
     setUpdatedPaperworkFile(null)
-    setApprovalLetterDoc(null)
-    setUpdatedPaperworkDoc(null)
     setUploadError(null)
-  }, [prog?.id])
+    const letterDoc = preDocs.find(d => d.phase === 'approval' && d.doc_type === 'approval_letter')
+    const paperworkDoc = preDocs.find(d => d.phase === 'approval' && d.doc_type === 'updated_paperwork')
+    setApprovalLetterDoc(letterDoc ? { file_name: letterDoc.file_name || 'Approval Letter' } : null)
+    setUpdatedPaperworkDoc(paperworkDoc ? { file_name: paperworkDoc.file_name || 'Updated Paperwork' } : null)
+  }, [prog?.id, preDocs])
 
   const uploadApprovalDoc = async (file: File, docType: 'approval_letter' | 'updated_paperwork') => {
     if (!prog) return false
