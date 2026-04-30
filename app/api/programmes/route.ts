@@ -67,7 +67,6 @@ export async function POST(request: Request) {
   }
 
   // 6. Insert programme — RLS now recognises auth.uid() correctly
-  // Programme Directors' programmes are auto-approved, others are pending
   const { data: programme, error: programmeError } = await supabase
     .from('programmes')
     .insert({
@@ -78,7 +77,7 @@ export async function POST(request: Request) {
       start_date,
       end_date,
       budget: budget ? parseFloat(budget) : null,
-      status: 'Approved',
+      status: 'Pending',
       programme_director_id: userId
     })
     .select()
