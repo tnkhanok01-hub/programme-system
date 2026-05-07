@@ -42,12 +42,19 @@ export async function POST(request: Request) {
 
   // 4. Parse request body
   const body = await request.json();
-  const { name, description, category, venue, start_date, end_date, budget } = body;
+  const { name, description, category, venue, start_date, end_date, budget, advisor_id } = body;
 
   // 5. Validate required fields
   if (!name || !start_date || !end_date) {
     return NextResponse.json(
       { error: 'Name, start date, and end date are required.' },
+      { status: 400 }
+    );
+  }
+
+  if (!advisor_id) {
+    return NextResponse.json(
+      { error: 'An advisor must be selected.' },
       { status: 400 }
     );
   }
@@ -78,7 +85,8 @@ export async function POST(request: Request) {
       end_date,
       budget: budget ? parseFloat(budget) : null,
       status: 'Pending',
-      programme_director_id: userId
+      programme_director_id: userId,
+      advisor_id
     })
     .select()
     .single();

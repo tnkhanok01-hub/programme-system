@@ -181,6 +181,28 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
     return allowed.includes(role)
   }
 
+  const isExpired = (prog: Programme) => prog.end_date < todayStr
+
+  const canGeneratePreQR = (prog: Programme) =>
+    prog.status === 'Approved' && !isExpired(prog) && prog.start_date === todayStr
+
+  const canGeneratePostQR = (prog: Programme) =>
+    prog.status === 'Approved' && prog.end_date === todayStr
+
+  const preQRReason = (prog: Programme): string => {
+    if (prog.status !== 'Approved') return 'Programme is not approved'
+    if (isExpired(prog)) return 'Programme has already ended'
+    if (prog.start_date < todayStr) return `Only available on start date (${new Date(prog.start_date + 'T00:00:00').toLocaleDateString('en-MY')})`
+    return ''
+  }
+
+  const postQRReason = (prog: Programme): string => {
+    if (prog.status !== 'Approved') return 'Programme is not approved'
+    if (prog.end_date < todayStr) return 'Programme has already ended'
+    if (prog.end_date > todayStr) return `Only available on end date (${new Date(prog.end_date + 'T00:00:00').toLocaleDateString('en-MY')})`
+    return ''
+  }
+
   // --- UI Renders ---
   if (loading) {
     return (
@@ -337,12 +359,53 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {canGenerateQR(selectedProg.id) && (
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <button onClick={() => setQrModal({ progId: selectedProg.id, type: 'pre', name: selectedProg.name })} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.1)', color: '#10b981', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
-                    Generate Start QR
-                  </button>
-                  <button onClick={() => setQrModal({ progId: selectedProg.id, type: 'post', name: selectedProg.name })} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid rgba(245,158,11,0.3)', background: 'rgba(245,158,11,0.1)', color: '#f59e0b', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
-                    Generate End QR
-                  </button>
+                  {/* Start QR */}
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <button
+                      onClick={() => canGeneratePreQR(selectedProg) && setQrModal({ progId: selectedProg.id, type: 'pre', name: selectedProg.name })}
+                      disabled={!canGeneratePreQR(selectedProg)}
+                      style={{
+                        width: '100%', padding: '12px', borderRadius: '8px',
+                        border: `1px solid ${canGeneratePreQR(selectedProg) ? 'rgba(16,185,129,0.3)' : 'rgba(100,116,139,0.2)'}`,
+                        background: canGeneratePreQR(selectedProg) ? 'rgba(16,185,129,0.1)' : 'rgba(100,116,139,0.05)',
+                        color: canGeneratePreQR(selectedProg) ? '#10b981' : '#475569',
+                        fontSize: '13px', fontWeight: 600,
+                        cursor: canGeneratePreQR(selectedProg) ? 'pointer' : 'not-allowed',
+                        opacity: canGeneratePreQR(selectedProg) ? 1 : 0.65,
+                      }}
+                    >
+                      Generate Start QR
+                    </button>
+                    {preQRReason(selectedProg) && (
+                      <p style={{ margin: 0, fontSize: '11px', color: '#64748b', textAlign: 'center', lineHeight: 1.4 }}>
+                        {preQRReason(selectedProg)}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* End QR */}
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <button
+                      onClick={() => canGeneratePostQR(selectedProg) && setQrModal({ progId: selectedProg.id, type: 'post', name: selectedProg.name })}
+                      disabled={!canGeneratePostQR(selectedProg)}
+                      style={{
+                        width: '100%', padding: '12px', borderRadius: '8px',
+                        border: `1px solid ${canGeneratePostQR(selectedProg) ? 'rgba(245,158,11,0.3)' : 'rgba(100,116,139,0.2)'}`,
+                        background: canGeneratePostQR(selectedProg) ? 'rgba(245,158,11,0.1)' : 'rgba(100,116,139,0.05)',
+                        color: canGeneratePostQR(selectedProg) ? '#f59e0b' : '#475569',
+                        fontSize: '13px', fontWeight: 600,
+                        cursor: canGeneratePostQR(selectedProg) ? 'pointer' : 'not-allowed',
+                        opacity: canGeneratePostQR(selectedProg) ? 1 : 0.65,
+                      }}
+                    >
+                      Generate End QR
+                    </button>
+                    {postQRReason(selectedProg) && (
+                      <p style={{ margin: 0, fontSize: '11px', color: '#64748b', textAlign: 'center', lineHeight: 1.4 }}>
+                        {postQRReason(selectedProg)}
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

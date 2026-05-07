@@ -11,6 +11,7 @@ import {
   Users, UserPlus, UserX, Hash,
 } from 'lucide-react'
 
+import jsPDF from 'jspdf'
 import {getDocuments} from '@/services/documentService'
 import CommitteeSection from '@/components/programmes/CommitteeSection'
 import ChecklistPhaseTab from '@/components/programmes/ChecklistPhaseTab'
@@ -23,6 +24,10 @@ interface Programme {
   venue: string; budget: number; start_date: string; end_date: string
   status: string; created_at: string; rejection_reason: string | null
   programme_director_id: string
+  approved_by_admin_name?: string | null
+  approved_by_superadmin_name?: string | null
+  approved_at?: string | null
+  advisor_id?: string | null
 }
 
 interface CommitteeMember {
@@ -36,9 +41,10 @@ interface CommitteeMember {
 type Phase = 'pre' | 'during' | 'post'
 
 const statusConfig: Record<string, { color: string; bg: string; border: string; icon: React.ElementType }> = {
-  Pending:  { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  border: 'rgba(245,158,11,0.2)',  icon: AlertCircle },
-  Approved: { color: '#10b981', bg: 'rgba(16,185,129,0.1)',  border: 'rgba(16,185,129,0.2)',  icon: CheckCircle },
-  Rejected: { color: '#ef4444', bg: 'rgba(239,68,68,0.1)',   border: 'rgba(239,68,68,0.2)',   icon: XCircle },
+  Pending:        { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  border: 'rgba(245,158,11,0.2)',  icon: AlertCircle },
+  'Under Review': { color: '#38bdf8', bg: 'rgba(56,189,248,0.1)', border: 'rgba(56,189,248,0.2)',  icon: Clock },
+  Approved:       { color: '#10b981', bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.2)',  icon: CheckCircle },
+  Rejected:       { color: '#ef4444', bg: 'rgba(239,68,68,0.1)',  border: 'rgba(239,68,68,0.2)',   icon: XCircle },
 }
 
 /* ─── LIFECYCLE BADGE ────────────────────────────────────────────────────── */
@@ -111,6 +117,7 @@ export default function ProgrammeDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const [approvalPreviewDoc, setApprovalPreviewDoc] = useState<PhaseDoc | null>(null)
+  const [directorInfo, setDirectorInfo] = useState<{ full_name: string; matric_number: string } | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -146,6 +153,12 @@ export default function ProgrammeDetailPage() {
         )
       }
       setProgramme(prog)
+      const { data: dirData } = await supabase
+        .from('users')
+        .select('full_name, matric_number')
+        .eq('id', prog.programme_director_id)
+        .single()
+      if (dirData) setDirectorInfo(dirData as any)
       setForm({
         name: prog.name ?? '', category: prog.category ?? '', venue: prog.venue ?? '',
         budget: prog.budget != null ? Number(prog.budget).toFixed(2) : '0.00',
@@ -242,6 +255,99 @@ export default function ProgrammeDetailPage() {
     }
   }
 
+  const generateApprovalLetter = () => {
+    if (!programme) return
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const margin = 25
+    let y = 30
+
+    doc.setFontSize(14)
+    doc.setFont('helvetica', 'bold')
+    doc.text('UNIVERSITI TEKNOLOGI MALAYSIA - KOLEJ SISWA JAYA', pageWidth / 2, y, { align: 'center' })
+    y += 8
+
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'normal')
+    doc.text('PROGRAMME APPROVAL LETTER', pageWidth / 2, y, { align: 'center' })
+    y += 10
+
+    doc.setDrawColor(150)
+    doc.line(margin, y, pageWidth - margin, y)
+    y += 10
+
+    const approvalDate = programme.approved_at
+      ? new Date(programme.approved_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' })
+      : '—'
+
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Date: ${approvalDate}`, margin, y)
+    y += 12
+
+    doc.setFontSize(11)
+    doc.text('To Whom It May Concern,', margin, y)
+    y += 8
+    doc.text('This is to certify that the following programme has been reviewed and approved by the', margin, y)
+    y += 6
+    doc.text('relevant authorities.', margin, y)
+    y += 12
+
+    const addRow = (label: string, value: string) => {
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'bold')
+      doc.text(`${label}:`, margin + 2, y)
+      doc.setFont('helvetica', 'normal')
+      doc.text(value, margin + 58, y)
+      y += 7
+    }
+
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'bold')
+    doc.text('PROGRAMME DETAILS', margin, y)
+    y += 5
+    doc.setDrawColor(200)
+    doc.line(margin, y, pageWidth - margin, y)
+    y += 7
+
+    addRow('Programme Name', programme.name)
+    addRow('Category', programme.category || '—')
+    addRow('Venue', programme.venue || '—')
+    addRow('Start Date', programme.start_date ? new Date(programme.start_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' }) : '—')
+    addRow('End Date',   programme.end_date   ? new Date(programme.end_date).toLocaleDateString('en-MY',   { day: 'numeric', month: 'long', year: 'numeric' }) : '—')
+    addRow('Budget', programme.budget != null ? `RM ${Number(programme.budget).toLocaleString('en-MY', { minimumFractionDigits: 2 })}` : '—')
+    y += 4
+
+    doc.setFont('helvetica', 'bold')
+    doc.text('PROGRAMME DIRECTOR', margin, y)
+    y += 5
+    doc.line(margin, y, pageWidth - margin, y)
+    y += 7
+
+    addRow('Name', directorInfo?.full_name || '—')
+    addRow('Matric Number', directorInfo?.matric_number || '—')
+    y += 4
+
+    doc.setFont('helvetica', 'bold')
+    doc.text('APPROVAL DETAILS', margin, y)
+    y += 5
+    doc.line(margin, y, pageWidth - margin, y)
+    y += 7
+
+    addRow('Approved by Advisor', programme.approved_by_admin_name || '—')
+    addRow('Approved by Principal', programme.approved_by_superadmin_name || '—')
+    addRow('Date of Approval', approvalDate)
+    y += 10
+
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'italic')
+    doc.setTextColor(120)
+    doc.text('This letter is automatically generated and serves as official confirmation of programme approval.', margin, y, { maxWidth: pageWidth - margin * 2 })
+
+    const safeName = programme.name.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '-').toLowerCase()
+    doc.save(`approval-letter-${safeName}.pdf`)
+  }
+
   const canUpload          = isAdmin || isOwner || isElevatedMember
   const canManageCommittee = isAdmin || isOwner
 
@@ -320,11 +426,19 @@ export default function ProgrammeDetailPage() {
 
               {/* Right: badges stacked + delete button */}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px', flexShrink: 0 }}>
-                {/* Row: approval status + delete */}
+                {/* Row: approval status + approval letter + delete */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`, borderRadius: '8px', padding: '6px 12px', fontSize: '12px', fontWeight: 600 }}>
                     <StatusIcon size={13} />{programme.status}
                   </span>
+                  {programme.status === 'Approved' && isOwner && (
+                    <button
+                      onClick={generateApprovalLetter}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.1)', color: '#10b981', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
+                    >
+                      <Download size={13} />Approval Letter
+                    </button>
+                  )}
                   {isOwner && (
                     <button onClick={() => setShowDeleteModal(true)} title="Delete programme"
                       style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '34px', height: '34px', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', cursor: 'pointer' }}>

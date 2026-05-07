@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { validateAttendance } from '@/lib/attendance'
@@ -26,7 +26,7 @@ const labelStyle: React.CSSProperties = {
   color: '#94a3b8',
 }
 
-export default function PostSurvey() {
+function PostSurveyContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
@@ -177,5 +177,13 @@ export default function PostSurvey() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function PostSurvey() {
+  return (
+    <Suspense fallback={null}>
+      <PostSurveyContent />
+    </Suspense>
   )
 }

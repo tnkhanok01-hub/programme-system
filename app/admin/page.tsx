@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabaseClient'
 import {
   LayoutDashboard, BookOpen, Users, Settings, LogOut, Bell,
-  CirclePlus, Pencil, Trash, Save, CircleX, TrendingUp, Clock,
+  CirclePlus, Pencil, Trash, Save, CircleX, X, TrendingUp, Clock,
   CheckCircle, XCircle, AlertCircle, Search, Shield, Calendar,
   MapPin, DollarSign, Activity, Eye, FileText, Upload, QrCode
 } from 'lucide-react'
@@ -22,10 +22,11 @@ type NavItem = 'dashboard' | 'programmes' | 'users' | 'attendance'| 'settings'
 /* ─── HELPERS ────────────────────────────────────────────────────────────── */
 function getStatusConfig(status: string) {
   switch (status) {
-    case 'Approved': return { bg: 'rgba(16,185,129,0.12)',  color: '#10b981', icon: CheckCircle }
-    case 'Rejected': return { bg: 'rgba(239,68,68,0.12)',   color: '#ef4444', icon: XCircle }
-    case 'Pending':  return { bg: 'rgba(245,158,11,0.12)',  color: '#f59e0b', icon: AlertCircle }
-    default:         return { bg: 'rgba(148,163,184,0.12)', color: '#94a3b8', icon: Clock }
+    case 'Approved':      return { bg: 'rgba(16,185,129,0.12)',  color: '#10b981', icon: CheckCircle }
+    case 'Rejected':      return { bg: 'rgba(239,68,68,0.12)',   color: '#ef4444', icon: XCircle }
+    case 'Pending':       return { bg: 'rgba(245,158,11,0.12)',  color: '#f59e0b', icon: AlertCircle }
+    case 'Under Review':  return { bg: 'rgba(56,189,248,0.12)',  color: '#38bdf8', icon: Clock }
+    default:              return { bg: 'rgba(148,163,184,0.12)', color: '#94a3b8', icon: Clock }
   }
 }
 const getInitials = (name: string) =>
@@ -33,18 +34,19 @@ const getInitials = (name: string) =>
 
 /* ─── STAT CARDS ─────────────────────────────────────────────────────────── */
 function StatCards({ stats, userCount, isMobile }: {
-  stats: { total: number; pending: number; approved: number; rejected: number; totalBudget: number }
+  stats: { total: number; pending: number; underReview: number; approved: number; rejected: number; totalBudget: number }
   userCount: number; isMobile: boolean
 }) {
   const cards = [
-    { label: 'Total Programmes', value: stats.total,    icon: BookOpen,    color: '#a78bfa', bg: 'rgba(167,139,250,0.1)', border: 'rgba(167,139,250,0.15)' },
-    { label: 'Pending Review',   value: stats.pending,  icon: AlertCircle, color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  border: 'rgba(245,158,11,0.15)' },
-    { label: 'Approved',         value: stats.approved, icon: CheckCircle, color: '#10b981', bg: 'rgba(16,185,129,0.1)',  border: 'rgba(16,185,129,0.15)' },
-    { label: 'Rejected',         value: stats.rejected, icon: XCircle,     color: '#ef4444', bg: 'rgba(239,68,68,0.1)',   border: 'rgba(239,68,68,0.15)' },
-    { label: 'Total Users',      value: userCount,      icon: Users,       color: '#38bdf8', bg: 'rgba(56,189,248,0.1)',  border: 'rgba(56,189,248,0.15)' },
+    { label: 'Total Programmes', value: stats.total,       icon: BookOpen,    color: '#a78bfa', bg: 'rgba(167,139,250,0.1)', border: 'rgba(167,139,250,0.15)' },
+    { label: 'Pending Review',   value: stats.pending,     icon: AlertCircle, color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  border: 'rgba(245,158,11,0.15)' },
+    { label: 'Under Review',     value: stats.underReview, icon: Clock,       color: '#38bdf8', bg: 'rgba(56,189,248,0.1)',  border: 'rgba(56,189,248,0.15)' },
+    { label: 'Approved',         value: stats.approved,    icon: CheckCircle, color: '#10b981', bg: 'rgba(16,185,129,0.1)',  border: 'rgba(16,185,129,0.15)' },
+    { label: 'Rejected',         value: stats.rejected,    icon: XCircle,     color: '#ef4444', bg: 'rgba(239,68,68,0.1)',   border: 'rgba(239,68,68,0.15)' },
+    { label: 'Total Users',      value: userCount,         icon: Users,       color: '#38bdf8', bg: 'rgba(56,189,248,0.1)',  border: 'rgba(56,189,248,0.15)' },
   ]
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(5, 1fr)', gap: '10px', marginBottom: '20px' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(6, 1fr)', gap: '10px', marginBottom: '20px' }}>
       {cards.map((card, i) => {
         const Icon = card.icon
         return (
@@ -267,75 +269,84 @@ function EditModal({ show, isMobile, editForm, actionLoading, onClose, onChange,
 }
 
 /* ─── REVIEW MODAL ───────────────────────────────────────────────────────── */
-function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoading, preDocs, preDocsLoading, getToken, onClose, onCommentChange, onApprove, onReject }: {
+function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoading, preDocs, preDocsLoading, getToken, onClose, onCommentChange, onApprove, onReject, onDocsChange }: {
   prog: Programme | null; isMobile: boolean; rejectComment: string; actionLoading: boolean; rejectLoading: boolean
   preDocs: Array<{ id: string; phase: string; doc_type?: string; file_name?: string; file_path?: string }>; preDocsLoading: boolean
   getToken: () => Promise<string | null>
   onClose: () => void; onCommentChange: (v: string) => void; onApprove: () => void; onReject: () => void
+  onDocsChange: (docs: Array<{ id: string; phase: string; doc_type?: string; file_name?: string; file_path?: string }>) => void
 }) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewName, setPreviewName] = useState<string>('')
   const [previewLoading, setPreviewLoading] = useState(false)
 
-  const [approvalLetterFile, setApprovalLetterFile] = useState<File | null>(null)
   const [updatedPaperworkFile, setUpdatedPaperworkFile] = useState<File | null>(null)
-  const [approvalLetterDoc, setApprovalLetterDoc] = useState<{ file_name: string } | null>(null)
-  const [updatedPaperworkDoc, setUpdatedPaperworkDoc] = useState<{ file_name: string } | null>(null)
-  const [uploadingApprovalLetter, setUploadingApprovalLetter] = useState(false)
+  const [updatedPaperworkDoc, setUpdatedPaperworkDoc] = useState<{ id: string; file_name: string; file_path: string } | null>(null)
   const [uploadingUpdatedPaperwork, setUploadingUpdatedPaperwork] = useState(false)
+  const [removingUpdatedPaperwork, setRemovingUpdatedPaperwork] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
 
   useEffect(() => {
-    setApprovalLetterFile(null)
     setUpdatedPaperworkFile(null)
     setUploadError(null)
-    const letterDoc = preDocs.find(d => d.phase === 'approval' && d.doc_type === 'approval_letter')
     const paperworkDoc = preDocs.find(d => d.phase === 'approval' && d.doc_type === 'updated_paperwork')
-    setApprovalLetterDoc(letterDoc ? { file_name: letterDoc.file_name || 'Approval Letter' } : null)
-    setUpdatedPaperworkDoc(paperworkDoc ? { file_name: paperworkDoc.file_name || 'Updated Paperwork' } : null)
+    setUpdatedPaperworkDoc(paperworkDoc ? { id: paperworkDoc.id, file_name: paperworkDoc.file_name || 'Updated Paperwork', file_path: paperworkDoc.file_path || '' } : null)
   }, [prog?.id, preDocs])
 
-  const uploadApprovalDoc = async (file: File, docType: 'approval_letter' | 'updated_paperwork') => {
-    if (!prog) return false
+  const refreshDocs = async () => {
+    if (!prog) return
     const token = await getToken()
-    if (!token) { setUploadError('Not authenticated'); return false }
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('programme_id', prog.id)
-    formData.append('phase', 'approval')
-    formData.append('doc_type', docType)
-    const res = await fetch('/api/upload', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: formData })
-    if (!res.ok) {
+    if (!token) return
+    const res = await fetch(`/api/programmes/${prog.id}/documents`, { headers: { Authorization: `Bearer ${token}` } })
+    if (res.ok) {
       const data = await res.json()
-      setUploadError(data.error ?? 'Upload failed')
-      return false
+      const docs = Array.isArray(data) ? data : (data.data ?? [])
+      onDocsChange(docs)
     }
-    setUploadError(null)
-    return true
-  }
-
-  const handleUploadApprovalLetter = async () => {
-    if (!approvalLetterFile) return
-    setUploadingApprovalLetter(true)
-    const ok = await uploadApprovalDoc(approvalLetterFile, 'approval_letter')
-    if (ok) { setApprovalLetterDoc({ file_name: approvalLetterFile.name }); setApprovalLetterFile(null) }
-    setUploadingApprovalLetter(false)
   }
 
   const handleUploadUpdatedPaperwork = async () => {
-    if (!updatedPaperworkFile) return
+    if (!updatedPaperworkFile || !prog) return
     setUploadingUpdatedPaperwork(true)
-    const ok = await uploadApprovalDoc(updatedPaperworkFile, 'updated_paperwork')
-    if (ok) { setUpdatedPaperworkDoc({ file_name: updatedPaperworkFile.name }); setUpdatedPaperworkFile(null) }
+    const token = await getToken()
+    if (!token) { setUploadError('Not authenticated'); setUploadingUpdatedPaperwork(false); return }
+    const formData = new FormData()
+    formData.append('file', updatedPaperworkFile)
+    formData.append('programme_id', prog.id)
+    formData.append('phase', 'approval')
+    formData.append('doc_type', 'updated_paperwork')
+    const res = await fetch('/api/upload', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: formData })
+    if (res.ok) {
+      setUpdatedPaperworkFile(null)
+      setUploadError(null)
+      await refreshDocs()
+    } else {
+      const data = await res.json()
+      setUploadError(data.error ?? 'Upload failed')
+    }
     setUploadingUpdatedPaperwork(false)
   }
 
-  const bothDocsUploaded = !!approvalLetterDoc && !!updatedPaperworkDoc
+  const handleRemoveUpdatedPaperwork = async () => {
+    if (!updatedPaperworkDoc?.id || !prog) return
+    setRemovingUpdatedPaperwork(true)
+    const token = await getToken()
+    if (!token) { setRemovingUpdatedPaperwork(false); return }
+    const res = await fetch(`/api/programmes/${prog.id}/documents/${updatedPaperworkDoc.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    if (res.ok) {
+      setUpdatedPaperworkDoc(null)
+      onDocsChange(preDocs.filter(d => d.id !== updatedPaperworkDoc.id))
+    } else {
+      const data = await res.json()
+      setUploadError(data.error ?? 'Remove failed')
+    }
+    setRemovingUpdatedPaperwork(false)
+  }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
-
-  const getPublicUrl = (filePath: string) =>
-    `${supabaseUrl}/storage/v1/object/public/documents/${filePath}`
+  const getPublicUrl = (filePath: string) => `${supabaseUrl}/storage/v1/object/public/documents/${filePath}`
+  const isImage = (name: string) => /\.(png|jpe?g|gif|webp|svg)$/i.test(name)
+  const isPdf = (name: string) => /\.pdf$/i.test(name)
 
   const handleView = async (doc: { file_name?: string; file_path?: string }) => {
     if (!doc.file_path) return
@@ -352,16 +363,11 @@ function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoadi
     const blob = await res.blob()
     const blobUrl = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = blobUrl
-    a.download = doc.file_name || 'file'
-    document.body.appendChild(a)
-    a.click()
+    a.href = blobUrl; a.download = doc.file_name || 'file'
+    document.body.appendChild(a); a.click()
     document.body.removeChild(a)
     window.URL.revokeObjectURL(blobUrl)
   }
-
-  const isImage = (name: string) => /\.(png|jpe?g|gif|webp|svg)$/i.test(name)
-  const isPdf = (name: string) => /\.pdf$/i.test(name)
 
   if (!prog) return null
 
@@ -393,8 +399,7 @@ function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoadi
               {previewLoading ? (
                 <div style={{ width: '32px', height: '32px', borderRadius: '50%', border: '3px solid rgba(96,165,250,0.2)', borderTopColor: '#60a5fa', animation: 'spin 0.7s linear infinite' }} />
               ) : isPdf(previewName) ? (
-                <iframe src={previewUrl} title={previewName}
-                  style={{ width: '100%', height: '100%', minHeight: '500px', border: 'none', borderRadius: '8px' }} />
+                <iframe src={previewUrl} title={previewName} style={{ width: '100%', height: '100%', minHeight: '500px', border: 'none', borderRadius: '8px' }} />
               ) : isImage(previewName) ? (
                 <img src={previewUrl} alt={previewName} style={{ maxWidth: '100%', maxHeight: '60vh', borderRadius: '8px', objectFit: 'contain' }} />
               ) : (
@@ -456,28 +461,22 @@ function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoadi
                 const doc = preDocs.find(d => d.phase === 'pre' && d.doc_type === item.key)
                 return (
                   <div key={item.key} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 13px', background: doc ? 'rgba(16,185,129,0.04)' : 'rgba(239,68,68,0.04)', border: `1px solid ${doc ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}`, borderRadius: '8px' }}>
-                    {doc
-                      ? <CheckCircle size={14} color="#10b981" style={{ flexShrink: 0 }} />
-                      : <XCircle size={14} color="#ef4444" style={{ flexShrink: 0 }} />}
+                    {doc ? <CheckCircle size={14} color="#10b981" style={{ flexShrink: 0 }} /> : <XCircle size={14} color="#ef4444" style={{ flexShrink: 0 }} />}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: doc ? '#e2e8f0' : '#94a3b8' }}>{item.label}</p>
                       <p style={{ margin: '1px 0 0', fontSize: '11px', color: doc ? '#60a5fa' : '#4b5563', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {doc ? (doc.file_name || 'Uploaded') : 'Not uploaded'}
                       </p>
                     </div>
-                    {doc ? (
+                    {doc && (
                       <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
-                        <button onClick={() => handleView(doc)}
-                          style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '4px 9px', borderRadius: '5px', border: '1px solid rgba(96,165,250,0.25)', background: 'rgba(96,165,250,0.1)', color: '#60a5fa', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}>
+                        <button onClick={() => handleView(doc)} style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '4px 9px', borderRadius: '5px', border: '1px solid rgba(96,165,250,0.25)', background: 'rgba(96,165,250,0.1)', color: '#60a5fa', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}>
                           <Eye size={11} />View
                         </button>
-                        <button onClick={() => handleDownload(doc)}
-                          style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '4px 9px', borderRadius: '5px', border: '1px solid rgba(52,211,153,0.25)', background: 'rgba(52,211,153,0.1)', color: '#34d399', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}>
+                        <button onClick={() => handleDownload(doc)} style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '4px 9px', borderRadius: '5px', border: '1px solid rgba(52,211,153,0.25)', background: 'rgba(52,211,153,0.1)', color: '#34d399', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}>
                           <Activity size={11} />
                         </button>
                       </div>
-                    ) : (
-                      <span style={{ fontSize: '10px', fontWeight: 500, color: '#4b5563', flexShrink: 0 }}>Missing</span>
                     )}
                   </div>
                 )
@@ -487,11 +486,11 @@ function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoadi
 
           <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', marginBottom: '18px' }} />
 
-          {/* Approval documents — required before approving */}
+          {/* Updated Paperwork upload */}
           <div style={{ marginBottom: '18px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
               <Upload size={13} color="#a78bfa" />
-              <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Approval Documents</p>
+              <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Updated Paperwork</p>
               <span style={{ fontSize: '10px', color: '#f59e0b', fontWeight: 500 }}>(required to approve)</span>
             </div>
             {uploadError && (
@@ -499,33 +498,6 @@ function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoadi
                 <p style={{ margin: 0, fontSize: '11px', color: '#ef4444' }}>{uploadError}</p>
               </div>
             )}
-            {/* Approval Letter */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 13px', background: approvalLetterDoc ? 'rgba(16,185,129,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${approvalLetterDoc ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.08)'}`, borderRadius: '8px', marginBottom: '6px' }}>
-              {approvalLetterDoc ? <CheckCircle size={14} color="#10b981" style={{ flexShrink: 0 }} /> : <Upload size={14} color="#6b7280" style={{ flexShrink: 0 }} />}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: approvalLetterDoc ? '#e2e8f0' : '#94a3b8' }}>Approval Letter</p>
-                <p style={{ margin: '1px 0 0', fontSize: '11px', color: approvalLetterDoc ? '#10b981' : (approvalLetterFile ? '#60a5fa' : '#4b5563'), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {approvalLetterDoc ? approvalLetterDoc.file_name : (approvalLetterFile ? approvalLetterFile.name : 'No file selected')}
-                </p>
-              </div>
-              {approvalLetterDoc ? (
-                <span style={{ fontSize: '10px', fontWeight: 600, color: '#10b981', flexShrink: 0 }}>Uploaded</span>
-              ) : (
-                <div style={{ display: 'flex', gap: '4px', flexShrink: 0, alignItems: 'center' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '4px 9px', borderRadius: '5px', border: '1px solid rgba(167,139,250,0.3)', background: 'rgba(167,139,250,0.1)', color: '#a78bfa', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}>
-                    <FileText size={11} />Choose
-                    <input type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" onChange={e => { setApprovalLetterFile(e.target.files?.[0] ?? null); e.target.value = '' }} style={{ display: 'none' }} />
-                  </label>
-                  {approvalLetterFile && (
-                    <button onClick={handleUploadApprovalLetter} disabled={uploadingApprovalLetter}
-                      style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '4px 9px', borderRadius: '5px', border: 'none', background: uploadingApprovalLetter ? 'rgba(16,185,129,0.4)' : '#059669', color: 'white', fontSize: '11px', fontWeight: 500, cursor: uploadingApprovalLetter ? 'not-allowed' : 'pointer' }}>
-                      <Upload size={11} />{uploadingApprovalLetter ? '...' : 'Upload'}
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-            {/* Updated Paperwork */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 13px', background: updatedPaperworkDoc ? 'rgba(16,185,129,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${updatedPaperworkDoc ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.08)'}`, borderRadius: '8px' }}>
               {updatedPaperworkDoc ? <CheckCircle size={14} color="#10b981" style={{ flexShrink: 0 }} /> : <Upload size={14} color="#6b7280" style={{ flexShrink: 0 }} />}
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -535,11 +507,20 @@ function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoadi
                 </p>
               </div>
               {updatedPaperworkDoc ? (
-                <span style={{ fontSize: '10px', fontWeight: 600, color: '#10b981', flexShrink: 0 }}>Uploaded</span>
+                <button onClick={handleRemoveUpdatedPaperwork} disabled={removingUpdatedPaperwork}
+                  style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '4px 9px', borderRadius: '5px', border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '11px', fontWeight: 500, cursor: removingUpdatedPaperwork ? 'not-allowed' : 'pointer' }}>
+                  <X size={11} />{removingUpdatedPaperwork ? '...' : 'Remove'}
+                </button>
               ) : (
                 <div style={{ display: 'flex', gap: '4px', flexShrink: 0, alignItems: 'center' }}>
+                  {updatedPaperworkFile && (
+                    <button onClick={() => setUpdatedPaperworkFile(null)}
+                      style={{ display: 'flex', alignItems: 'center', padding: '4px 7px', borderRadius: '5px', border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '11px', cursor: 'pointer' }}>
+                      <X size={11} />
+                    </button>
+                  )}
                   <label style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '4px 9px', borderRadius: '5px', border: '1px solid rgba(167,139,250,0.3)', background: 'rgba(167,139,250,0.1)', color: '#a78bfa', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}>
-                    <FileText size={11} />Choose
+                    <FileText size={11} />{updatedPaperworkFile ? 'Change' : 'Choose'}
                     <input type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" onChange={e => { setUpdatedPaperworkFile(e.target.files?.[0] ?? null); e.target.value = '' }} style={{ display: 'none' }} />
                   </label>
                   {updatedPaperworkFile && (
@@ -573,9 +554,9 @@ function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoadi
               style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: rejectComment.trim() ? 'rgba(239,68,68,0.85)' : 'rgba(239,68,68,0.25)', color: 'white', fontSize: '13px', fontWeight: 500, cursor: rejectComment.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: rejectLoading ? 0.7 : 1 }}>
               <XCircle size={14} />{rejectLoading ? 'Rejecting...' : 'Reject'}
             </button>
-            <button onClick={onApprove} disabled={actionLoading || !bothDocsUploaded}
-              title={!bothDocsUploaded ? 'Upload both approval documents first' : undefined}
-              style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: bothDocsUploaded ? 'linear-gradient(135deg, #059669, #10b981)' : 'rgba(16,185,129,0.2)', color: bothDocsUploaded ? 'white' : '#4b5563', fontSize: '13px', fontWeight: 500, cursor: bothDocsUploaded && !actionLoading ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: actionLoading ? 0.7 : 1 }}>
+            <button onClick={onApprove} disabled={actionLoading || !updatedPaperworkDoc}
+              title={!updatedPaperworkDoc ? 'Upload updated paperwork first' : undefined}
+              style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: updatedPaperworkDoc ? 'linear-gradient(135deg, #059669, #10b981)' : 'rgba(16,185,129,0.2)', color: updatedPaperworkDoc ? 'white' : '#4b5563', fontSize: '13px', fontWeight: 500, cursor: updatedPaperworkDoc && !actionLoading ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: actionLoading ? 0.7 : 1 }}>
               <CheckCircle size={14} />{actionLoading ? 'Approving...' : 'Approve'}
             </button>
           </div>
@@ -790,7 +771,7 @@ export default function AdminHomepage() {
       setProfile(profileData as any)
 
       const [{ data: programmeData }, { count }] = await Promise.all([
-        supabase.from('programmes').select('*').order('created_at', { ascending: false }),
+        supabase.from('programmes').select('*').eq('advisor_id', profileData.id).order('created_at', { ascending: false }),
         supabase.from('users').select('*', { count: 'exact', head: true }),
       ])
 
@@ -873,7 +854,7 @@ export default function AdminHomepage() {
       method: 'POST', headers: { Authorization: `Bearer ${token}` },
     })
     if (res.ok) {
-      setProgrammes(prev => prev.map(p => p.id === reviewProg.id ? { ...p, status: 'Approved' } : p))
+      setProgrammes(prev => prev.map(p => p.id === reviewProg.id ? { ...p, status: 'Under Review' } : p))
       setReviewProg(null)
     } else {
       const data = await res.json()
@@ -907,6 +888,7 @@ export default function AdminHomepage() {
   const stats = {
     total:       programmes.length,
     pending:     programmes.filter(p => p.status === 'Pending').length,
+    underReview: programmes.filter(p => p.status === 'Under Review').length,
     approved:    programmes.filter(p => p.status === 'Approved').length,
     rejected:    programmes.filter(p => p.status === 'Rejected').length,
     totalBudget: programmes.filter(p => p.status !== 'Rejected').reduce((sum, p) => sum + (Number(p.budget) || 0), 0),
@@ -1023,10 +1005,10 @@ export default function AdminHomepage() {
                   style={{ width: '100%', padding: '8px 10px 8px 28px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '7px', color: '#e2e8f0', fontSize: '12px', outline: 'none', boxSizing: 'border-box' }} />
               </div>
               <div style={{ display: 'flex', gap: '4px', overflowX: 'auto', paddingBottom: '2px' }}>
-                {(['All', 'Pending', 'Approved', 'Rejected'] as const).map(s => (
+                {(['All', 'Pending', 'Under Review', 'Approved', 'Rejected'] as const).map(s => (
                   <button key={s} onClick={() => setFilterStatus(s)}
                     style={{ padding: '5px 10px', borderRadius: '5px', border: 'none', cursor: 'pointer', fontSize: '10px', fontWeight: 500, whiteSpace: 'nowrap', flexShrink: 0, background: filterStatus === s ? 'rgba(124,58,237,0.2)' : 'rgba(255,255,255,0.04)', color: filterStatus === s ? '#a78bfa' : '#6b7280' }}>
-                    {s}{s !== 'All' && ` (${s === 'Pending' ? stats.pending : s === 'Approved' ? stats.approved : stats.rejected})`}
+                    {s}{s !== 'All' && ` (${s === 'Pending' ? stats.pending : s === 'Under Review' ? stats.underReview : s === 'Approved' ? stats.approved : stats.rejected})`}
                   </button>
                 ))}
               </div>
@@ -1059,6 +1041,7 @@ export default function AdminHomepage() {
           prog={reviewProg} isMobile={true} {...modalProps}
           onClose={handleCloseReview}
           onCommentChange={setRejectComment} onApprove={handleApprove} onReject={handleReject}
+          onDocsChange={setReviewDocs}
         />
         <LoadingOverlay actionLoading={actionLoading} rejectLoading={rejectLoading} deleteLoading={deleteLoading} rejectComment={rejectComment} />
       </div>
@@ -1146,10 +1129,10 @@ export default function AdminHomepage() {
                   style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '7px', padding: '7px 10px 7px 30px', color: '#e2e8f0', fontSize: '12px', outline: 'none', width: '180px' }} />
               </div>
               <div style={{ display: 'flex', gap: '4px' }}>
-                {['All', 'Pending', 'Approved', 'Rejected'].map(s => (
+                {['All', 'Pending', 'Under Review', 'Approved', 'Rejected'].map(s => (
                   <button key={s} onClick={() => setFilterStatus(s)}
                     style={{ padding: '6px 10px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: 500, background: filterStatus === s ? 'rgba(124,58,237,0.2)' : 'rgba(255,255,255,0.04)', color: filterStatus === s ? '#a78bfa' : '#6b7280' }}>
-                    {s}{s !== 'All' && <span style={{ marginLeft: '4px', fontSize: '10px', opacity: 0.7 }}>({s === 'Pending' ? stats.pending : s === 'Approved' ? stats.approved : stats.rejected})</span>}
+                    {s}{s !== 'All' && <span style={{ marginLeft: '4px', fontSize: '10px', opacity: 0.7 }}>({s === 'Pending' ? stats.pending : s === 'Under Review' ? stats.underReview : s === 'Approved' ? stats.approved : stats.rejected})</span>}
                   </button>
                 ))}
               </div>
@@ -1167,6 +1150,7 @@ export default function AdminHomepage() {
         prog={reviewProg} isMobile={false} {...modalProps}
         onClose={() => { setReviewProg(null); setRejectComment('') }}
         onCommentChange={setRejectComment} onApprove={handleApprove} onReject={handleReject}
+        onDocsChange={setReviewDocs}
       />
       <LoadingOverlay actionLoading={actionLoading} rejectLoading={rejectLoading} deleteLoading={deleteLoading} rejectComment={rejectComment} />
     </div>

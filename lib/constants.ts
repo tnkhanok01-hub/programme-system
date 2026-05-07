@@ -19,7 +19,6 @@ export const POST_CHECKLIST = [
 ]
 
 export const APPROVAL_CHECKLIST = [
-  { key: 'approval_letter',   label: 'Approval Letter',            hint: 'Official approval letter issued by admin' },
   { key: 'updated_paperwork', label: 'Updated Paperwork (Signed)', hint: 'Signed and finalised programme paperwork' },
 ]
 

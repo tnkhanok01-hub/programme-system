@@ -6,7 +6,7 @@ import { supabase } from '../../lib/supabaseClient'
 import {
   ArrowLeft, CalendarPlus, CirclePlus, Loader2,
   BookOpen, MapPin, DollarSign, Calendar, AlignLeft, Tag,
-  CheckCircle, XCircle, Upload, X, FileText,
+  CheckCircle, XCircle, Upload, X, FileText, Users,
 } from 'lucide-react'
 import { PRE_CHECKLIST } from '../../lib/constants'
 
@@ -20,6 +20,8 @@ export default function CreateProgrammePage() {
   const [isMobile, setIsMobile] = useState(false)
   const [preFiles, setPreFiles] = useState<Record<string, File | null>>({ paperwork: null, oshe: null, poster: null })
   const [uploadStep, setUploadStep] = useState('')
+  const [advisorId, setAdvisorId] = useState('')
+  const [admins, setAdmins] = useState<{ id: string; full_name: string }[]>([])
 
   const [form, setForm] = useState({
     name: '',
@@ -43,6 +45,14 @@ export default function CreateProgrammePage() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.replace('/login'); return }
       setLoading(false)
+      // Fetch admin list for advisor dropdown
+      const res = await fetch('/api/admins', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setAdmins(data.admins ?? [])
+      }
     }
     checkSession()
   }, [])
@@ -113,6 +123,7 @@ export default function CreateProgrammePage() {
     if (budgetCents <= 0) { setBudgetError('Budget must be more than RM 0.00'); return }
     if (budgetCents > 499999) { setBudgetError('Budget must be below RM 5,000.00'); return }
     if (PRE_CHECKLIST.some(item => !preFiles[item.key])) return
+    if (!advisorId) { alert('Please select an advisor.'); setSubmitting(false); return }
 
     setSubmitting(true)
 
@@ -125,7 +136,7 @@ export default function CreateProgrammePage() {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify({ ...form, budget: parseFloat(form.budget) }),
+      body: JSON.stringify({ ...form, budget: parseFloat(form.budget), advisor_id: advisorId }),
     })
 
     const result = await res.json()
@@ -315,6 +326,22 @@ export default function CreateProgrammePage() {
                 </select>
               </div>
 
+              {/* Advisor */}
+              <div>
+                <label style={labelStyle}><Users size={11} />Advisor</label>
+                <select
+                  style={{ ...inputStyle, cursor: 'pointer' }}
+                  value={advisorId}
+                  onChange={e => setAdvisorId(e.target.value)}
+                  required
+                >
+                  <option value="" disabled>Select an advisor</option>
+                  {admins.map(a => (
+                    <option key={a.id} value={a.id}>{a.full_name}</option>
+                  ))}
+                </select>
+              </div>
+
               {/* Dates — stacked on mobile, side-by-side on desktop */}
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? '14px' : '14px' }}>
                 <div>
@@ -492,7 +519,7 @@ export default function CreateProgrammePage() {
 
               {(() => {
                 const preAllDone = PRE_CHECKLIST.every(item => !!preFiles[item.key])
-                const isDisabled = submitting || !!budgetError || !!dateError || !preAllDone
+                const isDisabled = submitting || !!budgetError || !!dateError || !preAllDone || !advisorId
                 return (
                   <button
                     type="submit"

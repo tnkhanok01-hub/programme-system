@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { ArrowLeft } from 'lucide-react'
@@ -25,7 +25,7 @@ const labelStyle: React.CSSProperties = {
   color: '#94a3b8',
 }
 
-export default function PreSurvey() {
+function PreSurveyContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
@@ -159,5 +159,13 @@ export default function PreSurvey() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function PreSurvey() {
+  return (
+    <Suspense fallback={null}>
+      <PreSurveyContent />
+    </Suspense>
   )
 }
