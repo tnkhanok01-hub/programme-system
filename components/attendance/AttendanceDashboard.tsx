@@ -1,5 +1,4 @@
 'use client'
-import { validateAttendance } from '@/lib/attendance'
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
@@ -19,6 +18,7 @@ interface Programme {
   start_date: string
   end_date: string
   status: string
+  programme_director_id: string
 }
 
 interface UserSurvey {
@@ -66,16 +66,11 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
       const userId = session.user.id
       setCurrentUserId(userId)
 
-      const todayStr = new Date().toISOString().split('T')[0]
-      let attendanceRows: any[] = []
-      if (sysRole === 'student') {
-        const { data } = await supabase.from('attendance').select('*').eq('user_id', userId)
-        attendanceRows = data || []
-      } else {
-        const { data } = await supabase.from('attendance').select('*')
-        attendanceRows = data || []
-      }
-      setAttendance(attendanceRows)
+      const todayStr = new Date().toLocaleDateString('sv-SE')
+      
+      // Fetch ALL attendance records to count participants correctly for everyone
+      const { data: attData } = await supabase.from('attendance').select('*')
+      setAttendance(attData || [])
 
       // Fetch ALL approved programmes that have started or start today
       const { data: progData } = await supabase
@@ -92,12 +87,12 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
       setRoles(roleData || [])
 
       if (sysRole === 'student') {
-        // Filter programmes: Only show if student has a role OR has submitted a survey (i.e. participated)
+        // Filter programmes: Show if user has a role OR submitted a survey OR is the Programme Director
         const activeProgIds = new Set([
           ...(surveyData?.map(s => s.programme_id) || []),
           ...(roleData?.map(r => r.programme_id) || [])
         ])
-        setProgrammes((progData || []).filter(p => activeProgIds.has(p.id)))
+        setProgrammes((progData || []).filter(p => activeProgIds.has(p.id) || p.programme_director_id === userId))
       } else {
         // Admin / Superadmin sees all approved ongoing/expired programmes
         setProgrammes(progData || [])
@@ -109,7 +104,7 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
   }, [sysRole, router])
 
   // --- Logic Helpers ---
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = new Date().toLocaleDateString('sv-SE')
   
   const filteredProgrammes = programmes.filter(p => {
     const isOngoing = p.end_date >= todayStr
@@ -118,23 +113,35 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
     return matchTab && matchSearch
   })
 
-  const getAttendanceStatus = (progId: string) => {
-    const record = attendance.find(
-      a => String(a.programme_id) === String(progId) && a.user_id === currentUserId
-    )
-    if (!record) return false
-    return validateAttendance({
-      qr_start:    record.qr_start    ?? false,
-      qr_end:      record.qr_end      ?? false,
-      pre_survey:  record.pre_survey  ?? false,
-      post_survey: record.post_survey ?? false,
-    }) === 'valid'
-  }
-
   const handleScan = async (result: string) => {
     try {
       const payload = JSON.parse(result)
       if (!payload.spms_qr || !payload.progId || !payload.type) return
+
+      // Check if user is a participant or the Programme Director
+      const { data: roleCheck } = await supabase
+        .from('programme_roles')
+        .select('role')
+        .eq('user_id', currentUserId)
+        .eq('programme_id', payload.progId)
+        .maybeSingle()
+      
+      let isAllowed = !!roleCheck
+      if (!isAllowed) {
+        const { data: progCheck } = await supabase
+          .from('programmes')
+          .select('id')
+          .eq('id', payload.progId)
+          .eq('programme_director_id', currentUserId)
+          .maybeSingle()
+        if (progCheck) isAllowed = true
+      }
+
+      if (!isAllowed) {
+        alert('You are not a participant of this programme.')
+        setShowScanner(false)
+        return
+      }
 
       // Anti-cheat: check if survey already submitted
       const { data: existing } = await supabase
@@ -174,9 +181,10 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
 
   const myRoleInProg = (progId: string) => roles.find(r => r.programme_id === progId)?.role || 'Participant'
 
-  const canGenerateQR = (progId: string) => {
+  const canGenerateQR = (prog: Programme) => {
     if (sysRole === 'admin' || sysRole === 'superadmin') return true
-    const role = myRoleInProg(progId)
+    if (prog.programme_director_id === currentUserId) return true
+    const role = myRoleInProg(prog.id)
     const allowed = ['Programme Director', 'Vice Director - Activity', 'Vice Director - Management', 'Secretary', 'Vice Secretary']
     return allowed.includes(role)
   }
@@ -274,13 +282,11 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
         ) : (
           filteredProgrammes.map(prog => {
             const progAttendance = attendance.filter(
-  a => String(a.programme_id) === String(prog.id)
-)
-            const isAttended = getAttendanceStatus(prog.id)
+              a => String(a.programme_id) === String(prog.id)
+            )
             return (
               <div 
-  key={prog.id}
-
+                key={prog.id}
                 style={{ background: '#0c1526', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px', cursor: 'default', transition: 'border-color 0.2s, background 0.2s' }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(99,102,241,0.4)'; e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.background = '#0c1526' }}
@@ -290,9 +296,28 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
                   
                   {/* Status Badge - Only for students */}
                   {sysRole === 'student' && (
-                    <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, background: isAttended ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: isAttended ? '#10b981' : '#ef4444' }}>
-                      {isAttended ? <><CheckCircle size={12} />Completed</> : <><XCircle size={12} />Pending</>}
-                    </span>
+                    (() => {
+                      const progSurveys = surveys.filter(s => String(s.programme_id) === String(prog.id));
+                      const hasPre = progSurveys.some(s => s.type === 'pre');
+                      const hasPost = progSurveys.some(s => s.type === 'post');
+                      
+                      let surveyStatusLabel = '2 surveys remain';
+                      let badgeStyle = { color: '#ef4444', bg: 'rgba(239,68,68,0.1)', Icon: XCircle };
+
+                      if (hasPre && hasPost) {
+                        surveyStatusLabel = 'Completed';
+                        badgeStyle = { color: '#10b981', bg: 'rgba(16,185,129,0.1)', Icon: CheckCircle };
+                      } else if (hasPre || hasPost) {
+                        surveyStatusLabel = '1 survey remains';
+                        badgeStyle = { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', Icon: AlertCircle };
+                      }
+
+                      return (
+                        <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, background: badgeStyle.bg, color: badgeStyle.color }}>
+                          <badgeStyle.Icon size={12} />{surveyStatusLabel}
+                        </span>
+                      )
+                    })()
                   )}
                 </div>
                 
@@ -303,37 +328,21 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#64748b' }}>
                     <MapPin size={12} /> {prog.venue || 'N/A'}
                   </div>
-                  <div style={{
-  marginTop: '6px',
-  fontSize: '12px',
-  color: '#9ca3af'
-}}>
-  Participants: {progAttendance.length}
-</div>
-                  <button
-  onClick={() => setSelectedProg(prog)}
-  style={{
-    marginTop: '10px',
-    padding: '8px 12px',
-    background: '#3b82f6',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontWeight: '600'
-  }}
->
-  View Details
-</button>
+                  <div style={{ marginTop: '6px', fontSize: '12px', color: '#9ca3af' }}>
+                    Participants: {progAttendance.length}
                   </div>
+                  <button
+                    onClick={() => setSelectedProg(prog)}
+                    style={{ marginTop: '10px', padding: '8px 12px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
+                  >
+                    View Details
+                  </button>
                 </div>
-              
+              </div>
             )
           })
         )}
       </div>
-
-
 
       {/* Programme Details Modal */}
       {selectedProg && (
@@ -357,7 +366,7 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
 
             {/* Actions */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {canGenerateQR(selectedProg.id) && (
+              {canGenerateQR(selectedProg) && (
                 <div style={{ display: 'flex', gap: '10px' }}>
                   {/* Start QR */}
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -446,10 +455,10 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
             <div style={{ width: '100%', maxWidth: '500px' }}>
               <Scanner 
                 onScan={(result) => {
-  if (result && result.length > 0) {
-    handleScan(result[0].rawValue)
-  }
-}}
+                  if (result && result.length > 0) {
+                    handleScan(result[0].rawValue)
+                  }
+                }}
                 components={{ finder: true }}
                 sound={false}
                 styles={{ container: { width: '100%', height: '100vh' } }}
