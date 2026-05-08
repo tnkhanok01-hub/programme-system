@@ -129,21 +129,12 @@ function PreSurveyContent() {
             </div>
 
             <div>
-              <label style={labelStyle}>4. What is your role in this programme?</label>
-              <select style={inputStyle}>
-                <option>Participant</option>
-                <option>Committee Member</option>
-                <option>Observer</option>
-              </select>
-            </div>
-
-            <div>
-              <label style={labelStyle}>5. What skills do you hope to gain?</label>
+              <label style={labelStyle}>4. What skills do you hope to gain?</label>
               <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={3} />
             </div>
 
             <div>
-              <label style={labelStyle}>6. Suggestions before programme starts</label>
+              <label style={labelStyle}>5. Suggestions before programme starts</label>
               <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={3} />
             </div>
 
