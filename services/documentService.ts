@@ -1,6 +1,11 @@
 export async function getDocuments(programmeId: string) {
   const res = await fetch(`/api/programmes/${programmeId}/documents`)
-  if (!res.ok) throw new Error('Failed to fetch documents')
+  if (!res.ok) {
+    const body = await res.json().catch(() => null)
+    throw new Error(
+      `Failed to fetch documents [${res.status}]: ${JSON.stringify(body)}`
+    )
+  }
   return res.json()
 }
 

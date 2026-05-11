@@ -17,6 +17,7 @@ import CommitteeSection from '@/components/programmes/CommitteeSection'
 import ChecklistPhaseTab from '@/components/programmes/ChecklistPhaseTab'
 import DuringPhaseTab from '@/components/programmes/DuringPhaseTab'
 import DocRow from '@/components/programmes/DocRow'
+import SurveyReportTab from '@/components/programmes/SurveyReportTab'
 import { PHASES, PRE_CHECKLIST, POST_CHECKLIST, SINGLE_ROLE_LIMIT, APPROVAL_CHECKLIST } from '@/lib/constants'
 
 interface Programme {
@@ -38,7 +39,7 @@ interface CommitteeMember {
   users: { id: string; full_name: string; matric_number: string; phone?: string }
 }
 
-type Phase = 'pre' | 'during' | 'post'
+type Phase = 'pre' | 'during' | 'post' | 'survey'
 
 const statusConfig: Record<string, { color: string; bg: string; border: string; icon: React.ElementType }> = {
   Pending:        { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  border: 'rgba(245,158,11,0.2)',  icon: AlertCircle },
@@ -168,9 +169,9 @@ export default function ProgrammeDetailPage() {
       })
       setResubmitBudgetCents(prog.budget != null ? Math.round(prog.budget * 100) : 0)
 
-      const docs = await getDocuments(id)
-      const docsData = Array.isArray(docs) ? docs : docs.data
-      setPhaseDocs(docsData ?? [])
+      const docs = await getDocuments(id).catch(() => [])
+      const docsData = Array.isArray(docs) ? docs : (docs?.data ?? [])
+      setPhaseDocs(docsData)
       setLoading(false)
     }
     init()
@@ -505,14 +506,14 @@ export default function ProgrammeDetailPage() {
 
             {/* LIFECYCLE TABS */}
             <div style={{ background: '#0c1526', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '14px', overflow: 'hidden', marginBottom: '24px' }}>
-              <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)', overflowX: 'auto' }}>
                 {PHASES.map(phase => {
                   const isActive   = activeTab === phase.id
                   const count      = tabDocCount(phase.id)
                   const total      = checklistTotal(phase.id)
                   const isComplete = total !== null && count === total
                   return (
-                    <button key={phase.id} onClick={() => setActiveTab(phase.id)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: isMobile ? '12px 6px' : '14px 10px', border: 'none', borderBottom: isActive ? `2px solid ${phase.color}` : '2px solid transparent', background: isActive ? phase.activeBg : 'transparent', color: isActive ? phase.color : '#6b7280', fontSize: '13px', fontWeight: isActive ? 600 : 400, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", transition: 'all 0.15s' }}>
+                    <button key={phase.id} onClick={() => setActiveTab(phase.id)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: isMobile ? '12px 6px' : '14px 10px', border: 'none', borderBottom: isActive ? `2px solid ${phase.color}` : '2px solid transparent', background: isActive ? phase.activeBg : 'transparent', color: isActive ? phase.color : '#6b7280', fontSize: '13px', fontWeight: isActive ? 600 : 400, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
                       <Clock size={13} />{phase.label}
                       {count > 0 && (
                         <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '18px', height: '18px', padding: '0 5px', borderRadius: '9px', fontSize: '10px', fontWeight: 700, background: isComplete ? 'rgba(16,185,129,0.2)' : isActive ? phase.color : 'rgba(255,255,255,0.08)', color: isComplete ? '#10b981' : isActive ? '#070e1a' : '#94a3b8' }}>
@@ -522,11 +523,17 @@ export default function ProgrammeDetailPage() {
                     </button>
                   )
                 })}
+                {(isAdmin || isOwner) && (
+                  <button onClick={() => setActiveTab('survey')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: isMobile ? '12px 6px' : '14px 10px', border: 'none', borderBottom: activeTab === 'survey' ? '2px solid #f59e0b' : '2px solid transparent', background: activeTab === 'survey' ? 'rgba(245,158,11,0.12)' : 'transparent', color: activeTab === 'survey' ? '#f59e0b' : '#6b7280', fontSize: '13px', fontWeight: activeTab === 'survey' ? 600 : 400, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
+                    <Users size={13} />Surveys
+                  </button>
+                )}
               </div>
               <div style={{ padding: isMobile ? '14px' : '20px' }}>
                 {activeTab === 'pre'    && <ChecklistPhaseTab key="pre"    phase="pre"  checklist={PRE_CHECKLIST}  programmeId={programme.id} docs={phaseDocs} onDocsChange={(u) => setPhaseDocs(u)} canUpload={canUpload} />}
                 {activeTab === 'during' && <DuringPhaseTab    key="during"              programmeId={programme.id} docs={phaseDocs} onDocsChange={setPhaseDocs} canUpload={canUpload} />}
                 {activeTab === 'post'   && <ChecklistPhaseTab key="post"   phase="post" checklist={POST_CHECKLIST} programmeId={programme.id} docs={phaseDocs} onDocsChange={(u) => setPhaseDocs(u)} canUpload={canUpload} />}
+                {activeTab === 'survey' && (isAdmin || isOwner) && <SurveyReportTab key="survey" programmeId={programme.id} />}
               </div>
             </div>
 

@@ -227,6 +227,14 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
       {/* Header & Global Scan Button */}
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '24px' }}>
         <div>
+          <button
+            onClick={() => router.push(sysRole === 'superadmin' ? '/superadmin' : sysRole === 'admin' ? '/admin' : '/student')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', color: '#64748b', fontSize: '13px', cursor: 'pointer', padding: '0 0 8px', marginBottom: '4px' }}
+            onMouseEnter={e => e.currentTarget.style.color = '#94a3b8'}
+            onMouseLeave={e => e.currentTarget.style.color = '#64748b'}
+          >
+            <ArrowLeft size={14} /> Back to Home
+          </button>
           <h1 style={{ fontSize: '24px', fontWeight: 700, margin: '0 0 4px', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <QrCode size={22} color="#818cf8" />
             Programme Attendance
