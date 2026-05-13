@@ -10,7 +10,7 @@ interface SurveyRow {
   answers: Record<string, string>
   created_at: string
   user_id: string
-  users?: { full_name: string; matric_number: string }
+  users?: { full_name: string; matric_number: string }[]
 }
 
 interface Props {
