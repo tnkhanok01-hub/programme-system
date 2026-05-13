@@ -1,5 +1,5 @@
 'use client'
-
+import { Award } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
@@ -22,6 +22,7 @@ type UserProfile = {
 export default function ProfilePage() {
   const [user, setUser] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [meritPoints, setMeritPoints] = useState(0)
   const [isMobile, setIsMobile] = useState(false)
   const router = useRouter()
 
@@ -62,6 +63,16 @@ export default function ProfilePage() {
         }
         setUser(profile)
         setEditForm({ name: data.name ?? '', phone: data.phone ?? '', matric: data.matric ?? '', staff: data.staff ?? '' })
+        const { data: meritData } = await supabase
+  .from('merit')
+  .select('points')
+  .eq('user_id', data.id)
+  .eq('status', 'Approved')
+
+const totalMerit =
+  meritData?.reduce((sum, item) => sum + (item.points || 0), 0) || 0
+
+setMeritPoints(totalMerit)
         setLoading(false)
       }
     }
@@ -357,6 +368,87 @@ export default function ProfilePage() {
 
           </div>
 
+{user?.role === 'student' && (
+  <div
+    style={{
+      background: '#0b1220',
+      border: '1px solid rgba(255,255,255,0.06)',
+      borderRadius: '20px',
+      padding: '24px',
+      marginBottom: '20px'
+    }}
+  >
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}
+    >
+      <div>
+        <p
+          style={{
+            color: '#64748b',
+            fontSize: '12px',
+            margin: 0,
+            marginBottom: '10px',
+            letterSpacing: '1px',
+            textTransform: 'uppercase'
+          }}
+        >
+          Total Merit Points
+        </p>
+
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'baseline',
+            gap: '8px'
+          }}
+        >
+          <h1
+            style={{
+              color: 'white',
+              fontSize: '36px',
+              fontWeight: '700',
+              margin: 0,
+              lineHeight: 1
+            }}
+          >
+            {meritPoints}
+          </h1>
+
+          <span
+            style={{
+              color: '#64748b',
+              fontSize: '14px'
+            }}
+          >
+            points
+          </span>
+        </div>
+      </div>
+
+      <div
+        style={{
+          width: '64px',
+          height: '64px',
+          borderRadius: '18px',
+          background: 'rgba(59,130,246,0.08)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          border: '1px solid rgba(59,130,246,0.12)'
+        }}
+      >
+        <Award
+          size={28}
+          color="#60a5fa"
+        />
+      </div>
+    </div>
+  </div>
+)}
           {/* Logout */}
           <button
             onClick={handleLogout}

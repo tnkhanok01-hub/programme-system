@@ -86,8 +86,17 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
       setSurveys(surveyData || [])
       setRoles(roleData || [])
 
-      // All roles see all approved programmes that have started
-      setProgrammes(progData || [])
+      if (sysRole === 'student') {
+        // Filter programmes: Show if user has a role OR submitted a survey OR is the Programme Director
+        const activeProgIds = new Set([
+          ...(surveyData?.map(s => s.programme_id) || []),
+          ...(roleData?.map(r => r.programme_id) || [])
+        ])
+        setProgrammes((progData || []).filter(p => activeProgIds.has(p.id) || p.programme_director_id === userId))
+      } else {
+        // Admin / Superadmin sees all approved ongoing/expired programmes
+        setProgrammes(progData || [])
+      }
 
       setLoading(false)
     }
@@ -108,6 +117,31 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
     try {
       const payload = JSON.parse(result)
       if (!payload.spms_qr || !payload.progId || !payload.type) return
+
+      // Check if user is a participant or the Programme Director
+      const { data: roleCheck } = await supabase
+        .from('programme_roles')
+        .select('role')
+        .eq('user_id', currentUserId)
+        .eq('programme_id', payload.progId)
+        .maybeSingle()
+      
+      let isAllowed = !!roleCheck
+      if (!isAllowed) {
+        const { data: progCheck } = await supabase
+          .from('programmes')
+          .select('id')
+          .eq('id', payload.progId)
+          .eq('programme_director_id', currentUserId)
+          .maybeSingle()
+        if (progCheck) isAllowed = true
+      }
+
+      if (!isAllowed) {
+        alert('You are not a participant of this programme.')
+        setShowScanner(false)
+        return
+      }
 
       // Anti-cheat: check if survey already submitted
       const { data: existing } = await supabase
@@ -139,6 +173,30 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
       }
 
       setShowScanner(false)
+      const { data: completedSurveys } = await supabase
+  .from('surveys')
+  .select('type')
+  .eq('user_id', currentUserId)
+  .eq('programme_id', payload.progId)
+
+const hasPreSurvey =
+  completedSurveys?.some(s => s.type === 'pre') ||
+  payload.type === 'pre'
+
+const hasPostSurvey =
+  completedSurveys?.some(s => s.type === 'post') ||
+  payload.type === 'post'
+
+if (hasPreSurvey && hasPostSurvey) {
+  await supabase
+    .from('merit')
+    .upsert({
+      user_id: currentUserId,
+      programme_id: payload.progId,
+      points: 10,
+      status: 'Completed'
+    })
+}
       router.push(`/student/${payload.type}-survey?programme_id=${payload.progId}`)
     } catch {
       // Ignore non-SPMS QR codes silently
@@ -146,6 +204,36 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
   }
 
   const myRoleInProg = (progId: string) => roles.find(r => r.programme_id === progId)?.role || 'Participant'
+
+  const canGenerateQR = (prog: Programme) => {
+    if (sysRole === 'admin' || sysRole === 'superadmin') return true
+    if (prog.programme_director_id === currentUserId) return true
+    const role = myRoleInProg(prog.id)
+    const allowed = ['Programme Director', 'Vice Director - Activity', 'Vice Director - Management', 'Secretary', 'Vice Secretary']
+    return allowed.includes(role)
+  }
+
+  const isExpired = (prog: Programme) => prog.end_date < todayStr
+
+  const canGeneratePreQR = (prog: Programme) =>
+    prog.status === 'Approved' && !isExpired(prog) && prog.start_date === todayStr
+
+  const canGeneratePostQR = (prog: Programme) =>
+    prog.status === 'Approved' && prog.end_date === todayStr
+
+  const preQRReason = (prog: Programme): string => {
+    if (prog.status !== 'Approved') return 'Programme is not approved'
+    if (isExpired(prog)) return 'Programme has already ended'
+    if (prog.start_date < todayStr) return `Only available on start date (${new Date(prog.start_date + 'T00:00:00').toLocaleDateString('en-MY')})`
+    return ''
+  }
+
+  const postQRReason = (prog: Programme): string => {
+    if (prog.status !== 'Approved') return 'Programme is not approved'
+    if (prog.end_date < todayStr) return 'Programme has already ended'
+    if (prog.end_date > todayStr) return `Only available on end date (${new Date(prog.end_date + 'T00:00:00').toLocaleDateString('en-MY')})`
+    return ''
+  }
 
   // --- UI Renders ---
   if (loading) {
@@ -163,18 +251,12 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
       {/* Header & Global Scan Button */}
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '24px' }}>
         <div>
-          <button
-            onClick={() => router.push(sysRole === 'superadmin' ? '/superadmin' : sysRole === 'admin' ? '/admin' : '/student')}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', color: '#64748b', fontSize: '13px', cursor: 'pointer', padding: '0 0 8px', marginBottom: '4px' }}
-          >
-            <ArrowLeft size={14} /> Back to Home
-          </button>
           <h1 style={{ fontSize: '24px', fontWeight: 700, margin: '0 0 4px', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <QrCode size={22} color="#818cf8" />
             Programme Attendance
           </h1>
           <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
-            {sysRole === 'student' ? 'Track your participation and scan QR codes.' : 'Manage programme attendance and generate QR codes.'}
+            {sysRole === 'student' ? 'Track your participation and scan QR codes.' : 'Monitor attendance, surveys, and automatic merit awarding.'}
           </p>
         </div>
 
@@ -307,30 +389,58 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
             </div>
 
             {/* Actions */}
-            <div style={{ display: 'flex', gap: '10px' }}>
-              {(() => {
-                const expired = selectedProg.end_date < todayStr
-                return expired ? (
-                  <div style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)', color: '#374151', fontSize: '13px', fontWeight: 600, textAlign: 'center' }}>
-                    Programme has ended — QR unavailable
-                  </div>
-                ) : (
-                  <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {canGenerateQR(selectedProg) && (
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  {/* Start QR */}
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <button
-                      onClick={() => setQrModal({ progId: selectedProg.id, type: 'pre', name: selectedProg.name })}
-                      style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.1)', color: '#10b981', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                      onClick={() => canGeneratePreQR(selectedProg) && setQrModal({ progId: selectedProg.id, type: 'pre', name: selectedProg.name })}
+                      disabled={!canGeneratePreQR(selectedProg)}
+                      style={{
+                        width: '100%', padding: '12px', borderRadius: '8px',
+                        border: `1px solid ${canGeneratePreQR(selectedProg) ? 'rgba(16,185,129,0.3)' : 'rgba(100,116,139,0.2)'}`,
+                        background: canGeneratePreQR(selectedProg) ? 'rgba(16,185,129,0.1)' : 'rgba(100,116,139,0.05)',
+                        color: canGeneratePreQR(selectedProg) ? '#10b981' : '#475569',
+                        fontSize: '13px', fontWeight: 600,
+                        cursor: canGeneratePreQR(selectedProg) ? 'pointer' : 'not-allowed',
+                        opacity: canGeneratePreQR(selectedProg) ? 1 : 0.65,
+                      }}
                     >
                       Generate Start QR
                     </button>
+                    {preQRReason(selectedProg) && (
+                      <p style={{ margin: 0, fontSize: '11px', color: '#64748b', textAlign: 'center', lineHeight: 1.4 }}>
+                        {preQRReason(selectedProg)}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* End QR */}
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <button
-                      onClick={() => setQrModal({ progId: selectedProg.id, type: 'post', name: selectedProg.name })}
-                      style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid rgba(245,158,11,0.3)', background: 'rgba(245,158,11,0.1)', color: '#f59e0b', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                      onClick={() => canGeneratePostQR(selectedProg) && setQrModal({ progId: selectedProg.id, type: 'post', name: selectedProg.name })}
+                      disabled={!canGeneratePostQR(selectedProg)}
+                      style={{
+                        width: '100%', padding: '12px', borderRadius: '8px',
+                        border: `1px solid ${canGeneratePostQR(selectedProg) ? 'rgba(245,158,11,0.3)' : 'rgba(100,116,139,0.2)'}`,
+                        background: canGeneratePostQR(selectedProg) ? 'rgba(245,158,11,0.1)' : 'rgba(100,116,139,0.05)',
+                        color: canGeneratePostQR(selectedProg) ? '#f59e0b' : '#475569',
+                        fontSize: '13px', fontWeight: 600,
+                        cursor: canGeneratePostQR(selectedProg) ? 'pointer' : 'not-allowed',
+                        opacity: canGeneratePostQR(selectedProg) ? 1 : 0.65,
+                      }}
                     >
                       Generate End QR
                     </button>
-                  </>
-                )
-              })()}
+                    {postQRReason(selectedProg) && (
+                      <p style={{ margin: 0, fontSize: '11px', color: '#64748b', textAlign: 'center', lineHeight: 1.4 }}>
+                        {postQRReason(selectedProg)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
