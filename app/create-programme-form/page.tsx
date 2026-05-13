@@ -18,7 +18,7 @@ export default function CreateProgrammePage() {
   const [budgetCents, setBudgetCents] = useState(0)
   const [dateError, setDateError] = useState('')
   const [isMobile, setIsMobile] = useState(false)
-  const [preFiles, setPreFiles] = useState<Record<string, File | null>>({ paperwork: null, oshe: null, poster: null })
+  const [preFiles, setPreFiles] = useState<Record<string, File | null>>({ paperwork: null })
   const [uploadStep, setUploadStep] = useState('')
   const [advisorId, setAdvisorId] = useState('')
   const [admins, setAdmins] = useState<{ id: string; full_name: string }[]>([])
@@ -122,7 +122,7 @@ export default function CreateProgrammePage() {
     if (budgetError || dateError) return
     if (budgetCents <= 0) { setBudgetError('Budget must be more than RM 0.00'); return }
     if (budgetCents > 499999) { setBudgetError('Budget must be below RM 5,000.00'); return }
-    if (PRE_CHECKLIST.some(item => !preFiles[item.key])) return
+    if (!preFiles['paperwork']) return
     if (!advisorId) { alert('Please select an advisor.'); setSubmitting(false); return }
 
     setSubmitting(true)
@@ -148,7 +148,7 @@ export default function CreateProgrammePage() {
 
     const programmeId = result.programme.id
 
-    for (const item of PRE_CHECKLIST) {
+    for (const item of PRE_CHECKLIST.filter(i => i.key === 'paperwork')) {
       const file = preFiles[item.key]
       if (!file) continue
       setUploadStep(`Uploading ${item.label}...`)
@@ -432,7 +432,7 @@ export default function CreateProgrammePage() {
                       </span>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {PRE_CHECKLIST.map(item => {
+                      {PRE_CHECKLIST.filter(item => item.key === 'paperwork').map(item => {
                         const file = preFiles[item.key]
                         const done = !!file
                         return (
@@ -518,7 +518,7 @@ export default function CreateProgrammePage() {
               </button>
 
               {(() => {
-                const preAllDone = PRE_CHECKLIST.every(item => !!preFiles[item.key])
+                const preAllDone = !!preFiles['paperwork']
                 const isDisabled = submitting || !!budgetError || !!dateError || !preAllDone || !advisorId
                 return (
                   <button

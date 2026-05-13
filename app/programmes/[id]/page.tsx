@@ -8,7 +8,7 @@ import {
   ArrowLeft, CheckCircle, XCircle, AlertCircle, Clock,
   Calendar, MapPin, DollarSign, BookOpen, RefreshCw,
   Upload, FileText, Download, Eye, X, Trash2,
-  Users, UserPlus, UserX, Hash,
+  Users, UserPlus, UserX, Hash, UserCheck,
 } from 'lucide-react'
 
 import jsPDF from 'jspdf'
@@ -119,6 +119,7 @@ export default function ProgrammeDetailPage() {
   const [deleteError, setDeleteError] = useState('')
   const [approvalPreviewDoc, setApprovalPreviewDoc] = useState<PhaseDoc | null>(null)
   const [directorInfo, setDirectorInfo] = useState<{ full_name: string; matric_number: string } | null>(null)
+  const [advisorInfo, setAdvisorInfo] = useState<{ full_name: string; email?: string } | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -160,6 +161,14 @@ export default function ProgrammeDetailPage() {
         .eq('id', prog.programme_director_id)
         .single()
       if (dirData) setDirectorInfo(dirData as any)
+      if (prog.advisor_id) {
+        const { data: advData } = await supabase
+          .from('users')
+          .select('full_name, email')
+          .eq('id', prog.advisor_id)
+          .single()
+        if (advData) setAdvisorInfo(advData as any)
+      }
       setForm({
         name: prog.name ?? '', category: prog.category ?? '', venue: prog.venue ?? '',
         budget: prog.budget != null ? Number(prog.budget).toFixed(2) : '0.00',
@@ -418,40 +427,76 @@ export default function ProgrammeDetailPage() {
 
             {/* ── Header ── */}
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px', gap: '12px', flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 700, color: '#f1f5f9', letterSpacing: '-0.02em' }}>{programme.name}</h1>
-                <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#4b5563' }}>
-                  Submitted {new Date(programme.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' })}
-                </p>
-              </div>
+              {/* Title — hidden on mobile since it's in the sticky nav */}
+              {!isMobile && (
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 700, color: '#f1f5f9', letterSpacing: '-0.02em' }}>{programme.name}</h1>
+                  <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#4b5563' }}>
+                    Submitted {new Date(programme.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </p>
+                </div>
+              )}
 
-              {/* Right: badges stacked + delete button */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px', flexShrink: 0 }}>
-                {/* Row: approval status + approval letter + delete */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`, borderRadius: '8px', padding: '6px 12px', fontSize: '12px', fontWeight: 600 }}>
-                    <StatusIcon size={13} />{programme.status}
-                  </span>
+              {/* Mobile: submitted date + badges stacked full width */}
+              {isMobile && (
+                <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#4b5563' }}>
+                    Submitted {new Date(programme.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </p>
+                  {/* Row 1: status + delete */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`, borderRadius: '8px', padding: '6px 12px', fontSize: '12px', fontWeight: 600 }}>
+                      <StatusIcon size={13} />{programme.status}
+                    </span>
+                    {programme.status === 'Approved' && programme.start_date && programme.end_date && (
+                      <LifecycleBadge start={programme.start_date} end={programme.end_date} />
+                    )}
+                    {isOwner && (
+                      <button onClick={() => setShowDeleteModal(true)} title="Delete programme"
+                        style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '34px', height: '34px', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', cursor: 'pointer' }}>
+                        <Trash2 size={15} />
+                      </button>
+                    )}
+                  </div>
+                  {/* Row 2: approval letter full width */}
                   {programme.status === 'Approved' && isOwner && (
                     <button
                       onClick={generateApprovalLetter}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.1)', color: '#10b981', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
+                      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px', padding: '9px 12px', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.1)', color: '#10b981', fontSize: '13px', fontWeight: 500, cursor: 'pointer', width: '100%' }}
                     >
-                      <Download size={13} />Approval Letter
-                    </button>
-                  )}
-                  {isOwner && (
-                    <button onClick={() => setShowDeleteModal(true)} title="Delete programme"
-                      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '34px', height: '34px', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', cursor: 'pointer' }}>
-                      <Trash2 size={15} />
+                      <Download size={13} />Download Approval Letter
                     </button>
                   )}
                 </div>
-                {/* Lifecycle badge — only when Approved and dates exist */}
-                {programme.status === 'Approved' && programme.start_date && programme.end_date && (
-                  <LifecycleBadge start={programme.start_date} end={programme.end_date} />
-                )}
-              </div>
+              )}
+
+              {/* Desktop: right-side badges */}
+              {!isMobile && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px', flexShrink: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`, borderRadius: '8px', padding: '6px 12px', fontSize: '12px', fontWeight: 600 }}>
+                      <StatusIcon size={13} />{programme.status}
+                    </span>
+                    {programme.status === 'Approved' && isOwner && (
+                      <button
+                        onClick={generateApprovalLetter}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.1)', color: '#10b981', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
+                      >
+                        <Download size={13} />Approval Letter
+                      </button>
+                    )}
+                    {isOwner && (
+                      <button onClick={() => setShowDeleteModal(true)} title="Delete programme"
+                        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '34px', height: '34px', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', cursor: 'pointer' }}>
+                        <Trash2 size={15} />
+                      </button>
+                    )}
+                  </div>
+                  {programme.status === 'Approved' && programme.start_date && programme.end_date && (
+                    <LifecycleBadge start={programme.start_date} end={programme.end_date} />
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Rejection banner */}
@@ -490,6 +535,24 @@ export default function ProgrammeDetailPage() {
                   <p style={{ margin: '0 0 6px', fontSize: '10px', color: '#4b5563', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Description</p>
                   <p style={{ margin: 0, fontSize: '13px', color: '#94a3b8', lineHeight: 1.7 }}>{programme.description}</p>
                 </div>
+              )}
+            </div>
+
+            {/* ── ADVISOR ───────────────────────────────────────────── */}
+            <div style={{ background: '#0c1526', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '14px', padding: isMobile ? '16px' : '24px', marginBottom: '20px' }}>
+              <h2 style={{ margin: '0 0 14px', fontSize: '13px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Advisor</h2>
+              {advisorInfo ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #4f46e5, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <UserCheck size={18} color="white" />
+                  </div>
+                  <div>
+                    <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#f1f5f9' }}>{advisorInfo.full_name}</p>
+                    {advisorInfo.email && <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#6b7280' }}>{advisorInfo.email}</p>}
+                  </div>
+                </div>
+              ) : (
+                <p style={{ margin: 0, fontSize: '13px', color: '#4b5563' }}>No advisor assigned.</p>
               )}
             </div>
 

@@ -7,9 +7,7 @@ export const PHASES: { id: Phase; label: string; color: string; activeBg: string
 ]
 
 export const PRE_CHECKLIST = [
-  { key: 'paperwork', label: 'Paperwork',   hint: 'e.g. approval forms, permission letters' },
-  { key: 'oshe',      label: 'OSHE HIRARC', hint: 'Hazard identification & risk assessment' },
-  { key: 'poster',    label: 'Poster',      hint: 'Event poster or promotional material' },
+  { key: 'paperwork', label: 'Paperwork', hint: 'e.g. approval forms, permission letters' },
 ]
 
 export const POST_CHECKLIST = [
