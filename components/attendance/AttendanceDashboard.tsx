@@ -9,7 +9,6 @@ import {
   CheckCircle, XCircle, ArrowLeft, Maximize, X 
 } from 'lucide-react'
 
-// --- Interfaces ---
 interface Programme {
   id: string
   name: string
@@ -31,7 +30,63 @@ interface UserRole {
   role: string
 }
 
-// --- Component ---
+function CompletedList({ programmeId }: { programmeId: string }) {
+  const [list, setList] = useState<{ full_name: string; matric_number: string }[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const load = async () => {
+      // Find users with both pre_survey and post_survey true
+      const { data } = await supabase
+        .from('attendance')
+        .select('users(full_name, matric_number)')
+        .eq('programme_id', programmeId)
+        .eq('pre_survey', true)
+        .eq('post_survey', true)
+      setList((data ?? []).map((r: any) => r.users).filter(Boolean))
+      setLoading(false)
+    }
+    load()
+  }, [programmeId])
+
+  return (
+    <div style={{ marginBottom: '20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+        <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          Completed Both Surveys
+        </p>
+        <span style={{ fontSize: '11px', fontWeight: 700, color: '#10b981', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '6px', padding: '2px 8px' }}>
+          {loading ? '…' : list.length}
+        </span>
+      </div>
+
+      {loading ? (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '16px' }}>
+          <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '2px solid rgba(99,102,241,0.2)', borderTopColor: '#6366f1', animation: 'spin 0.8s linear infinite' }} />
+        </div>
+      ) : list.length === 0 ? (
+        <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', textAlign: 'center' }}>
+          <p style={{ margin: 0, fontSize: '12px', color: '#475569' }}>No participants have completed both surveys yet.</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '200px', overflowY: 'auto' }}>
+          {list.map((u, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'rgba(16,185,129,0.04)', border: '1px solid rgba(16,185,129,0.12)', borderRadius: '8px' }}>
+              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(16,185,129,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <CheckCircle size={13} color="#10b981" />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.full_name}</p>
+                <p style={{ margin: 0, fontSize: '11px', color: '#475569' }}>{u.matric_number}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 'admin' | 'superadmin' }) {
   const router = useRouter()
   
@@ -41,12 +96,9 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
   const [surveys, setSurveys] = useState<UserSurvey[]>([])
   const [roles, setRoles] = useState<UserRole[]>([])
   const [attendance, setAttendance] = useState<any[]>([])
-
   const [activeTab, setActiveTab] = useState<'ongoing' | 'expired'>('ongoing')
   const [searchQuery, setSearchQuery] = useState('')
   const [isMobile, setIsMobile] = useState(false)
-
-  // Modals state
   const [selectedProg, setSelectedProg] = useState<Programme | null>(null)
   const [showScanner, setShowScanner] = useState(false)
   const [qrModal, setQrModal] = useState<{ progId: string, type: 'pre' | 'post', name: string } | null>(null)
@@ -68,42 +120,29 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
 
       const todayStr = new Date().toLocaleDateString('sv-SE')
       
-      // Fetch ALL attendance records to count participants correctly for everyone
       const { data: attData } = await supabase.from('attendance').select('*')
       setAttendance(attData || [])
 
-      // Fetch ALL approved programmes that have started or start today
       const { data: progData } = await supabase
         .from('programmes')
         .select('*')
         .eq('status', 'Approved')
         .lte('start_date', todayStr)
 
-      // Fetch user specific data
       const { data: surveyData } = await supabase.from('surveys').select('programme_id, type').eq('user_id', userId)
       const { data: roleData } = await supabase.from('programme_roles').select('programme_id, role').eq('user_id', userId)
 
       setSurveys(surveyData || [])
       setRoles(roleData || [])
 
-      if (sysRole === 'student') {
-        // Filter programmes: Show if user has a role OR submitted a survey OR is the Programme Director
-        const activeProgIds = new Set([
-          ...(surveyData?.map(s => s.programme_id) || []),
-          ...(roleData?.map(r => r.programme_id) || [])
-        ])
-        setProgrammes((progData || []).filter(p => activeProgIds.has(p.id) || p.programme_director_id === userId))
-      } else {
-        // Admin / Superadmin sees all approved ongoing/expired programmes
-        setProgrammes(progData || [])
-      }
+      // All roles see all approved programmes that have started
+      setProgrammes(progData || [])
 
       setLoading(false)
     }
     fetchData()
   }, [sysRole, router])
 
-  // --- Logic Helpers ---
   const todayStr = new Date().toLocaleDateString('sv-SE')
   
   const filteredProgrammes = programmes.filter(p => {
@@ -117,31 +156,6 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
     try {
       const payload = JSON.parse(result)
       if (!payload.spms_qr || !payload.progId || !payload.type) return
-
-      // Check if user is a participant or the Programme Director
-      const { data: roleCheck } = await supabase
-        .from('programme_roles')
-        .select('role')
-        .eq('user_id', currentUserId)
-        .eq('programme_id', payload.progId)
-        .maybeSingle()
-      
-      let isAllowed = !!roleCheck
-      if (!isAllowed) {
-        const { data: progCheck } = await supabase
-          .from('programmes')
-          .select('id')
-          .eq('id', payload.progId)
-          .eq('programme_director_id', currentUserId)
-          .maybeSingle()
-        if (progCheck) isAllowed = true
-      }
-
-      if (!isAllowed) {
-        alert('You are not a participant of this programme.')
-        setShowScanner(false)
-        return
-      }
 
       // Anti-cheat: check if survey already submitted
       const { data: existing } = await supabase
@@ -158,7 +172,6 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
         return
       }
 
-      // Record QR scan in attendance table
       const qrField = payload.type === 'pre' ? 'qr_start' : 'qr_end'
       const { error: attError } = await supabase
         .from('attendance')
@@ -173,30 +186,6 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
       }
 
       setShowScanner(false)
-      const { data: completedSurveys } = await supabase
-  .from('surveys')
-  .select('type')
-  .eq('user_id', currentUserId)
-  .eq('programme_id', payload.progId)
-
-const hasPreSurvey =
-  completedSurveys?.some(s => s.type === 'pre') ||
-  payload.type === 'pre'
-
-const hasPostSurvey =
-  completedSurveys?.some(s => s.type === 'post') ||
-  payload.type === 'post'
-
-if (hasPreSurvey && hasPostSurvey) {
-  await supabase
-    .from('merit')
-    .upsert({
-      user_id: currentUserId,
-      programme_id: payload.progId,
-      points: 10,
-      status: 'Completed'
-    })
-}
       router.push(`/student/${payload.type}-survey?programme_id=${payload.progId}`)
     } catch {
       // Ignore non-SPMS QR codes silently
@@ -205,37 +194,8 @@ if (hasPreSurvey && hasPostSurvey) {
 
   const myRoleInProg = (progId: string) => roles.find(r => r.programme_id === progId)?.role || 'Participant'
 
-  const canGenerateQR = (prog: Programme) => {
-    if (sysRole === 'admin' || sysRole === 'superadmin') return true
-    if (prog.programme_director_id === currentUserId) return true
-    const role = myRoleInProg(prog.id)
-    const allowed = ['Programme Director', 'Vice Director - Activity', 'Vice Director - Management', 'Secretary', 'Vice Secretary']
-    return allowed.includes(role)
-  }
-
   const isExpired = (prog: Programme) => prog.end_date < todayStr
 
-  const canGeneratePreQR = (prog: Programme) =>
-    prog.status === 'Approved' && !isExpired(prog) && prog.start_date === todayStr
-
-  const canGeneratePostQR = (prog: Programme) =>
-    prog.status === 'Approved' && prog.end_date === todayStr
-
-  const preQRReason = (prog: Programme): string => {
-    if (prog.status !== 'Approved') return 'Programme is not approved'
-    if (isExpired(prog)) return 'Programme has already ended'
-    if (prog.start_date < todayStr) return `Only available on start date (${new Date(prog.start_date + 'T00:00:00').toLocaleDateString('en-MY')})`
-    return ''
-  }
-
-  const postQRReason = (prog: Programme): string => {
-    if (prog.status !== 'Approved') return 'Programme is not approved'
-    if (prog.end_date < todayStr) return 'Programme has already ended'
-    if (prog.end_date > todayStr) return `Only available on end date (${new Date(prog.end_date + 'T00:00:00').toLocaleDateString('en-MY')})`
-    return ''
-  }
-
-  // --- UI Renders ---
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', background: '#070e1a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -248,15 +208,21 @@ if (hasPreSurvey && hasPostSurvey) {
   return (
     <div style={{ minHeight: '100vh', background: '#070e1a', fontFamily: "'Inter', sans-serif", color: '#e2e8f0', padding: isMobile ? '16px' : '32px 36px', paddingBottom: '80px' }}>
       
-      {/* Header & Global Scan Button */}
+      {/* Header */}
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '24px' }}>
         <div>
+          <button
+            onClick={() => router.push(sysRole === 'superadmin' ? '/superadmin' : sysRole === 'admin' ? '/admin' : '/student')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', color: '#64748b', fontSize: '13px', cursor: 'pointer', padding: '0 0 8px', marginBottom: '4px', fontFamily: 'inherit' }}
+          >
+            <ArrowLeft size={14} /> Back to Home
+          </button>
           <h1 style={{ fontSize: '24px', fontWeight: 700, margin: '0 0 4px', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <QrCode size={22} color="#818cf8" />
             Programme Attendance
           </h1>
           <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
-            {sysRole === 'student' ? 'Track your participation and scan QR codes.' : 'Monitor attendance, surveys, and automatic merit awarding.'}
+            {sysRole === 'student' ? 'Track your participation and scan QR codes.' : 'Manage programme attendance and generate QR codes.'}
           </p>
         </div>
 
@@ -273,7 +239,6 @@ if (hasPreSurvey && hasPostSurvey) {
       {/* Tabs & Search */}
       <div style={{ background: '#0c1526', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '14px', padding: '16px', marginBottom: '24px' }}>
         <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '16px', justifyContent: 'space-between' }}>
-          
           <div style={{ display: 'flex', gap: '8px', background: 'rgba(255,255,255,0.03)', padding: '4px', borderRadius: '10px' }}>
             {(['ongoing', 'expired'] as const).map(tab => (
               <button 
@@ -284,7 +249,6 @@ if (hasPreSurvey && hasPostSurvey) {
               </button>
             ))}
           </div>
-
           <div style={{ position: 'relative', flex: isMobile ? 1 : '0 1 300px' }}>
             <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
             <input 
@@ -292,7 +256,6 @@ if (hasPreSurvey && hasPostSurvey) {
               style={{ width: '100%', padding: '10px 12px 10px 34px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} 
             />
           </div>
-
         </div>
       </div>
 
@@ -305,9 +268,7 @@ if (hasPreSurvey && hasPostSurvey) {
           </div>
         ) : (
           filteredProgrammes.map(prog => {
-            const progAttendance = attendance.filter(
-              a => String(a.programme_id) === String(prog.id)
-            )
+            const progAttendance = attendance.filter(a => String(a.programme_id) === String(prog.id))
             return (
               <div 
                 key={prog.id}
@@ -317,37 +278,26 @@ if (hasPreSurvey && hasPostSurvey) {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
                   <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#f1f5f9', lineHeight: 1.4, flex: 1, paddingRight: '10px' }}>{prog.name}</h3>
-                  
-                  {/* Status Badge - Only for students */}
                   {sysRole === 'student' && (
                     (() => {
-                      const progSurveys = surveys.filter(s => String(s.programme_id) === String(prog.id));
-                      const hasPre = progSurveys.some(s => s.type === 'pre');
-                      const hasPost = progSurveys.some(s => s.type === 'post');
-                      
-                      let surveyStatusLabel = '2 surveys remain';
-                      let badgeStyle = { color: '#ef4444', bg: 'rgba(239,68,68,0.1)', Icon: XCircle };
-
-                      if (hasPre && hasPost) {
-                        surveyStatusLabel = 'Completed';
-                        badgeStyle = { color: '#10b981', bg: 'rgba(16,185,129,0.1)', Icon: CheckCircle };
-                      } else if (hasPre || hasPost) {
-                        surveyStatusLabel = '1 survey remains';
-                        badgeStyle = { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', Icon: AlertCircle };
-                      }
-
+                      const progSurveys = surveys.filter(s => String(s.programme_id) === String(prog.id))
+                      const hasPre = progSurveys.some(s => s.type === 'pre')
+                      const hasPost = progSurveys.some(s => s.type === 'post')
+                      let label = '2 surveys remain'
+                      let style = { color: '#ef4444', bg: 'rgba(239,68,68,0.1)', Icon: XCircle }
+                      if (hasPre && hasPost) { label = 'Completed'; style = { color: '#10b981', bg: 'rgba(16,185,129,0.1)', Icon: CheckCircle } }
+                      else if (hasPre || hasPost) { label = '1 survey remains'; style = { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', Icon: AlertCircle } }
                       return (
-                        <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, background: badgeStyle.bg, color: badgeStyle.color }}>
-                          <badgeStyle.Icon size={12} />{surveyStatusLabel}
+                        <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, background: style.bg, color: style.color }}>
+                          <style.Icon size={12} />{label}
                         </span>
                       )
                     })()
                   )}
                 </div>
-                
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#64748b' }}>
-                    <Calendar size={12} /> {new Date(prog.start_date).toLocaleDateString('en-MY')} - {new Date(prog.end_date).toLocaleDateString('en-MY')}
+                    <Calendar size={12} /> {new Date(prog.start_date).toLocaleDateString('en-MY')} – {new Date(prog.end_date).toLocaleDateString('en-MY')}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#64748b' }}>
                     <MapPin size={12} /> {prog.venue || 'N/A'}
@@ -357,7 +307,7 @@ if (hasPreSurvey && hasPostSurvey) {
                   </div>
                   <button
                     onClick={() => setSelectedProg(prog)}
-                    style={{ marginTop: '10px', padding: '8px 12px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
+                    style={{ marginTop: '10px', padding: '8px 12px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit' }}
                   >
                     View Details
                   </button>
@@ -376,91 +326,58 @@ if (hasPreSurvey && hasPostSurvey) {
               <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#f1f5f9' }}>{selectedProg.name}</h2>
               <button onClick={() => setSelectedProg(null)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={20} /></button>
             </div>
-            
-            {/* Role indicator for students */}
+
             {sysRole === 'student' && (
               <div style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', padding: '8px 12px', borderRadius: '8px', marginBottom: '16px', display: 'inline-block' }}>
                 <p style={{ margin: 0, fontSize: '12px', color: '#818cf8', fontWeight: 600 }}>Your Role: {myRoleInProg(selectedProg.id)}</p>
               </div>
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
+            <div style={{ marginBottom: '24px' }}>
               <p style={{ margin: 0, fontSize: '13px', color: '#94a3b8', lineHeight: 1.6 }}>{selectedProg.description}</p>
             </div>
 
-            {/* Actions */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {canGenerateQR(selectedProg) && (
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  {/* Start QR */}
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <button
-                      onClick={() => canGeneratePreQR(selectedProg) && setQrModal({ progId: selectedProg.id, type: 'pre', name: selectedProg.name })}
-                      disabled={!canGeneratePreQR(selectedProg)}
-                      style={{
-                        width: '100%', padding: '12px', borderRadius: '8px',
-                        border: `1px solid ${canGeneratePreQR(selectedProg) ? 'rgba(16,185,129,0.3)' : 'rgba(100,116,139,0.2)'}`,
-                        background: canGeneratePreQR(selectedProg) ? 'rgba(16,185,129,0.1)' : 'rgba(100,116,139,0.05)',
-                        color: canGeneratePreQR(selectedProg) ? '#10b981' : '#475569',
-                        fontSize: '13px', fontWeight: 600,
-                        cursor: canGeneratePreQR(selectedProg) ? 'pointer' : 'not-allowed',
-                        opacity: canGeneratePreQR(selectedProg) ? 1 : 0.65,
-                      }}
-                    >
-                      Generate Start QR
-                    </button>
-                    {preQRReason(selectedProg) && (
-                      <p style={{ margin: 0, fontSize: '11px', color: '#64748b', textAlign: 'center', lineHeight: 1.4 }}>
-                        {preQRReason(selectedProg)}
-                      </p>
-                    )}
-                  </div>
+            {/* Completed participants */}
+            <CompletedList programmeId={selectedProg.id} />
 
-                  {/* End QR */}
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <button
-                      onClick={() => canGeneratePostQR(selectedProg) && setQrModal({ progId: selectedProg.id, type: 'post', name: selectedProg.name })}
-                      disabled={!canGeneratePostQR(selectedProg)}
-                      style={{
-                        width: '100%', padding: '12px', borderRadius: '8px',
-                        border: `1px solid ${canGeneratePostQR(selectedProg) ? 'rgba(245,158,11,0.3)' : 'rgba(100,116,139,0.2)'}`,
-                        background: canGeneratePostQR(selectedProg) ? 'rgba(245,158,11,0.1)' : 'rgba(100,116,139,0.05)',
-                        color: canGeneratePostQR(selectedProg) ? '#f59e0b' : '#475569',
-                        fontSize: '13px', fontWeight: 600,
-                        cursor: canGeneratePostQR(selectedProg) ? 'pointer' : 'not-allowed',
-                        opacity: canGeneratePostQR(selectedProg) ? 1 : 0.65,
-                      }}
-                    >
-                      Generate End QR
-                    </button>
-                    {postQRReason(selectedProg) && (
-                      <p style={{ margin: 0, fontSize: '11px', color: '#64748b', textAlign: 'center', lineHeight: 1.4 }}>
-                        {postQRReason(selectedProg)}
-                      </p>
-                    )}
-                  </div>
+            {/* QR Actions */}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              {isExpired(selectedProg) ? (
+                <div style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)', color: '#374151', fontSize: '13px', fontWeight: 600, textAlign: 'center' }}>
+                  Programme has ended — QR unavailable
                 </div>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setQrModal({ progId: selectedProg.id, type: 'pre', name: selectedProg.name })}
+                    style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.1)', color: '#10b981', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                  >
+                    Generate Start QR
+                  </button>
+                  <button
+                    onClick={() => setQrModal({ progId: selectedProg.id, type: 'post', name: selectedProg.name })}
+                    style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid rgba(245,158,11,0.3)', background: 'rgba(245,158,11,0.1)', color: '#f59e0b', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                  >
+                    Generate End QR
+                  </button>
+                </>
               )}
             </div>
           </div>
         </div>
       )}
 
-      {/* Generate QR Display Modal */}
+      {/* QR Display Modal */}
       {qrModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60, padding: '16px' }}>
           <div style={{ background: 'white', borderRadius: '16px', padding: '32px', width: '100%', maxWidth: '340px', textAlign: 'center', position: 'relative' }}>
             <button onClick={() => setQrModal(null)} style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(0,0,0,0.05)', border: 'none', borderRadius: '50%', padding: '6px', cursor: 'pointer' }}><X size={18} color="#475569" /></button>
-            
             <h3 style={{ margin: '0 0 8px', color: '#0f172a', fontSize: '18px', fontWeight: 700 }}>{qrModal.type === 'pre' ? 'Start Attendance' : 'End Attendance'}</h3>
             <p style={{ margin: '0 0 24px', color: '#64748b', fontSize: '12px', lineHeight: 1.4 }}>{qrModal.name}</p>
-            
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
               <QRCodeCanvas 
                 value={JSON.stringify({ spms_qr: true, progId: qrModal.progId, type: qrModal.type })} 
-                size={220} 
-                level="H"
-                includeMargin={true}
+                size={220} level="H" includeMargin={true}
               />
             </div>
             <p style={{ margin: 0, color: '#94a3b8', fontSize: '11px' }}>Ask participants to scan this QR to access the {qrModal.type === 'pre' ? 'Pre-Survey' : 'Post-Survey'}.</p>
@@ -468,7 +385,7 @@ if (hasPreSurvey && hasPostSurvey) {
         </div>
       )}
 
-      {/* QR Scanner Modal (Student Only) */}
+      {/* QR Scanner Modal */}
       {showScanner && (
         <div style={{ position: 'fixed', inset: 0, background: '#000', display: 'flex', flexDirection: 'column', zIndex: 60 }}>
           <div style={{ padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.5)', position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
@@ -478,11 +395,7 @@ if (hasPreSurvey && hasPostSurvey) {
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ width: '100%', maxWidth: '500px' }}>
               <Scanner 
-                onScan={(result) => {
-                  if (result && result.length > 0) {
-                    handleScan(result[0].rawValue)
-                  }
-                }}
+                onScan={(result) => { if (result && result.length > 0) handleScan(result[0].rawValue) }}
                 components={{ finder: true }}
                 sound={false}
                 styles={{ container: { width: '100%', height: '100vh' } }}
@@ -491,7 +404,6 @@ if (hasPreSurvey && hasPostSurvey) {
           </div>
         </div>
       )}
-      
     </div>
   )
 }

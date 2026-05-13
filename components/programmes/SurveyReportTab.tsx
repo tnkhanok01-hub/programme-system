@@ -10,12 +10,21 @@ interface SurveyRow {
   answers: Record<string, string>
   created_at: string
   user_id: string
-  users?: { full_name: string; matric_number: string }[]
+  users?: { full_name: string; matric_number: string }
 }
 
 interface Props {
   programmeId: string
   programmeName?: string
+}
+
+interface AttendanceRow {
+  user_id: string
+  qr_start: boolean
+  qr_end: boolean
+  pre_survey: boolean
+  post_survey: boolean
+  users?: { full_name: string; matric_number: string }
 }
 
 function StatBar({ label, value, total, color }: { label: string; value: number; total: number; color: string }) {
@@ -89,18 +98,26 @@ export default function SurveyReportTab({ programmeId, programmeName }: Props) {
   const [preSurveys, setPreSurveys] = useState<SurveyRow[]>([])
   const [postSurveys, setPostSurveys] = useState<SurveyRow[]>([])
   const [generatingPdf, setGeneratingPdf] = useState(false)
+  const [generatingAttendance, setGeneratingAttendance] = useState(false)
+  const [attendance, setAttendance] = useState<AttendanceRow[]>([])
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase
+      const { data: surveyData } = await supabase
         .from('surveys')
         .select('id, type, answers, created_at, user_id, users(full_name, matric_number)')
         .eq('programme_id', programmeId)
         .eq('completed', true)
         .order('created_at', { ascending: true })
-      const rows = (data ?? []) as SurveyRow[]
+      const rows = (surveyData ?? []) as SurveyRow[]
       setPreSurveys(rows.filter(r => r.type === 'pre'))
       setPostSurveys(rows.filter(r => r.type === 'post'))
+
+      const { data: attData } = await supabase
+        .from('attendance')
+        .select('user_id, qr_start, qr_end, pre_survey, post_survey, users(full_name, matric_number)')
+        .eq('programme_id', programmeId)
+      setAttendance((attData ?? []) as AttendanceRow[])
       setLoading(false)
     }
     load()
@@ -297,9 +314,100 @@ export default function SurveyReportTab({ programmeId, programmeName }: Props) {
     }
   }
 
+  const generateAttendancePDF = () => {
+    setGeneratingAttendance(true)
+    try {
+      // Only include those who submitted both surveys
+      const qualified = attendance.filter(a => a.pre_survey && a.post_survey)
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+      const W = doc.internal.pageSize.getWidth()
+      const H = doc.internal.pageSize.getHeight()
+      const margin = 20
+      const generated = new Date().toLocaleDateString('en-MY', { day:'numeric', month:'long', year:'numeric' })
+
+      // Background
+      doc.setFillColor(7,14,26); doc.rect(0,0,W,H,'F')
+      doc.setFillColor(12,21,38); doc.rect(0,0,W,52,'F')
+      doc.setFillColor(16,185,129); doc.rect(0,52,W,2,'F')
+
+      // Header text
+      doc.setTextColor(248,250,252); doc.setFontSize(20); doc.setFont('helvetica','bold')
+      doc.text('Attendance List', margin, 20)
+      doc.setFontSize(10); doc.setFont('helvetica','normal'); doc.setTextColor(148,163,184)
+      doc.text(programmeName || 'Programme', margin, 30)
+      doc.setFontSize(8.5); doc.setTextColor(71,85,105)
+      doc.text(`Generated on ${generated}`, margin, 39)
+
+      // Count badge
+      doc.setFillColor(30,41,59); doc.roundedRect(W-margin-52, 32, 52, 12, 2,2,'F')
+      doc.setTextColor(52,211,153); doc.setFontSize(8.5); doc.setFont('helvetica','bold')
+      doc.text(`${qualified.length} participant${qualified.length!==1?'s':''}`, W-margin-26, 40, { align:'center' })
+
+      // Sub-label
+      doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(71,85,105)
+      doc.text('Only participants who completed BOTH pre & post surveys are listed.', margin, 60)
+
+      let y = 72
+
+      if (qualified.length === 0) {
+        doc.setTextColor(100,116,139); doc.setFontSize(11); doc.setFont('helvetica','normal')
+        doc.text('No participants have completed both surveys yet.', W/2, y + 20, { align:'center' })
+      } else {
+        // Table header
+        doc.setFillColor(15,26,45); doc.rect(margin, y, W-margin*2, 9, 'F')
+        doc.setFillColor(16,185,129); doc.rect(margin, y, 2, 9, 'F')
+        doc.setTextColor(148,163,184); doc.setFontSize(8); doc.setFont('helvetica','bold')
+        doc.text('#', margin+6, y+6)
+        doc.text('Name', margin+18, y+6)
+        doc.text('Matric / Staff ID', margin+110, y+6)
+        y += 12
+
+        qualified.forEach((att, i) => {
+          if (y > H - 20) {
+            doc.addPage()
+            doc.setFillColor(7,14,26); doc.rect(0,0,W,H,'F')
+            y = 20
+          }
+          const name = (att.users as any)?.full_name || '—'
+          const matric = (att.users as any)?.matric_number || '—'
+          const rowBg: [number,number,number] = i % 2 === 0 ? [12,21,38] : [15,26,45]
+          doc.setFillColor(...rowBg); doc.rect(margin, y-4, W-margin*2, 10, 'F')
+
+          doc.setTextColor(148,163,184); doc.setFont('helvetica','normal'); doc.setFontSize(8.5)
+          doc.text(`${i+1}`, margin+6, y+2.5)
+
+          doc.setTextColor(241,245,249); doc.setFont('helvetica','bold')
+          const truncName = name.length > 32 ? name.slice(0,30)+'…' : name
+          doc.text(truncName, margin+18, y+2.5)
+
+          doc.setTextColor(148,163,184); doc.setFont('helvetica','normal')
+          doc.text(matric, margin+110, y+2.5)
+          y += 11
+        })
+      }
+
+      // Footer on each page
+      const pages = doc.getNumberOfPages()
+      for (let p = 1; p <= pages; p++) {
+        doc.setPage(p)
+        doc.setFillColor(7,14,26); doc.rect(0, H-12, W, 12, 'F')
+        doc.setTextColor(71,85,105); doc.setFontSize(7.5); doc.setFont('helvetica','normal')
+        doc.text(`Page ${p} of ${pages}`, W/2, H-4, { align:'center' })
+        doc.text('SPMS — Attendance List', margin, H-4)
+        doc.text(generated, W-margin, H-4, { align:'right' })
+      }
+
+      const safeName = (programmeName||'programme').replace(/[^a-zA-Z0-9\s]/g,'').replace(/\s+/g,'-').toLowerCase()
+      doc.save(`attendance-list-${safeName}.pdf`)
+    } finally {
+      setGeneratingAttendance(false)
+    }
+  }
+
   const rows = tab === 'pre' ? preSurveys : postSurveys
   const total = rows.length
   const hasData = preSurveys.length > 0 || postSurveys.length > 0
+  const qualifiedCount = attendance.filter(a => a.pre_survey && a.post_survey).length
 
   if (loading) return (
     <div style={{ display:'flex', justifyContent:'center', padding:'40px' }}>
@@ -334,9 +442,18 @@ export default function SurveyReportTab({ programmeId, programmeName }: Props) {
             color: generatingPdf ? '#475569' : '#818cf8',
             fontSize:'12px', fontWeight:600, cursor: generatingPdf ? 'not-allowed' : 'pointer', fontFamily:'inherit',
           }}>
-            <Download size={13} />{generatingPdf ? 'Generating…' : 'Download Report'}
+            <Download size={13} />{generatingPdf ? 'Generating…' : 'Download PDF Report'}
           </button>
         )}
+        <button onClick={generateAttendancePDF} disabled={generatingAttendance} style={{
+          display:'inline-flex', alignItems:'center', gap:'6px',
+          padding:'8px 16px', borderRadius:'8px', border:'1px solid rgba(16,185,129,0.3)',
+          background: generatingAttendance ? 'rgba(16,185,129,0.05)' : 'rgba(16,185,129,0.1)',
+          color: generatingAttendance ? '#475569' : '#34d399',
+          fontSize:'12px', fontWeight:600, cursor: generatingAttendance ? 'not-allowed' : 'pointer', fontFamily:'inherit',
+        }}>
+          <Download size={13} />{generatingAttendance ? 'Generating…' : `Attendance List (${qualifiedCount})`}
+        </button>
       </div>
 
       {total === 0 ? (
