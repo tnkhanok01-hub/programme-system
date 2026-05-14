@@ -109,7 +109,7 @@ export default function SurveyReportTab({ programmeId, programmeName }: Props) {
         .eq('programme_id', programmeId)
         .eq('completed', true)
         .order('created_at', { ascending: true })
-      const rows = (surveyData ?? []) as SurveyRow[]
+      const rows = (surveyData ?? []) as unknown as SurveyRow[]
       setPreSurveys(rows.filter(r => r.type === 'pre'))
       setPostSurveys(rows.filter(r => r.type === 'post'))
 
@@ -117,7 +117,7 @@ export default function SurveyReportTab({ programmeId, programmeName }: Props) {
         .from('attendance')
         .select('user_id, qr_start, qr_end, pre_survey, post_survey, users(full_name, matric_number)')
         .eq('programme_id', programmeId)
-      setAttendance((attData ?? []) as AttendanceRow[])
+      setAttendance((attData ?? []) as unknown as AttendanceRow[])
       setLoading(false)
     }
     load()
