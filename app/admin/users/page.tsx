@@ -6,7 +6,7 @@ import { supabase } from '../../../lib/supabaseClient'
 import {
   LayoutDashboard, BookOpen, Users, Settings, LogOut, Shield,
   Search, UserPlus, Trash2, X, AlertCircle, QrCode,
-  Star, CheckCircle, XCircle, Clock
+  Star
 } from 'lucide-react'
 
 interface UserData {
@@ -60,7 +60,7 @@ function MeritBadge({ points }: { points: number }) {
 }
 
 /* ─── MERIT DRAWER ───────────────────────────────────────────────────────── */
-function MeritDrawer({ userId, onClose, onMeritChange }: { userId: string; onClose: () => void; onMeritChange: (userId: string, newTotal: number) => void }) {
+function MeritDrawer({ userId, onClose }: { userId: string; onClose: () => void }) {
   const [records, setRecords] = useState<MeritRecord[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -71,34 +71,13 @@ function MeritDrawer({ userId, onClose, onMeritChange }: { userId: string; onClo
         .select('id, programme_id, points, status, updated_at, programmes(name)')
         .eq('user_id', userId)
         .order('updated_at', { ascending: false })
-      setRecords((data ?? []) as MeritRecord[])
+      setRecords((data ?? []) as unknown as MeritRecord[])
       setLoading(false)
     }
     load()
   }, [userId])
 
-  const handleAction = async (meritId: string, action: 'approve' | 'reject') => {
-    const { data: { session } } = await supabase.auth.getSession()
-    await fetch('/api/merit/update', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
-      body: JSON.stringify({ merit_id: meritId, action }),
-    })
-    const updatedRecords = records.map(r => r.id === meritId ? { ...r, status: action === 'approve' ? 'approved' : 'rejected' } : r)
-    setRecords(updatedRecords)
-    // Immediately update the badge in the table without a refresh
-    const newTotal = updatedRecords.filter(r => r.status === 'approved').reduce((s, r) => s + r.points, 0)
-    onMeritChange(userId, newTotal)
-  }
-
-  const approvedPts = records.filter(r => r.status === 'approved').reduce((s, r) => s + r.points, 0)
-  const pendingCount = records.filter(r => r.status === 'awarded' || r.status === 'pending').length
-
-  const statusCfg = (s: string) => {
-    if (s === 'approved') return { color: '#10b981', bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.2)', Icon: CheckCircle }
-    if (s === 'rejected') return { color: '#ef4444', bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.2)', Icon: XCircle }
-    return { color: '#a78bfa', bg: 'rgba(167,139,250,0.1)', border: 'rgba(167,139,250,0.2)', Icon: Clock }
-  }
+  const totalPts = records.reduce((s, r) => s + r.points, 0)
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 70, backdropFilter: 'blur(4px)', padding: '16px' }}
@@ -113,7 +92,7 @@ function MeritDrawer({ userId, onClose, onMeritChange }: { userId: string; onClo
             </div>
             <div>
               <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#f1f5f9' }}>Merit Points</p>
-              <p style={{ margin: 0, fontSize: '11px', color: '#4b5563' }}>{records.length} programme{records.length !== 1 ? 's' : ''} · {approvedPts} pts approved</p>
+              <p style={{ margin: 0, fontSize: '11px', color: '#4b5563' }}>{records.length} programme{records.length !== 1 ? 's' : ''} · {totalPts} pts total</p>
             </div>
           </div>
           <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '7px', padding: '6px', cursor: 'pointer', color: '#64748b' }}><X size={16} /></button>
@@ -122,9 +101,8 @@ function MeritDrawer({ userId, onClose, onMeritChange }: { userId: string; onClo
         {/* Summary */}
         <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', gap: '12px', flexShrink: 0 }}>
           {[
-            { label: 'Approved pts', value: approvedPts, color: '#10b981' },
-            { label: 'Pending',      value: pendingCount, color: '#a78bfa' },
-            { label: 'Rejected',     value: records.filter(r => r.status === 'rejected').length, color: '#ef4444' },
+            { label: 'Total Points',     value: totalPts,        color: '#a78bfa' },
+            { label: 'Programmes',       value: records.length,  color: '#38bdf8' },
           ].map(s => (
             <div key={s.label} style={{ flex: 1, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', padding: '10px', textAlign: 'center' }}>
               <p style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: s.color }}>{s.value}</p>
@@ -144,42 +122,21 @@ function MeritDrawer({ userId, onClose, onMeritChange }: { userId: string; onClo
               <Star size={28} style={{ margin: '0 auto 10px', color: '#334155' }} />
               <p style={{ margin: 0, fontSize: '13px' }}>No merit records yet.</p>
             </div>
-          ) : records.map(r => {
-            const cfg = statusCfg(r.status)
-            const isPending = r.status === 'awarded' || r.status === 'pending'
-            return (
-              <div key={r.id} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '12px 14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {(r.programmes as any)?.name || 'Unknown Programme'}
-                    </p>
-                    <p style={{ margin: '2px 0 0', fontSize: '10px', color: '#475569' }}>
-                      {new Date(r.updated_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    </p>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                    <MeritBadge points={r.points} />
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, padding: '3px 8px', borderRadius: '5px', fontSize: '10px', fontWeight: 500 }}>
-                      <cfg.Icon size={10} />{r.status}
-                    </span>
-                  </div>
+          ) : records.map(r => (
+            <div key={r.id} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '12px 14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {(r.programmes as any)?.name || 'Unknown Programme'}
+                  </p>
+                  <p style={{ margin: '2px 0 0', fontSize: '10px', color: '#475569' }}>
+                    {new Date(r.updated_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </p>
                 </div>
-                {isPending && (
-                  <div style={{ display: 'flex', gap: '6px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                    <button onClick={() => handleAction(r.id, 'approve')}
-                      style={{ flex: 1, padding: '6px', borderRadius: '6px', border: '1px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.1)', color: '#10b981', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                      ✓ Approve
-                    </button>
-                    <button onClick={() => handleAction(r.id, 'reject')}
-                      style={{ flex: 1, padding: '6px', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.08)', color: '#ef4444', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                      ✗ Reject
-                    </button>
-                  </div>
-                )}
+                <MeritBadge points={r.points} />
               </div>
-            )
-          })}
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -293,7 +250,7 @@ export default function AdminUsersPage() {
         setUsers(usersData.map((u: any) => ({ ...u, role: u.roles?.name || 'student', matric_number: u.matric_number || 'N/A', email: u.email || 'N/A' })))
       }
 
-      const { data: meritData } = await supabase.from('merit').select('user_id, points').eq('status', 'approved')
+      const { data: meritData } = await supabase.from('merit').select('user_id, points')
       if (meritData) {
         const totals: Record<string, number> = {}
         meritData.forEach((m: any) => { totals[m.user_id] = (totals[m.user_id] || 0) + m.points })
@@ -345,7 +302,7 @@ export default function AdminUsersPage() {
     <>
       <AddStudentModal show={showAddModal} form={form as any} formLoading={formLoading} formError={formError} onChange={f => setForm(f as any)} onSubmit={handleAddUser} onClose={() => setShowAddModal(false)} />
       <DeleteModal user={userToDelete} onConfirm={handleDeleteConfirm} onClose={() => setUserToDelete(null)} />
-      {meritDrawerUserId && <MeritDrawer userId={meritDrawerUserId} onClose={() => setMeritDrawerUserId(null)} onMeritChange={(uid, total) => setMeritTotals(prev => ({ ...prev, [uid]: total }))} />}
+      {meritDrawerUserId && <MeritDrawer userId={meritDrawerUserId} onClose={() => setMeritDrawerUserId(null)} />}
     </>
   )
 

@@ -23,6 +23,8 @@ export default function ProfilePage() {
   const [user, setUser] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [meritPoints, setMeritPoints] = useState(0)
+  const [meritRecords, setMeritRecords] = useState<any[]>([])
+  const [showMeritBreakdown, setShowMeritBreakdown] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const router = useRouter()
 
@@ -64,15 +66,14 @@ export default function ProfilePage() {
         setUser(profile)
         setEditForm({ name: data.name ?? '', phone: data.phone ?? '', matric: data.matric ?? '', staff: data.staff ?? '' })
         const { data: meritData } = await supabase
-  .from('merit')
-  .select('points')
-  .eq('user_id', data.id)
-  .eq('status', 'Approved')
+          .from('merit')
+          .select('points, updated_at, programmes(name)')
+          .eq('user_id', data.id)
+          .order('updated_at', { ascending: false })
 
-const totalMerit =
-  meritData?.reduce((sum, item) => sum + (item.points || 0), 0) || 0
-
-setMeritPoints(totalMerit)
+        const totalMerit = meritData?.reduce((sum, item) => sum + (item.points || 0), 0) || 0
+        setMeritPoints(totalMerit)
+        setMeritRecords((meritData ?? []) as any[])
         setLoading(false)
       }
     }
@@ -369,85 +370,92 @@ setMeritPoints(totalMerit)
           </div>
 
 {user?.role === 'student' && (
-  <div
-    style={{
-      background: '#0b1220',
-      border: '1px solid rgba(255,255,255,0.06)',
-      borderRadius: '20px',
-      padding: '24px',
-      marginBottom: '20px'
-    }}
-  >
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}
-    >
-      <div>
-        <p
-          style={{
-            color: '#64748b',
-            fontSize: '12px',
-            margin: 0,
-            marginBottom: '10px',
-            letterSpacing: '1px',
-            textTransform: 'uppercase'
-          }}
-        >
-          Total Merit Points
-        </p>
-
+  <>
+    {/* Merit breakdown modal */}
+    {showMeritBreakdown && (
+      <div
+        onClick={() => setShowMeritBreakdown(false)}
+        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 70, backdropFilter: 'blur(4px)', padding: '16px' }}
+      >
         <div
-          style={{
-            display: 'flex',
-            alignItems: 'baseline',
-            gap: '8px'
-          }}
+          onClick={e => e.stopPropagation()}
+          style={{ background: '#0f1a24', border: '1px solid rgba(96,165,250,0.25)', borderRadius: '16px', width: '100%', maxWidth: '480px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
         >
-          <h1
-            style={{
-              color: 'white',
-              fontSize: '36px',
-              fontWeight: '700',
-              margin: 0,
-              lineHeight: 1
-            }}
-          >
-            {meritPoints}
-          </h1>
-
-          <span
-            style={{
-              color: '#64748b',
-              fontSize: '14px'
-            }}
-          >
-            points
-          </span>
+          <div style={{ padding: '18px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(96,165,250,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Award size={15} color="#60a5fa" />
+              </div>
+              <div>
+                <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#f1f5f9' }}>Merit Breakdown</p>
+                <p style={{ margin: 0, fontSize: '11px', color: '#4b5563' }}>{meritRecords.length} programme{meritRecords.length !== 1 ? 's' : ''} · {meritPoints} pts total</p>
+              </div>
+            </div>
+            <button onClick={() => setShowMeritBreakdown(false)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '7px', padding: '6px', cursor: 'pointer', color: '#64748b' }}>
+              <X size={16} />
+            </button>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {meritRecords.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#475569' }}>
+                <Award size={28} style={{ margin: '0 auto 10px', color: '#334155' }} />
+                <p style={{ margin: 0, fontSize: '13px' }}>No merit records yet.</p>
+              </div>
+            ) : meritRecords.map((r, i) => (
+              <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {(r.programmes as any)?.name || 'Unknown Programme'}
+                  </p>
+                  <p style={{ margin: '2px 0 0', fontSize: '10px', color: '#475569' }}>
+                    {r.updated_at ? new Date(r.updated_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
+                  </p>
+                </div>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(96,165,250,0.12)', color: '#60a5fa', border: '1px solid rgba(96,165,250,0.2)', borderRadius: '6px', padding: '3px 8px', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>
+                  +{r.points} pt{r.points !== 1 ? 's' : ''}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
+    )}
 
-      <div
-        style={{
-          width: '64px',
-          height: '64px',
-          borderRadius: '18px',
-          background: 'rgba(59,130,246,0.08)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          border: '1px solid rgba(59,130,246,0.12)'
-        }}
-      >
-        <Award
-          size={28}
-          color="#60a5fa"
-        />
+    <div
+      style={{
+        background: '#0b1220',
+        border: '1px solid rgba(255,255,255,0.06)',
+        borderRadius: '20px',
+        padding: '24px',
+        marginBottom: '20px'
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <p style={{ color: '#64748b', fontSize: '12px', margin: 0, marginBottom: '10px', letterSpacing: '1px', textTransform: 'uppercase' }}>
+            Total Merit Points
+          </p>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+            <h1 style={{ color: 'white', fontSize: '36px', fontWeight: '700', margin: 0, lineHeight: 1 }}>
+              {meritPoints}
+            </h1>
+            <span style={{ color: '#64748b', fontSize: '14px' }}>points</span>
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+          <div style={{ width: '64px', height: '64px', borderRadius: '18px', background: 'rgba(59,130,246,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(59,130,246,0.12)' }}>
+            <Award size={28} color="#60a5fa" />
+          </div>
+          <button
+            onClick={() => setShowMeritBreakdown(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.2)', borderRadius: '7px', padding: '5px 10px', color: '#60a5fa', fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+          >
+            View Details
+          </button>
+        </div>
       </div>
     </div>
-  </div>
+  </>
 )}
           {/* Logout */}
           <button
