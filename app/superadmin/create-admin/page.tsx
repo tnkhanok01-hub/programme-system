@@ -495,7 +495,7 @@ export default function CreateAdminPage() {
 
           <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: `1px solid rgba(245,158,11,0.07)` }}>
             <p style={{ fontSize: '9px', fontWeight: 600, color: SA.accent, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0 10px', marginBottom: '6px', opacity: 0.6 }}>Superadmin Only</p>
-            {navItems.slice(3, 5).map(item => {
+            {navItems.slice(3, 7).map(item => {
               const Icon = item.icon
               const isActive = item.id === 'createAdmin'
               return (
@@ -508,17 +508,6 @@ export default function CreateAdminPage() {
             })}
           </div>
 
-          <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-            {navItems.slice(5).map(item => {
-              const Icon = item.icon
-              return (
-                <button key={item.id} onClick={() => router.push(item.path)}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'transparent', color: '#6b7280', fontSize: '13px', fontWeight: 400, marginBottom: '2px', textAlign: 'left', transition: 'all 0.12s' }}>
-                  <Icon size={15} />{item.label}
-                </button>
-              )
-            })}
-          </div>
 
           <div style={{ marginTop: '12px' }}>
             <button onClick={() => setShowForm(true)}

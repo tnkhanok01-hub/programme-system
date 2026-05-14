@@ -17,7 +17,7 @@ interface Programme {
   budget: number; start_date: string; end_date: string; status: string; created_at: string
 }
 interface Profile { id: string; full_name: string; email: string; roles: { name: string } | null }
-type NavItem = 'dashboard' | 'programmes' | 'createAdmin' | 'exchangeAdmin' | 'settings' | 'attendance'
+type NavItem = 'dashboard' | 'programmes' | 'createAdmin' | 'exchangeAdmin' | 'settings' | 'attendance' | 'users'
 
 /* ─── SUPERADMIN TOKENS ──────────────────────────────────────────────────── */
 const SA = {
@@ -942,6 +942,7 @@ export default function SuperAdminDashboard() {
     { id: 'dashboard',     icon: LayoutDashboard, label: 'Dashboard',      path: '/superadmin' },
     { id: 'programmes',    icon: BookOpen,         label: 'Add Programmes', path: '/create-programme-form' },
     { id: 'attendance',    icon: QrCode,           label: 'Attendance',     path: '/superadmin/attendance' },
+    { id: 'users',         icon: Users,            label: 'Users',          path: '/superadmin/users' },
     { id: 'createAdmin',   icon: CirclePlus,       label: 'Create Admin',   path: '/superadmin/create-admin' },
     { id: 'exchangeAdmin', icon: ArrowRightLeft,   label: 'Exchange Admin', path: '/superadmin/exchange-admin' },
     { id: 'settings',      icon: Settings,         label: 'Settings',       path: '/profile' },
@@ -1025,6 +1026,7 @@ export default function SuperAdminDashboard() {
             {[
               { icon: CirclePlus,     label: 'Create Admin',  desc: 'Register new admin',    path: '/superadmin/create-admin' },
               { icon: ArrowRightLeft, label: 'Exchange Admin', desc: 'Transfer privileges',   path: '/superadmin/exchange-admin' },
+              { icon: Users,          label: 'Manage Users',  desc: 'View all users',        path: '/admin/users' },
             ].map((item, i) => {
               const Icon = item.icon
               return (
@@ -1146,7 +1148,7 @@ export default function SuperAdminDashboard() {
           })}
           <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: `1px solid rgba(245,158,11,0.07)` }}>
             <p style={{ fontSize: '9px', fontWeight: 600, color: SA.accent, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0 10px', marginBottom: '6px', opacity: 0.6 }}>Superadmin Only</p>
-            {navItems.slice(3, 5).map(item => {
+            {navItems.slice(3, 7).map(item => {
               const Icon = item.icon; const isActive = activeNav === item.id
               return (
                 <button key={item.id} onClick={() => handleNavClick(item)}
@@ -1157,18 +1159,7 @@ export default function SuperAdminDashboard() {
               )
             })}
           </div>
-          <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-            {navItems.slice(5).map(item => {
-              const Icon = item.icon; const isActive = activeNav === item.id
-              return (
-                <button key={item.id} onClick={() => handleNavClick(item)}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: isActive ? SA.accentBg : 'transparent', color: isActive ? SA.accentText : '#6b7280', fontSize: '13px', fontWeight: isActive ? 500 : 400, marginBottom: '2px', textAlign: 'left', transition: 'all 0.12s' }}>
-                  <Icon size={15} />{item.label}
-                  {isActive && <div style={{ marginLeft: 'auto', width: '4px', height: '4px', borderRadius: '50%', background: SA.accent }} />}
-                </button>
-              )
-            })}
-          </div>
+         
           <div style={{ marginTop: '12px' }}>
             <button onClick={() => router.push('/superadmin/create-admin')}
               style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: SA.accentSoft, color: SA.accentText, fontSize: '13px', fontWeight: 500, textAlign: 'left' }}>
@@ -1218,10 +1209,11 @@ export default function SuperAdminDashboard() {
         <BudgetBanner stats={stats} isMobile={false} />
 
         {/* Superadmin quick-access cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '24px' }}>
           {[
             { icon: CirclePlus,     label: 'Create Admin',   desc: 'Register a new admin account',       path: '/superadmin/create-admin' },
             { icon: ArrowRightLeft, label: 'Exchange Admin',  desc: 'Transfer superadmin privileges',     path: '/superadmin/exchange-admin' },
+            { icon: Users,          label: 'Manage Users',   desc: 'View and manage all users',          path: '/admin/users' },
           ].map((item, i) => {
             const Icon = item.icon
             return (
