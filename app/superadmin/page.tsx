@@ -942,7 +942,7 @@ export default function SuperAdminDashboard() {
     { id: 'dashboard',     icon: LayoutDashboard, label: 'Dashboard',      path: '/superadmin' },
     { id: 'programmes',    icon: BookOpen,         label: 'Add Programmes', path: '/create-programme-form' },
     { id: 'attendance',    icon: QrCode,           label: 'Attendance',     path: '/superadmin/attendance' },
-    { id: 'users',         icon: Users,            label: 'Users',          path: '/admin/users' },
+    { id: 'users',         icon: Users,            label: 'Users',          path: '/superadmin/users' },
     { id: 'createAdmin',   icon: CirclePlus,       label: 'Create Admin',   path: '/superadmin/create-admin' },
     { id: 'exchangeAdmin', icon: ArrowRightLeft,   label: 'Exchange Admin', path: '/superadmin/exchange-admin' },
     { id: 'settings',      icon: Settings,         label: 'Settings',       path: '/profile' },

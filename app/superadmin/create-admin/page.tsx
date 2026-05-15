@@ -6,7 +6,7 @@ import { supabase } from '../../../lib/supabaseClient'
 import {
   LayoutDashboard, BookOpen, Users, Settings, LogOut,
   CirclePlus, Shield, Search, ArrowUpCircle, ArrowDownCircle,
-  Trash2, X, Crown, ArrowRightLeft, UserCheck, QrCode
+  Trash2, X, Crown, ArrowRightLeft, UserCheck, QrCode, User,
 } from 'lucide-react'
 
 interface SystemUser {
@@ -32,6 +32,7 @@ const navItems = [
   { id: 'dashboard',     icon: LayoutDashboard, label: 'Dashboard',      path: '/superadmin' },
   { id: 'programmes',    icon: BookOpen,         label: 'Add Programmes',     path: '/create-programme-form' },
   { id: 'attendance',    icon: QrCode,           label: 'Attendance',     path: '/superadmin/attendance' },
+  { id: 'Users',         icon: User,             label: 'Users',           path: '/superadmin/users' },
   { id: 'createAdmin',   icon: CirclePlus,       label: 'Create Admin',   path: '/superadmin/create-admin' },
   { id: 'exchangeAdmin', icon: ArrowRightLeft,   label: 'Exchange Admin', path: '/superadmin/exchange-admin' },
   { id: 'settings',      icon: Settings,         label: 'Settings',       path: '/profile' },
