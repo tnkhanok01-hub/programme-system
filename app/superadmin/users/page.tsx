@@ -96,7 +96,7 @@ function MeritDrawer({ userId, userName, onClose }: {
         .select('id, programme_id, points, status, updated_at, programmes(name)')
         .eq('user_id', userId)
         .order('updated_at', { ascending: false })
-      setRecords((data ?? []) as MeritRecord[])
+      setRecords((data ?? []) as unknown as MeritRecord[])
       setLoading(false)
     }
     load()
