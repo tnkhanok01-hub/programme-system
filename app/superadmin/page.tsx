@@ -946,7 +946,7 @@ export default function SuperAdminDashboard() {
     { id: 'users',         icon: Users,            label: 'Users',          path: '/superadmin/users' },
     { id: 'createAdmin',   icon: CirclePlus,       label: 'Create Admin',   path: '/superadmin/create-admin' },
     { id: 'exchangeAdmin', icon: ArrowRightLeft,   label: 'Exchange Admin', path: '/superadmin/exchange-admin' },
-    { id: 'settings',      icon: Settings,         label: 'Settings',       path: '/profile' },
+    { id: 'settings',      icon: Settings,         label: 'Settings',       path: '/settings' },
   ]
 
   const handleNavClick = (item: typeof navItems[0]) => {

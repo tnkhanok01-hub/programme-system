@@ -914,7 +914,7 @@ export default function AdminHomepage() {
     if (id === 'dashboard')  router.push('/admin')
     if (id === 'programmes') router.push('/create-programme-form')
     if (id === 'users')      router.push('/admin/users')
-    if (id === 'settings')   router.push('/profile')
+    if (id === 'settings')   router.push('/settings')
     if (id === 'attendance') router.push('/admin/attendance')
   }
 
