@@ -410,14 +410,7 @@ export default function SettingsPage() {
                 <Check size={12} />Preferences saved
               </span>
             )}
-            <button
-              onClick={saveSettings}
-              disabled={settingsSaving}
-              style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '10px 20px', borderRadius: '9px', border: 'none', background: settingsSaving ? 'rgba(99,102,241,0.35)' : 'linear-gradient(135deg, #4f46e5, #6366f1)', color: 'white', fontSize: '13px', fontWeight: 600, cursor: settingsSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}
-            >
-              {settingsSaving ? <Loader2 size={13} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Save size={13} />}
-              {settingsSaving ? 'Saving...' : 'Save Preferences'}
-            </button>
+            
           </div>
 
         </div>

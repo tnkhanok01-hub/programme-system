@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabaseClient'
+import { useTheme } from '@/app/provider/ThemeContext'
 import {
   ArrowLeft, CalendarPlus, CirclePlus, Loader2,
   BookOpen, MapPin, DollarSign, Calendar, AlignLeft, Tag,
@@ -12,6 +13,7 @@ import { PRE_CHECKLIST } from '../../lib/constants'
 
 export default function CreateProgrammePage() {
   const router = useRouter()
+  const { t, mode } = useTheme()
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [budgetError, setBudgetError] = useState('')
@@ -46,7 +48,6 @@ export default function CreateProgrammePage() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.replace('/login'); return }
       setLoading(false)
-      // Fetch admin list for advisor dropdown
       const res = await fetch('/api/admins', {
         headers: { Authorization: `Bearer ${session.access_token}` },
       })
@@ -133,10 +134,7 @@ export default function CreateProgrammePage() {
 
     const res = await fetch('/api/programmes', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
       body: JSON.stringify({ ...form, budget: parseFloat(form.budget), advisor_id: advisorId }),
     })
 
@@ -176,9 +174,9 @@ export default function CreateProgrammePage() {
     width: '100%',
     padding: '11px 13px',
     borderRadius: '10px',
-    background: 'rgba(255,255,255,0.05)',
-    border: '1px solid rgba(255,255,255,0.09)',
-    color: '#e2e8f0',
+    background: t.bgInput,
+    border: `1px solid ${t.borderInput}`,
+    color: t.text,
     fontSize: '14px',
     outline: 'none',
     boxSizing: 'border-box',
@@ -193,15 +191,15 @@ export default function CreateProgrammePage() {
     gap: '5px',
     fontSize: '11px',
     fontWeight: 600,
-    color: '#6b7280',
+    color: t.textFaint,
     marginBottom: '7px',
     textTransform: 'uppercase',
     letterSpacing: '0.06em',
   }
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', background: '#070e1a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: '3px solid rgba(99,102,241,0.2)', borderTopColor: '#6366f1', animation: 'spin 0.8s linear infinite' }} />
+    <div style={{ minHeight: '100vh', background: t.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: `3px solid ${t.accentBg}`, borderTopColor: t.accentText, animation: 'spin 0.8s linear infinite' }} />
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
   )
@@ -211,10 +209,9 @@ export default function CreateProgrammePage() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         @keyframes spin { to { transform: rotate(360deg) } }
-        input:focus, select:focus, textarea:focus { border-color: rgba(99,102,241,0.5) !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.08); }
-        input::placeholder, textarea::placeholder { color: #374151; }
-        select option { background: #0c1526; color: #e2e8f0; }
-        /* iOS zoom prevention */
+        input:focus, select:focus, textarea:focus { border-color: ${t.accentBorder} !important; box-shadow: 0 0 0 3px ${t.accentBg}; }
+        input::placeholder, textarea::placeholder { color: ${t.textFaintest}; }
+        select option { background: ${t.bgCard}; color: ${t.text}; }
         @media (max-width: 640px) {
           input, select, textarea { font-size: 16px !important; }
         }
@@ -222,54 +219,45 @@ export default function CreateProgrammePage() {
 
       <div style={{
         minHeight: '100vh',
-        background: '#070e1a',
+        background: t.bg,
         fontFamily: "'Inter', sans-serif",
-        color: '#e2e8f0',
-        // On mobile: no side padding, full bleed; form card fills width
+        color: t.text,
         padding: isMobile ? '0' : '32px 20px',
       }}>
         <div style={{ maxWidth: '640px', margin: '0 auto' }}>
 
-          {/* ── TOP BAR (mobile gets a native-feeling header) ── */}
+          {/* ── TOP BAR ── */}
           {isMobile ? (
             <div style={{
-              background: '#0a1628',
-              borderBottom: '1px solid rgba(255,255,255,0.06)',
+              background: t.bgCardAlt,
+              borderBottom: `1px solid ${t.border}`,
               padding: '14px 16px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              position: 'sticky',
-              top: 0,
-              zIndex: 20,
+              display: 'flex', alignItems: 'center', gap: '12px',
+              position: 'sticky', top: 0, zIndex: 20,
             }}>
-              <button
-                onClick={() => router.back()}
-                style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
-              >
+              <button onClick={() => router.back()} style={{ background: 'none', border: 'none', color: t.textFaint, cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}>
                 <ArrowLeft size={20} />
               </button>
               <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
                 <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'linear-gradient(135deg, #4f46e5, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <CalendarPlus size={14} color="white" />
                 </div>
-                <h1 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#f1f5f9', letterSpacing: '-0.02em' }}>
+                <h1 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: t.text, letterSpacing: '-0.02em' }}>
                   Create Programme
                 </h1>
               </div>
             </div>
           ) : (
-            /* Desktop header */
             <div style={{ marginBottom: '28px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
                 <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg, #4f46e5, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <CalendarPlus size={18} color="white" />
                 </div>
-                <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: '#f1f5f9', letterSpacing: '-0.02em' }}>
+                <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: t.text, letterSpacing: '-0.02em' }}>
                   Create Programme
                 </h1>
               </div>
-              <p style={{ margin: 0, fontSize: '13px', color: '#4b5563', paddingLeft: '46px' }}>
+              <p style={{ margin: 0, fontSize: '13px', color: t.textFaint, paddingLeft: '46px' }}>
                 Fill in the details below to submit a new programme for review.
               </p>
             </div>
@@ -278,25 +266,18 @@ export default function CreateProgrammePage() {
           {/* ── FORM ── */}
           <form onSubmit={handleSubmit}>
             <div style={{
-              background: isMobile ? 'transparent' : '#0c1526',
-              border: isMobile ? 'none' : '1px solid rgba(255,255,255,0.06)',
+              background: isMobile ? 'transparent' : t.bgCard,
+              border: isMobile ? 'none' : `1px solid ${t.border}`,
               borderRadius: isMobile ? 0 : '16px',
               padding: isMobile ? '16px' : '28px',
-              display: 'flex',
-              flexDirection: 'column',
+              display: 'flex', flexDirection: 'column',
               gap: isMobile ? '18px' : '20px',
             }}>
 
               {/* Programme Name */}
               <div>
                 <label style={labelStyle}><BookOpen size={11} />Programme Name</label>
-                <input
-                  style={inputStyle}
-                  value={form.name}
-                  onChange={e => set('name', e.target.value)}
-                  placeholder="e.g. Badminton Competition 2025"
-                  required
-                />
+                <input style={inputStyle} value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Badminton Competition 2025" required />
               </div>
 
               {/* Description */}
@@ -304,22 +285,15 @@ export default function CreateProgrammePage() {
                 <label style={labelStyle}><AlignLeft size={11} />Description</label>
                 <textarea
                   style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6, minHeight: isMobile ? '80px' : '90px' }}
-                  value={form.description}
-                  onChange={e => set('description', e.target.value)}
-                  placeholder="Brief description about the programme"
-                  rows={3}
+                  value={form.description} onChange={e => set('description', e.target.value)}
+                  placeholder="Brief description about the programme" rows={3}
                 />
               </div>
 
               {/* Category */}
               <div>
                 <label style={labelStyle}><Tag size={11} />Category</label>
-                <select
-                  style={{ ...inputStyle, cursor: 'pointer' }}
-                  value={form.category}
-                  onChange={e => set('category', e.target.value)}
-                  required
-                >
+                <select style={{ ...inputStyle, cursor: 'pointer' }} value={form.category} onChange={e => set('category', e.target.value)} required>
                   <option value="" disabled>Select a category</option>
                   {['Academic', 'Sports', 'Community Service', 'Others'].map(c => (
                     <option key={c} value={c}>{c}</option>
@@ -330,99 +304,67 @@ export default function CreateProgrammePage() {
               {/* Organiser */}
               <div>
                 <label style={labelStyle}><Users size={11} />Organiser</label>
-                <input
-                  style={inputStyle}
-                  value={form.organiser}
-                  onChange={e => set('organiser', e.target.value)}
-                  placeholder="e.g. Jawatankuasa Kolej Mahasiswa KSJ"
-                  required
-                />
+                <input style={inputStyle} value={form.organiser} onChange={e => set('organiser', e.target.value)} placeholder="e.g. Jawatankuasa Kolej Mahasiswa KSJ" required />
               </div>
 
               {/* Advisor */}
               <div>
                 <label style={labelStyle}><Users size={11} />Advisor</label>
-                <select
-                  style={{ ...inputStyle, cursor: 'pointer' }}
-                  value={advisorId}
-                  onChange={e => setAdvisorId(e.target.value)}
-                  required
-                >
+                <select style={{ ...inputStyle, cursor: 'pointer' }} value={advisorId} onChange={e => setAdvisorId(e.target.value)} required>
                   <option value="" disabled>Select an advisor</option>
-                  {admins.map(a => (
-                    <option key={a.id} value={a.id}>{a.full_name}</option>
-                  ))}
+                  {admins.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
                 </select>
               </div>
 
-              {/* Dates — stacked on mobile, side-by-side on desktop */}
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? '14px' : '14px' }}>
+              {/* Dates */}
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '14px' }}>
                 <div>
                   <label style={labelStyle}><Calendar size={11} />Start Date</label>
-                  <input
-                    type="date"
-                    style={{ ...inputStyle, colorScheme: 'dark', borderColor: dateError ? 'rgba(239,68,68,0.5)' : undefined }}
-                    value={form.start_date}
-                    onChange={e => { set('start_date', e.target.value); validateDates(e.target.value, form.end_date) }}
-                    required
-                  />
+                  <input type="date"
+                    style={{ ...inputStyle, colorScheme: mode === 'light' ? 'light' : 'dark', borderColor: dateError ? 'rgba(239,68,68,0.5)' : undefined }}
+                    value={form.start_date} onChange={e => { set('start_date', e.target.value); validateDates(e.target.value, form.end_date) }} required />
                 </div>
                 <div>
                   <label style={labelStyle}><Calendar size={11} />End Date</label>
-                  <input
-                    type="date"
-                    style={{ ...inputStyle, colorScheme: 'dark', borderColor: dateError ? 'rgba(239,68,68,0.5)' : undefined }}
-                    value={form.end_date}
-                    onChange={e => { set('end_date', e.target.value); validateDates(form.start_date, e.target.value) }}
-                    required
-                  />
+                  <input type="date"
+                    style={{ ...inputStyle, colorScheme: mode === 'light' ? 'light' : 'dark', borderColor: dateError ? 'rgba(239,68,68,0.5)' : undefined }}
+                    value={form.end_date} onChange={e => { set('end_date', e.target.value); validateDates(form.start_date, e.target.value) }} required />
                 </div>
               </div>
 
               {/* Date error */}
               {dateError && (
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '11px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '10px' }}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '1px' }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                  <p style={{ margin: 0, fontSize: '13px', color: '#ef4444', lineHeight: 1.4 }}>{dateError}</p>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '11px 14px', background: t.dangerBg, border: `1px solid ${t.dangerBorder}`, borderRadius: '10px' }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={t.danger} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '1px' }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <p style={{ margin: 0, fontSize: '13px', color: t.danger, lineHeight: 1.4 }}>{dateError}</p>
                 </div>
               )}
 
-              {/* Budget + Venue — stacked on mobile */}
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? '14px' : '14px' }}>
+              {/* Budget + Venue */}
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '14px' }}>
                 <div>
                   <label style={labelStyle}><DollarSign size={11} />Budget (RM)</label>
                   <input
-                    type="text"
-                    inputMode="numeric"
+                    type="text" inputMode="numeric"
                     style={{ ...inputStyle, borderColor: budgetError ? 'rgba(239,68,68,0.5)' : undefined, textAlign: 'left', fontVariantNumeric: 'tabular-nums' }}
-                    value={centsToDisplay(budgetCents)}
-                    onChange={() => {}}
-                    onKeyDown={handleBudgetKeyDown}
-                    onBlur={handleBudgetBlur}
+                    value={centsToDisplay(budgetCents)} onChange={() => {}}
+                    onKeyDown={handleBudgetKeyDown} onBlur={handleBudgetBlur}
                   />
-                  {budgetError && (
-                    <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#ef4444', lineHeight: 1.4 }}>{budgetError}</p>
-                  )}
+                  {budgetError && <p style={{ margin: '6px 0 0', fontSize: '12px', color: t.danger, lineHeight: 1.4 }}>{budgetError}</p>}
                 </div>
                 <div>
                   <label style={labelStyle}><MapPin size={11} />Venue</label>
-                  <input
-                    style={inputStyle}
-                    value={form.venue}
-                    onChange={e => set('venue', e.target.value)}
-                    placeholder="e.g. Foyer Block A, KSJ"
-                    required
-                  />
+                  <input style={inputStyle} value={form.venue} onChange={e => set('venue', e.target.value)} placeholder="e.g. Foyer Block A, KSJ" required />
                 </div>
               </div>
 
             </div>
 
             {/* ── PRE-PROGRAMME CHECKLIST ── */}
-            {isMobile && <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '0' }} />}
+            {isMobile && <div style={{ height: '1px', background: t.border, margin: '0' }} />}
             <div style={{
-              background: isMobile ? 'transparent' : '#0c1526',
-              border: isMobile ? 'none' : '1px solid rgba(255,255,255,0.06)',
+              background: isMobile ? 'transparent' : t.bgCard,
+              border: isMobile ? 'none' : `1px solid ${t.border}`,
               borderRadius: isMobile ? 0 : '16px',
               padding: isMobile ? '16px' : '28px',
               marginTop: isMobile ? '0' : '16px',
@@ -437,47 +379,48 @@ export default function CreateProgrammePage() {
                         <FileText size={13} color="#60a5fa" />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#f1f5f9' }}>Pre-Programme Checklist</p>
-                        <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#4b5563' }}>Upload all required documents before submitting your proposal</p>
+                        <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: t.text }}>Pre-Programme Checklist</p>
+                        <p style={{ margin: '2px 0 0', fontSize: '11px', color: t.textFaint }}>Upload all required documents before submitting your proposal</p>
                       </div>
-                      <span style={{ fontSize: '11px', fontWeight: 600, color: preAllDone ? '#10b981' : '#60a5fa', background: preAllDone ? 'rgba(16,185,129,0.1)' : 'rgba(96,165,250,0.1)', padding: '3px 9px', borderRadius: '5px', flexShrink: 0 }}>
+                      <span style={{ fontSize: '11px', fontWeight: 600, color: preAllDone ? t.success : '#60a5fa', background: preAllDone ? t.successBg : 'rgba(96,165,250,0.1)', padding: '3px 9px', borderRadius: '5px', flexShrink: 0 }}>
                         {preDoneCount}/{PRE_CHECKLIST.length}
                       </span>
                     </div>
+
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       {PRE_CHECKLIST.filter(item => item.key === 'paperwork').map(item => {
                         const file = preFiles[item.key]
                         const done = !!file
                         return (
-                          <div key={item.key} style={{ border: `1px solid ${done ? 'rgba(16,185,129,0.25)' : 'rgba(255,255,255,0.07)'}`, borderRadius: '10px', padding: '12px 14px', background: done ? 'rgba(16,185,129,0.03)' : 'rgba(255,255,255,0.02)' }}>
+                          <div key={item.key} style={{ border: `1px solid ${done ? t.successBorder : t.border}`, borderRadius: '10px', padding: '12px 14px', background: done ? t.successBg : t.bgInput }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                               <div style={{ flexShrink: 0 }}>
                                 {done ? (
-                                  <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: 'rgba(16,185,129,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <CheckCircle size={14} color="#10b981" />
+                                  <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: t.successBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <CheckCircle size={14} color={t.success} />
                                   </div>
                                 ) : (
-                                  <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <XCircle size={13} color="#ef4444" />
+                                  <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: t.dangerBg, border: `1px solid ${t.dangerBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <XCircle size={13} color={t.danger} />
                                   </div>
                                 )}
                               </div>
                               <div style={{ flex: 1, minWidth: 0 }}>
-                                <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: done ? '#f1f5f9' : '#94a3b8' }}>{item.label}</p>
+                                <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: done ? t.text : t.textMuted }}>{item.label}</p>
                                 {done ? (
                                   <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#60a5fa', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</p>
                                 ) : (
-                                  <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#475569' }}>{item.hint}</p>
+                                  <p style={{ margin: '2px 0 0', fontSize: '11px', color: t.textFaint }}>{item.hint}</p>
                                 )}
                               </div>
                               <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
                                 {done && (
                                   <button type="button" onClick={() => setPreFiles(prev => ({ ...prev, [item.key]: null }))}
-                                    style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '6px', padding: '5px 7px', cursor: 'pointer', color: '#ef4444', display: 'flex', alignItems: 'center' }}>
+                                    style={{ background: t.dangerBg, border: `1px solid ${t.dangerBorder}`, borderRadius: '6px', padding: '5px 7px', cursor: 'pointer', color: t.danger, display: 'flex', alignItems: 'center' }}>
                                     <X size={12} />
                                   </button>
                                 )}
-                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 11px', borderRadius: '7px', cursor: 'pointer', border: `1px solid ${done ? 'rgba(16,185,129,0.3)' : 'rgba(96,165,250,0.35)'}`, background: done ? 'rgba(16,185,129,0.1)' : 'rgba(96,165,250,0.1)', color: done ? '#10b981' : '#60a5fa', fontSize: '12px', fontWeight: 500 }}>
+                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 11px', borderRadius: '7px', cursor: 'pointer', border: `1px solid ${done ? t.successBorder : 'rgba(96,165,250,0.35)'}`, background: done ? t.successBg : 'rgba(96,165,250,0.1)', color: done ? t.success : '#60a5fa', fontSize: '12px', fontWeight: 500 }}>
                                   <Upload size={12} />
                                   {done ? 'Replace' : 'Upload'}
                                   <input type="file" style={{ display: 'none' }} onChange={e => {
@@ -499,30 +442,24 @@ export default function CreateProgrammePage() {
 
             {/* ── ACTION BUTTONS ── */}
             <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '10px',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px',
               marginTop: isMobile ? '0' : '20px',
               padding: isMobile ? '14px 16px' : '0',
-              // Mobile: sticky footer bar
               ...(isMobile ? {
-                position: 'sticky',
-                bottom: 0,
-                background: '#070e1a',
-                borderTop: '1px solid rgba(255,255,255,0.06)',
+                position: 'sticky', bottom: 0,
+                background: t.bg,
+                borderTop: `1px solid ${t.border}`,
               } : {}),
             }}>
               <button
-                type="button"
-                onClick={() => router.back()}
+                type="button" onClick={() => router.back()}
                 style={{
                   flex: isMobile ? 1 : undefined,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px',
                   padding: isMobile ? '13px' : '10px 18px',
                   borderRadius: '10px',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  background: 'transparent', color: '#6b7280',
+                  border: `1px solid ${t.border}`,
+                  background: 'transparent', color: t.textFaint,
                   fontSize: isMobile ? '14px' : '13px',
                   cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500,
                 }}
@@ -535,8 +472,7 @@ export default function CreateProgrammePage() {
                 const isDisabled = submitting || !!budgetError || !!dateError || !preAllDone || !advisorId
                 return (
                   <button
-                    type="submit"
-                    disabled={isDisabled}
+                    type="submit" disabled={isDisabled}
                     style={{
                       flex: isMobile ? 2 : undefined,
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px',
@@ -544,8 +480,7 @@ export default function CreateProgrammePage() {
                       borderRadius: '10px', border: 'none',
                       background: isDisabled ? 'rgba(99,102,241,0.35)' : 'linear-gradient(135deg, #4f46e5, #6366f1)',
                       color: 'white',
-                      fontSize: isMobile ? '14px' : '13px',
-                      fontWeight: 600,
+                      fontSize: isMobile ? '14px' : '13px', fontWeight: 600,
                       cursor: isDisabled ? 'not-allowed' : 'pointer',
                       fontFamily: 'inherit', transition: 'opacity 0.15s',
                     }}

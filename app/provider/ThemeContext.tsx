@@ -53,7 +53,7 @@ export const THEMES = {
 } as const
 
 export type ThemeMode = 'dark' | 'light'
-export type ThemeTokens = typeof THEMES.dark
+export type ThemeTokens = typeof THEMES.dark | typeof THEMES.light
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

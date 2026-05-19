@@ -7,7 +7,7 @@ import {
   LayoutDashboard, BookOpen, Users, Settings, LogOut, Bell,
   CirclePlus, Pencil, Trash, Save, CircleX, TrendingUp, Clock,
   CheckCircle, XCircle, AlertCircle, Search, Shield, Calendar,
-  MapPin, DollarSign, Activity, ArrowRightLeft, Crown, Eye, FileText, Upload, QrCode, X
+  MapPin, DollarSign, Activity, ArrowRightLeft, Crown, Eye, FileText, Upload, QrCode, X, UserCircle
 } from 'lucide-react'
 import { PRE_CHECKLIST } from '../../lib/constants'
 
@@ -17,7 +17,7 @@ interface Programme {
   budget: number; start_date: string; end_date: string; status: string; created_at: string
 }
 interface Profile { id: string; full_name: string; email: string; roles: { name: string } | null }
-type NavItem = 'dashboard' | 'programmes' | 'createAdmin' | 'exchangeAdmin' | 'settings' | 'attendance' | 'users'
+type NavItem = 'dashboard' | 'programmes' | 'createAdmin' | 'exchangeAdmin' | 'settings' | 'attendance' | 'users' | 'profile'
 
 /* ─── SUPERADMIN TOKENS ──────────────────────────────────────────────────── */
 const SA = {
@@ -946,6 +946,7 @@ export default function SuperAdminDashboard() {
     { id: 'users',         icon: Users,            label: 'Users',          path: '/superadmin/users' },
     { id: 'createAdmin',   icon: CirclePlus,       label: 'Create Admin',   path: '/superadmin/create-admin' },
     { id: 'exchangeAdmin', icon: ArrowRightLeft,   label: 'Exchange Admin', path: '/superadmin/exchange-admin' },
+    { id: 'profile',       icon: UserCircle,       label: 'Profile',        path: '/profile' },
     { id: 'settings',      icon: Settings,         label: 'Settings',       path: '/settings' },
   ]
 
@@ -1149,7 +1150,7 @@ export default function SuperAdminDashboard() {
           })}
           <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: `1px solid rgba(245,158,11,0.07)` }}>
             <p style={{ fontSize: '9px', fontWeight: 600, color: SA.accent, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0 10px', marginBottom: '6px', opacity: 0.6 }}>Superadmin Only</p>
-            {navItems.slice(3, 7).map(item => {
+            {navItems.slice(3, 8).map(item => {
               const Icon = item.icon; const isActive = activeNav === item.id
               return (
                 <button key={item.id} onClick={() => handleNavClick(item)}
