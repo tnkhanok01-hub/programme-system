@@ -22,7 +22,7 @@ import { PHASES, PRE_CHECKLIST, POST_CHECKLIST, SINGLE_ROLE_LIMIT, APPROVAL_CHEC
 
 interface Programme {
   id: string; name: string; description: string; category: string
-  venue: string; budget: number; start_date: string; end_date: string
+  organiser: string; venue: string; budget: number; start_date: string; end_date: string
   status: string; created_at: string; rejection_reason: string | null
   programme_director_id: string
   approved_by_admin_name?: string | null
@@ -97,7 +97,7 @@ export default function ProgrammeDetailPage() {
   const [sessionToken, setSessionToken] = useState('')
   const [currentUserId, setCurrentUserId] = useState('')
 
-  const [form, setForm] = useState({ name: '', category: '', venue: '', budget: '', start_date: '', end_date: '', description: '' })
+  const [form, setForm] = useState({ name: '', category: '', organiser: '', venue: '', budget: '', start_date: '', end_date: '', description: '' })
   const [resubmitDateError, setResubmitDateError] = useState('')
   const [resubmitBudgetError, setResubmitBudgetError] = useState('')
   const [resubmitBudgetCents, setResubmitBudgetCents] = useState(0)
@@ -170,7 +170,7 @@ export default function ProgrammeDetailPage() {
         if (advData) setAdvisorInfo(advData as any)
       }
       setForm({
-        name: prog.name ?? '', category: prog.category ?? '', venue: prog.venue ?? '',
+        name: prog.name ?? '', category: prog.category ?? '', organiser: prog.organiser ?? '', venue: prog.venue ?? '',
         budget: prog.budget != null ? Number(prog.budget).toFixed(2) : '0.00',
         start_date: prog.start_date ? prog.start_date.slice(0, 10) : '',
         end_date: prog.end_date ? prog.end_date.slice(0, 10) : '',
@@ -424,8 +424,9 @@ export default function ProgrammeDetailPage() {
               <h2 style={{ margin: '0 0 16px', fontSize: '13px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Programme Details</h2>
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '14px' }}>
                 {[
-                  { label: 'Category',   value: programme.category || '—', icon: BookOpen },
-                  { label: 'Venue',      value: programme.venue    || '—', icon: MapPin },
+                  { label: 'Category',   value: programme.category  || '—', icon: BookOpen },
+                  { label: 'Organiser',  value: programme.organiser || '—', icon: Users },
+                  { label: 'Venue',      value: programme.venue     || '—', icon: MapPin },
                   { label: 'Start Date', value: programme.start_date ? new Date(programme.start_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' }) : '—', icon: Calendar },
                   { label: 'End Date',   value: programme.end_date   ? new Date(programme.end_date).toLocaleDateString('en-MY',   { day: 'numeric', month: 'long', year: 'numeric' }) : '—', icon: Calendar },
                   { label: 'Budget',     value: programme.budget != null ? `RM ${Number(programme.budget).toLocaleString('en-MY', { minimumFractionDigits: 2 })}` : '—', icon: DollarSign },
@@ -579,6 +580,10 @@ export default function ProgrammeDetailPage() {
                   <div>
                     <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Programme Name</label>
                     <input type="text" value={form.name} onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))} style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Organiser</label>
+                    <input type="text" value={form.organiser} onChange={e => setForm(prev => ({ ...prev, organiser: e.target.value }))} style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Venue</label>

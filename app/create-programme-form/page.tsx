@@ -27,6 +27,7 @@ export default function CreateProgrammePage() {
     name: '',
     description: '',
     category: '',
+    organiser: '',
     start_date: '',
     end_date: '',
     budget: '',
@@ -324,6 +325,18 @@ export default function CreateProgrammePage() {
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
+              </div>
+
+              {/* Organiser */}
+              <div>
+                <label style={labelStyle}><Users size={11} />Organiser</label>
+                <input
+                  style={inputStyle}
+                  value={form.organiser}
+                  onChange={e => set('organiser', e.target.value)}
+                  placeholder="e.g. Jawatankuasa Kolej Mahasiswa KSJ"
+                  required
+                />
               </div>
 
               {/* Advisor */}

@@ -140,264 +140,347 @@ export default function SurveyReportTab({ programmeId, programmeName }: Props) {
   const expColors: Record<string, string> = { Excellent: '#10b981', Good: '#60a5fa', Average: '#f59e0b', Poor: '#ef4444' }
   const sourceColors = ['#818cf8','#34d399','#f59e0b','#f87171','#a78bfa']
 
-  const generatePDF = () => {
+  const generatePDF = async () => {
     setGeneratingPdf(true)
     try {
+      // ── Load UTM letterhead (same source as approval letter) ─────────────────
+      let bg: string | null = null
+      try {
+        const r = await fetch('/approvalTemplate/UTM_letterhead_bg.jpeg')
+        const blob = await r.blob()
+        bg = await new Promise<string>((resolve) => {
+          const fr = new FileReader()
+          fr.onload = () => resolve(fr.result as string)
+          fr.readAsDataURL(blob)
+        })
+      } catch { bg = null }
+
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-      const W = doc.internal.pageSize.getWidth()
-      const H = doc.internal.pageSize.getHeight()
-      const margin = 20
-      const cW = W - margin * 2
+      const W = doc.internal.pageSize.getWidth()   // 210
+      const H = doc.internal.pageSize.getHeight()  // 297
+      const ML = 20   // left margin
+      const MR = 190  // right margin
+      const cW = MR - ML
+      const BOT = 275 // bottom boundary before footer
+      const FOOTER_H = 14
       let y = 0
-
-      const newPage = () => { doc.addPage(); doc.setFillColor(7,14,26); doc.rect(0,0,W,H,'F'); y = 20 }
-      const checkPage = (need = 10) => { if (y + need > H - 16) newPage() }
-
-      const fillRect = (x: number, ry: number, w: number, h: number, r: number, rgb: [number,number,number]) => {
-        doc.setFillColor(...rgb); doc.roundedRect(x, ry, w, h, r, r, 'F')
-      }
+      let pageNum = 0
 
       const generated = new Date().toLocaleDateString('en-MY', { day:'numeric', month:'long', year:'numeric' })
 
-      // ── Cover ──
-      doc.setFillColor(7,14,26); doc.rect(0,0,W,H,'F')
-      doc.setFillColor(12,21,38); doc.rect(0,0,W,56,'F')
-      doc.setFillColor(99,102,241); doc.rect(0,56,W,2,'F')
+      // ── Page management ──────────────────────────────────────────────────────
+      const startPage = () => {
+        if (pageNum > 0) doc.addPage()
+        pageNum++
+        // White background
+        doc.setFillColor(255, 255, 255)
+        doc.rect(0, 0, W, H, 'F')
+        // Letterhead background on page 1 only (contains logo + header + footer bar)
+        if (bg && pageNum === 1) {
+          doc.addImage(bg, 'JPEG', 0, 0, W, H)
+          y = 58  // start below the letterhead header (same as approval letter)
+        } else {
+          y = 24
+        }
+      }
 
-      doc.setTextColor(248,250,252); doc.setFontSize(22); doc.setFont('helvetica','bold')
-      doc.text('Survey Report', margin, 22)
-      doc.setFontSize(11); doc.setFont('helvetica','normal'); doc.setTextColor(148,163,184)
-      doc.text(programmeName || 'Programme Survey Analysis', margin, 33)
-      doc.setFontSize(8.5); doc.setTextColor(71,85,105)
-      doc.text(`Generated on ${generated}`, margin, 43)
+      const checkPage = (need = 10) => { if (y + need > BOT) startPage() }
 
-      fillRect(W-margin-48, 36, 48, 10, 2, [30,41,59])
-      doc.setTextColor(96,165,250); doc.setFontSize(8); doc.setFont('helvetica','bold')
-      doc.text(`PRE: ${preSurveys.length}`, W-margin-38, 42.5)
-      fillRect(W-margin-48, 48, 48, 10, 2, [30,41,59])
-      doc.setTextColor(167,139,250)
-      doc.text(`POST: ${postSurveys.length}`, W-margin-38, 54.5)
+      // ── Footer drawn on every page after all content is laid out ────────────
+      const drawFooter = (p: number, total: number) => {
+        doc.setPage(p)
+        if (bg && p === 1) return // page 1 footer is baked into the letterhead image
+        // Replicate the UTM letterhead footer bar for subsequent pages
+        doc.setFillColor(139, 0, 20)   // UTM dark red
+        doc.rect(0, H - FOOTER_H, W * 0.55, FOOTER_H, 'F')
+        doc.setFillColor(200, 160, 0)  // UTM gold
+        doc.rect(W * 0.55, H - FOOTER_H, W * 0.45, FOOTER_H, 'F')
+        doc.setTextColor(255, 255, 255)
+        doc.setFont('helvetica', 'bolditalic')
+        doc.setFontSize(8.5)
+        doc.text('Innovating Solutions', ML, H - FOOTER_H + 9)
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(8)
+        doc.text('www.utm.my', MR, H - FOOTER_H + 9, { align: 'right' })
+        // Page number (subtle, above footer)
+        doc.setTextColor(150, 150, 150)
+        doc.setFontSize(7)
+        doc.text(`Page ${p} of ${total}`, W / 2, H - FOOTER_H - 2, { align: 'center' })
+      }
 
-      y = 72
-
-      // ── Helpers ──
+      // ── Text helpers (white-page palette) ───────────────────────────────────
       const secTitle = (t: string) => {
         checkPage(16)
-        doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(100,116,139)
-        doc.text(t.toUpperCase(), margin, y)
-        doc.setDrawColor(30,41,59); doc.setLineWidth(0.3); doc.line(margin, y+2, W-margin, y+2)
+        doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(120, 0, 20)
+        doc.text(t.toUpperCase(), ML, y)
+        doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.3)
+        doc.line(ML, y + 2, MR, y + 2)
         y += 10
       }
 
-      const statRow = (label: string, val: string, accent: [number,number,number]=[99,102,241]) => {
+      const statRow = (label: string, val: string, accentHex = '#8B0014') => {
         checkPage(10)
-        fillRect(margin, y-4, cW, 9, 1, [15,26,45])
-        doc.setFillColor(...accent); doc.rect(margin, y-4, 2, 9, 'F')
-        doc.setTextColor(203,213,225); doc.setFont('helvetica','normal'); doc.setFontSize(9)
-        doc.text(label, margin+6, y+1.5)
-        doc.setFont('helvetica','bold'); doc.setTextColor(248,250,252)
-        doc.text(val, W-margin-2, y+1.5, { align:'right' })
+        doc.setFillColor(245, 245, 245)
+        doc.roundedRect(ML, y - 4, cW, 9, 1, 1, 'F')
+        // accent left bar
+        const [ar, ag, ab] = hexToRgb(accentHex)
+        doc.setFillColor(ar, ag, ab); doc.rect(ML, y - 4, 2, 9, 'F')
+        doc.setTextColor(60, 60, 60); doc.setFont('helvetica', 'normal'); doc.setFontSize(9)
+        doc.text(label, ML + 6, y + 1.5)
+        doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 20, 20)
+        doc.text(val, MR - 2, y + 1.5, { align: 'right' })
         y += 12
       }
 
       const bar = (label: string, count: number, total: number, color: string) => {
         checkPage(14)
-        const pct = total === 0 ? 0 : Math.round((count/total)*100)
-        const rgb = hexToRgb(color)
-        doc.setTextColor(148,163,184); doc.setFont('helvetica','normal'); doc.setFontSize(8.5)
-        doc.text(label, margin, y)
-        doc.setTextColor(203,213,225); doc.setFont('helvetica','bold')
-        doc.text(`${count} (${pct}%)`, W-margin, y, { align:'right' })
-        fillRect(margin, y+2, cW, 4, 1, [30,41,59])
-        if (pct > 0) { doc.setFillColor(...rgb); doc.roundedRect(margin, y+2, cW*pct/100, 4, 1,1,'F') }
+        const pct = total === 0 ? 0 : Math.round((count / total) * 100)
+        const [br, bg2, bb] = hexToRgb(color)
+        doc.setTextColor(80, 80, 80); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5)
+        doc.text(label, ML, y)
+        doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'bold')
+        doc.text(`${count} (${pct}%)`, MR, y, { align: 'right' })
+        // track
+        doc.setFillColor(220, 220, 220); doc.roundedRect(ML, y + 2, cW, 4, 1, 1, 'F')
+        if (pct > 0) { doc.setFillColor(br, bg2, bb); doc.roundedRect(ML, y + 2, cW * pct / 100, 4, 1, 1, 'F') }
         y += 12
       }
 
       const textBlock = (label: string, val: string) => {
-        const lines = doc.splitTextToSize(val || '—', cW-6)
+        const lines = doc.splitTextToSize(val || '—', cW - 6)
         const bh = lines.length * 4.5 + 7
         checkPage(bh + 10)
-        doc.setTextColor(71,85,105); doc.setFont('helvetica','bold'); doc.setFontSize(7.5)
-        doc.text(label.toUpperCase().replace(/_/g,' '), margin+3, y)
+        doc.setTextColor(120, 0, 20); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5)
+        doc.text(label.toUpperCase().replace(/_/g, ' '), ML + 3, y)
         y += 5
-        fillRect(margin, y-2, cW, bh, 2, [15,26,45])
-        doc.setTextColor(203,213,225); doc.setFont('helvetica','normal'); doc.setFontSize(8.5)
-        doc.text(lines, margin+3, y+3.5)
+        doc.setFillColor(247, 247, 247); doc.roundedRect(ML, y - 2, cW, bh, 2, 2, 'F')
+        doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.2)
+        doc.roundedRect(ML, y - 2, cW, bh, 2, 2, 'S')
+        doc.setTextColor(40, 40, 40); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5)
+        doc.text(lines, ML + 3, y + 3.5)
         y += bh + 5
       }
 
-      const participantHeader = (row: SurveyRow, i: number, accentRgb: [number,number,number]) => {
+      const participantHeader = (row: SurveyRow, i: number, accentHex: string) => {
         checkPage(18)
         const name = (row.users as any)?.full_name || 'Unknown'
         const matric = (row.users as any)?.matric_number || ''
-        fillRect(margin, y-2, cW, 11, 2, [15,26,45])
-        doc.setFillColor(...accentRgb); doc.roundedRect(margin, y-2, 8, 11, 1,1,'F')
-        doc.setTextColor(7,14,26); doc.setFont('helvetica','bold'); doc.setFontSize(8)
-        doc.text(`${i+1}`, margin+4, y+5, { align:'center' })
-        doc.setTextColor(241,245,249); doc.setFontSize(9)
-        doc.text(name, margin+12, y+3.5)
-        if (matric) { doc.setTextColor(71,85,105); doc.setFontSize(7.5); doc.text(matric, margin+12, y+8) }
+        const [pr, pg, pb] = hexToRgb(accentHex)
+        doc.setFillColor(245, 245, 245); doc.roundedRect(ML, y - 2, cW, 11, 2, 2, 'F')
+        doc.setFillColor(pr, pg, pb); doc.roundedRect(ML, y - 2, 8, 11, 1, 1, 'F')
+        doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(8)
+        doc.text(`${i + 1}`, ML + 4, y + 5, { align: 'center' })
+        doc.setTextColor(20, 20, 20); doc.setFontSize(9)
+        doc.text(name, ML + 12, y + 3.5)
+        if (matric) { doc.setTextColor(100, 100, 100); doc.setFontSize(7.5); doc.text(matric, ML + 12, y + 8) }
         y += 15
       }
 
-      // ── PRE-SURVEY ──
+      // ── Title block (page 1, below letterhead) ────────────────────────────────
+      startPage()
+
+      // Report title sits in the content area below the letterhead header
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(20, 20, 20)
+      doc.text('Survey Report', ML, y); y += 6
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(80, 80, 80)
+      doc.text(programmeName || 'Programme Survey Analysis', ML, y); y += 5
+      doc.setFontSize(8); doc.setTextColor(140, 140, 140)
+      doc.text(`Generated on ${generated}   ·   Pre-survey: ${preSurveys.length}   ·   Post-survey: ${postSurveys.length}`, ML, y)
+      y += 3
+
+      // Thin UTM-red rule under title
+      doc.setDrawColor(139, 0, 20); doc.setLineWidth(0.5)
+      doc.line(ML, y + 2, MR, y + 2)
+      y += 8
+
+      // ── PRE-SURVEY ──────────────────────────────────────────────────────────
       if (preSurveys.length > 0) {
         secTitle(`Pre-Survey (${preSurveys.length} responses)`)
         const ap = avgFamiliarity(preSurveys)
-        if (ap !== null) statRow('Average Familiarity (Before)', `${ap.toFixed(1)} / 5`, [99,102,241])
+        if (ap !== null) statRow('Average Familiarity (Before)', `${ap.toFixed(1)} / 5`)
         y += 2
 
         if (Object.keys(sourceCounts).length > 0) {
-          checkPage(16); doc.setTextColor(148,163,184); doc.setFont('helvetica','bold'); doc.setFontSize(9)
-          doc.text('How they heard about it', margin, y); y += 7
-          Object.entries(sourceCounts).forEach(([src, cnt], i) => bar(src, cnt, preSurveys.length, sourceColors[i%5]))
+          checkPage(16)
+          doc.setTextColor(60, 60, 60); doc.setFont('helvetica', 'bold'); doc.setFontSize(9)
+          doc.text('How they heard about it', ML, y); y += 7
+          Object.entries(sourceCounts).forEach(([src, cnt], i) => bar(src, cnt, preSurveys.length, sourceColors[i % 5]))
         }
         y += 4
         secTitle('Pre-Survey — Individual Responses')
         preSurveys.forEach((row, i) => {
-          participantHeader(row, i, [99,102,241])
-          Object.entries(row.answers).forEach(([k,v]) => { if (v) textBlock(k,v) })
+          participantHeader(row, i, '#6366f1')
+          Object.entries(row.answers).forEach(([k, v]) => { if (v) textBlock(k, v) })
           y += 4
         })
       }
 
-      // ── POST-SURVEY ──
+      // ── POST-SURVEY ──────────────────────────────────────────────────────────
       if (postSurveys.length > 0) {
-        newPage()
+        startPage()
         secTitle(`Post-Survey (${postSurveys.length} responses)`)
         const aPost = avgFamiliarity(postSurveys)
         const aPre  = avgFamiliarity(preSurveys)
-        if (aPost !== null) statRow('Average Familiarity (After)',  `${aPost.toFixed(1)} / 5`, [52,211,153])
-        if (aPre  !== null) statRow('Average Familiarity (Before)', `${aPre.toFixed(1)} / 5`,  [99,102,241])
+        if (aPost !== null) statRow('Average Familiarity (After)',  `${aPost.toFixed(1)} / 5`, '#10b981')
+        if (aPre  !== null) statRow('Average Familiarity (Before)', `${aPre.toFixed(1)} / 5`,  '#6366f1')
         if (aPost !== null && aPre !== null) {
           const diff = aPost - aPre
-          statRow('Knowledge Gain', `${diff>=0?'+':''}${diff.toFixed(1)}`, diff>=0?[16,185,129]:[239,68,68])
+          statRow('Knowledge Gain', `${diff >= 0 ? '+' : ''}${diff.toFixed(1)}`, diff >= 0 ? '#10b981' : '#ef4444')
         }
         y += 4
 
         if (Object.keys(expCounts).length > 0) {
-          doc.setTextColor(148,163,184); doc.setFont('helvetica','bold'); doc.setFontSize(9)
-          doc.text('Overall Experience', margin, y); y += 7
-          ;['Excellent','Good','Average','Poor'].forEach(exp => { if (expCounts[exp]) bar(exp, expCounts[exp], postSurveys.length, expColors[exp]) })
+          checkPage(16)
+          doc.setTextColor(60, 60, 60); doc.setFont('helvetica', 'bold'); doc.setFontSize(9)
+          doc.text('Overall Experience', ML, y); y += 7
+          ;['Excellent', 'Good', 'Average', 'Poor'].forEach(exp => { if (expCounts[exp]) bar(exp, expCounts[exp], postSurveys.length, expColors[exp]) })
           y += 4
         }
         if (Object.keys(participCounts).length > 0) {
-          doc.setTextColor(148,163,184); doc.setFont('helvetica','bold'); doc.setFontSize(9)
-          doc.text('Active Participation', margin, y); y += 7
-          Object.entries(participCounts).forEach(([v,c]) => bar(v, c, postSurveys.length, v==='Yes'?'#10b981':'#ef4444'))
+          checkPage(16)
+          doc.setTextColor(60, 60, 60); doc.setFont('helvetica', 'bold'); doc.setFontSize(9)
+          doc.text('Active Participation', ML, y); y += 7
+          Object.entries(participCounts).forEach(([v, c]) => bar(v, c, postSurveys.length, v === 'Yes' ? '#10b981' : '#ef4444'))
           y += 4
         }
 
         secTitle('Post-Survey — Individual Responses')
         postSurveys.forEach((row, i) => {
-          participantHeader(row, i, [52,211,153])
-          Object.entries(row.answers).forEach(([k,v]) => { if (v) textBlock(k,v) })
+          participantHeader(row, i, '#10b981')
+          Object.entries(row.answers).forEach(([k, v]) => { if (v) textBlock(k, v) })
           y += 4
         })
       }
 
-      // ── Page numbers ──
-      const pages = doc.getNumberOfPages()
-      for (let p = 1; p <= pages; p++) {
-        doc.setPage(p)
-        doc.setFillColor(7,14,26); doc.rect(0, H-12, W, 12, 'F')
-        doc.setTextColor(71,85,105); doc.setFontSize(7.5); doc.setFont('helvetica','normal')
-        doc.text(`Page ${p} of ${pages}`, W/2, H-4, { align:'center' })
-        doc.text('SPMS — Survey Report', margin, H-4)
-        doc.text(generated, W-margin, H-4, { align:'right' })
-      }
+      // ── Footer on all pages except page 1 (letterhead already has it) ───────
+      const totalPages = doc.getNumberOfPages()
+      for (let p = 1; p <= totalPages; p++) drawFooter(p, totalPages)
 
-      const safeName = (programmeName||'programme').replace(/[^a-zA-Z0-9\s]/g,'').replace(/\s+/g,'-').toLowerCase()
+      const safeName = (programmeName || 'programme').replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '-').toLowerCase()
       doc.save(`survey-report-${safeName}.pdf`)
     } finally {
       setGeneratingPdf(false)
     }
   }
 
-  const generateAttendancePDF = () => {
+  const generateAttendancePDF = async () => {
     setGeneratingAttendance(true)
     try {
-      // Only include those who submitted both surveys
+      // ── Load UTM letterhead ─────────────────────────────────────────────────
+      let bg: string | null = null
+      try {
+        const r = await fetch('/approvalTemplate/UTM_letterhead_bg.jpeg')
+        const blob = await r.blob()
+        bg = await new Promise<string>((resolve) => {
+          const fr = new FileReader()
+          fr.onload = () => resolve(fr.result as string)
+          fr.readAsDataURL(blob)
+        })
+      } catch { bg = null }
+
       const qualified = attendance.filter(a => a.pre_survey && a.post_survey)
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
       const W = doc.internal.pageSize.getWidth()
       const H = doc.internal.pageSize.getHeight()
-      const margin = 20
+      const ML = 20
+      const MR = 190
+      const BOT = 275
+      const FOOTER_H = 14
       const generated = new Date().toLocaleDateString('en-MY', { day:'numeric', month:'long', year:'numeric' })
 
-      // Background
-      doc.setFillColor(7,14,26); doc.rect(0,0,W,H,'F')
-      doc.setFillColor(12,21,38); doc.rect(0,0,W,52,'F')
-      doc.setFillColor(16,185,129); doc.rect(0,52,W,2,'F')
+      let pageNum = 0
+      let y = 0
 
-      // Header text
-      doc.setTextColor(248,250,252); doc.setFontSize(20); doc.setFont('helvetica','bold')
-      doc.text('Attendance List', margin, 20)
-      doc.setFontSize(10); doc.setFont('helvetica','normal'); doc.setTextColor(148,163,184)
-      doc.text(programmeName || 'Programme', margin, 30)
-      doc.setFontSize(8.5); doc.setTextColor(71,85,105)
-      doc.text(`Generated on ${generated}`, margin, 39)
+      const startPage = () => {
+        if (pageNum > 0) doc.addPage()
+        pageNum++
+        doc.setFillColor(255, 255, 255); doc.rect(0, 0, W, H, 'F')
+        if (bg && pageNum === 1) {
+          doc.addImage(bg, 'JPEG', 0, 0, W, H)
+          y = 58
+        } else {
+          y = 24
+        }
+      }
 
-      // Count badge
-      doc.setFillColor(30,41,59); doc.roundedRect(W-margin-52, 32, 52, 12, 2,2,'F')
-      doc.setTextColor(52,211,153); doc.setFontSize(8.5); doc.setFont('helvetica','bold')
-      doc.text(`${qualified.length} participant${qualified.length!==1?'s':''}`, W-margin-26, 40, { align:'center' })
+      const drawFooter = (p: number, total: number) => {
+        doc.setPage(p)
+        if (bg && p === 1) return
+        doc.setFillColor(139, 0, 20); doc.rect(0, H - FOOTER_H, W * 0.55, FOOTER_H, 'F')
+        doc.setFillColor(200, 160, 0); doc.rect(W * 0.55, H - FOOTER_H, W * 0.45, FOOTER_H, 'F')
+        doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bolditalic'); doc.setFontSize(8.5)
+        doc.text('Innovating Solutions', ML, H - FOOTER_H + 9)
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8)
+        doc.text('www.utm.my', MR, H - FOOTER_H + 9, { align: 'right' })
+        doc.setTextColor(150, 150, 150); doc.setFontSize(7)
+        doc.text(`Page ${p} of ${total}`, W / 2, H - FOOTER_H - 2, { align: 'center' })
+      }
+
+      startPage()
+
+      // Title
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(20, 20, 20)
+      doc.text('Attendance List', ML, y); y += 6
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(80, 80, 80)
+      doc.text(programmeName || 'Programme', ML, y); y += 5
+      doc.setFontSize(8); doc.setTextColor(140, 140, 140)
+      doc.text(`Generated on ${generated}   ·   ${qualified.length} participant${qualified.length !== 1 ? 's' : ''}`, ML, y)
+      y += 3
+      doc.setDrawColor(139, 0, 20); doc.setLineWidth(0.5); doc.line(ML, y + 2, MR, y + 2)
+      y += 8
 
       // Sub-label
-      doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(71,85,105)
-      doc.text('Only participants who completed BOTH pre & post surveys are listed.', margin, 60)
-
-      let y = 72
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(100, 100, 100)
+      doc.text('Only participants who completed BOTH pre & post surveys are listed.', ML, y)
+      y += 8
 
       if (qualified.length === 0) {
-        doc.setTextColor(100,116,139); doc.setFontSize(11); doc.setFont('helvetica','normal')
-        doc.text('No participants have completed both surveys yet.', W/2, y + 20, { align:'center' })
+        doc.setTextColor(120, 120, 120); doc.setFontSize(11); doc.setFont('helvetica', 'normal')
+        doc.text('No participants have completed both surveys yet.', W / 2, y + 20, { align: 'center' })
       } else {
         // Table header
-        doc.setFillColor(15,26,45); doc.rect(margin, y, W-margin*2, 9, 'F')
-        doc.setFillColor(16,185,129); doc.rect(margin, y, 2, 9, 'F')
-        doc.setTextColor(148,163,184); doc.setFontSize(8); doc.setFont('helvetica','bold')
-        doc.text('#', margin+6, y+6)
-        doc.text('Name', margin+18, y+6)
-        doc.text('Matric / Staff ID', margin+110, y+6)
+        doc.setFillColor(139, 0, 20); doc.rect(ML, y, MR - ML, 9, 'F')
+        doc.setTextColor(255, 255, 255); doc.setFontSize(8); doc.setFont('helvetica', 'bold')
+        doc.text('#', ML + 4, y + 6)
+        doc.text('Name', ML + 16, y + 6)
+        doc.text('Matric / Staff ID', ML + 110, y + 6)
         y += 12
 
         qualified.forEach((att, i) => {
-          if (y > H - 20) {
-            doc.addPage()
-            doc.setFillColor(7,14,26); doc.rect(0,0,W,H,'F')
-            y = 20
+          if (y > BOT) {
+            startPage()
+            // Repeat table header on new page
+            doc.setFillColor(139, 0, 20); doc.rect(ML, y, MR - ML, 9, 'F')
+            doc.setTextColor(255, 255, 255); doc.setFontSize(8); doc.setFont('helvetica', 'bold')
+            doc.text('#', ML + 4, y + 6)
+            doc.text('Name', ML + 16, y + 6)
+            doc.text('Matric / Staff ID', ML + 110, y + 6)
+            y += 12
           }
           const name = (att.users as any)?.full_name || '—'
           const matric = (att.users as any)?.matric_number || '—'
-          const rowBg: [number,number,number] = i % 2 === 0 ? [12,21,38] : [15,26,45]
-          doc.setFillColor(...rowBg); doc.rect(margin, y-4, W-margin*2, 10, 'F')
+          const rowBg: [number, number, number] = i % 2 === 0 ? [248, 248, 248] : [255, 255, 255]
+          doc.setFillColor(...rowBg); doc.rect(ML, y - 4, MR - ML, 10, 'F')
+          // left accent stripe
+          doc.setFillColor(139, 0, 20); doc.rect(ML, y - 4, 2, 10, 'F')
 
-          doc.setTextColor(148,163,184); doc.setFont('helvetica','normal'); doc.setFontSize(8.5)
-          doc.text(`${i+1}`, margin+6, y+2.5)
+          doc.setTextColor(100, 100, 100); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5)
+          doc.text(`${i + 1}`, ML + 6, y + 2.5)
 
-          doc.setTextColor(241,245,249); doc.setFont('helvetica','bold')
-          const truncName = name.length > 32 ? name.slice(0,30)+'…' : name
-          doc.text(truncName, margin+18, y+2.5)
+          doc.setTextColor(20, 20, 20); doc.setFont('helvetica', 'bold')
+          const truncName = name.length > 38 ? name.slice(0, 36) + '…' : name
+          doc.text(truncName, ML + 16, y + 2.5)
 
-          doc.setTextColor(148,163,184); doc.setFont('helvetica','normal')
-          doc.text(matric, margin+110, y+2.5)
+          doc.setTextColor(80, 80, 80); doc.setFont('helvetica', 'normal')
+          doc.text(matric, ML + 110, y + 2.5)
           y += 11
         })
       }
 
-      // Footer on each page
-      const pages = doc.getNumberOfPages()
-      for (let p = 1; p <= pages; p++) {
-        doc.setPage(p)
-        doc.setFillColor(7,14,26); doc.rect(0, H-12, W, 12, 'F')
-        doc.setTextColor(71,85,105); doc.setFontSize(7.5); doc.setFont('helvetica','normal')
-        doc.text(`Page ${p} of ${pages}`, W/2, H-4, { align:'center' })
-        doc.text('SPMS — Attendance List', margin, H-4)
-        doc.text(generated, W-margin, H-4, { align:'right' })
-      }
+      const totalPages = doc.getNumberOfPages()
+      for (let p = 1; p <= totalPages; p++) drawFooter(p, totalPages)
 
-      const safeName = (programmeName||'programme').replace(/[^a-zA-Z0-9\s]/g,'').replace(/\s+/g,'-').toLowerCase()
+      const safeName = (programmeName || 'programme').replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '-').toLowerCase()
       doc.save(`attendance-list-${safeName}.pdf`)
     } finally {
       setGeneratingAttendance(false)

@@ -42,7 +42,7 @@ export async function POST(request: Request) {
 
   // 4. Parse request body
   const body = await request.json();
-  const { name, description, category, venue, start_date, end_date, budget, advisor_id } = body;
+  const { name, description, category, organiser, venue, start_date, end_date, budget, advisor_id } = body;
 
   // 5. Validate required fields
   if (!name || !start_date || !end_date) {
@@ -80,6 +80,7 @@ export async function POST(request: Request) {
       name,
       description,
       category,
+      organiser,
       venue,
       start_date,
       end_date,

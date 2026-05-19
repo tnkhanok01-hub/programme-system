@@ -51,9 +51,9 @@ function toWords(n: number): string {
 function budgetLabel(amount: number): string {
   const whole = Math.floor(amount)
   const cents = Math.round((amount - whole) * 100)
-  let words = toWords(whole)
+  let words = toWords(whole) + ' Ringgit'
   if (cents > 0) words += ` Dan Sen ${toWords(cents)}`
-  return `RM${amount.toFixed(2)} (Ringgit Malaysia: ${words} Sahaja)`
+  return `RM${amount.toFixed(2)} (${words} Sahaja)`
 }
 
 // ── Static conditions (i – xix) ───────────────────────────────────────────────
@@ -126,6 +126,7 @@ async function loadImageDataUrl(url: string): Promise<string | null> {
 interface ProgrammeData {
   id: string
   name: string
+  organiser: string
   venue: string
   budget: number
   start_date: string
@@ -249,7 +250,8 @@ export async function generateApprovalLetter(
   y += LH
   setStyle(10)
   doc.text('Pengarah Program', ML, y);         y += LH
-  doc.text('Jawatankuasa Kolej Mahasiswa Pelajar Kolej Siswa Jaya (JKM KSJ)', ML, y); y += LH
+  const organiserLines = doc.splitTextToSize(programme.organiser ?? 'Jawatankuasa Kolej Mahasiswa Pelajar Kolej Siswa Jaya (JKM KSJ)', CW)
+  for (const l of organiserLines) { doc.text(l, ML, y); y += LH }
   doc.text('UTM Kuala Lumpur', ML, y)
 
   gap(LH * 2)
@@ -262,7 +264,7 @@ export async function generateApprovalLetter(
 
   const subject =
     `KELULUSAN PENGANJURAN PROGRAM ${programme.name.toUpperCase()} ` +
-    `ANJURAN JAWATANKUASA KOLEJ MAHASISWA PELAJAR KOLEJ SISWA JAYA (JKM KSJ)`
+    `ANJURAN ${(programme.organiser ?? 'JAWATANKUASA KOLEJ MAHASISWA PELAJAR KOLEJ SISWA JAYA (JKM KSJ)').toUpperCase()}`
 
   block(subject, ML, CW, 10, true, LH)
   gap(LH * 1.5)

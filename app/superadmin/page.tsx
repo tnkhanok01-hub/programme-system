@@ -13,7 +13,7 @@ import { PRE_CHECKLIST } from '../../lib/constants'
 
 /* ─── TYPES ──────────────────────────────────────────────────────────────── */
 interface Programme {
-  id: string; name: string; category: string; venue: string
+  id: string; name: string; category: string; organiser: string; venue: string
   budget: number; start_date: string; end_date: string; status: string; created_at: string
 }
 interface Profile { id: string; full_name: string; email: string; roles: { name: string } | null }
@@ -476,7 +476,8 @@ function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoadi
           {[
             { label: 'Programme Name', value: prog.name, span: isMobile ? 1 : 2 },
             { label: 'Category',  value: prog.category || '—', span: 1 },
-            { label: 'Venue',     value: prog.venue || '—',    span: 1 },
+            { label: 'Organiser', value: prog.organiser || '—', span: 1 },
+            { label: 'Venue',     value: prog.venue || '—',    span: isMobile ? 1 : 2 },
             { label: 'Start Date', value: prog.start_date ? new Date(prog.start_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' }) : '—', span: 1 },
             { label: 'End Date',   value: prog.end_date   ? new Date(prog.end_date).toLocaleDateString('en-MY',   { day: 'numeric', month: 'long', year: 'numeric' }) : '—', span: 1 },
             { label: 'Budget',    value: prog.budget ? `RM ${Number(prog.budget).toLocaleString('en-MY', { minimumFractionDigits: 2 })}` : '—', span: 1 },
