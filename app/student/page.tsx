@@ -238,6 +238,7 @@ export default function StudentHomepage() {
     setActiveNav(id)
     if (id === 'profile')    router.push('/profile')
     if (id === 'dashboard')  router.push('/student')
+    if (id === 'schedule')   router.push('/student/schedule')
     if (id === 'attendance') router.push('/student/attendance')
   }
 
