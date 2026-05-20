@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabaseClient'
 import {
   LayoutDashboard, BookOpen, Settings, LogOut,
-  CirclePlus, Shield, Search, ArrowRightLeft, Crown, AlertTriangle, QrCode, User,
+  CirclePlus, Shield, Search, ArrowRightLeft, Crown, AlertTriangle, QrCode, User, CalendarCheck, 
 } from 'lucide-react'
 
 interface AdminData {
@@ -30,10 +30,12 @@ const navItems = [
   { id: 'dashboard',     icon: LayoutDashboard, label: 'Dashboard',      path: '/superadmin' },
   { id: 'programmes',    icon: BookOpen,         label: 'Add Programmes',     path: '/create-programme-form' },
   { id: 'attendance',    icon: QrCode,           label: 'Attendance',     path: '/superadmin/attendance' },
+  { id: 'schedule',      icon: CalendarCheck,    label: 'Schedule',       path: '/superadmin/schedule' },
   { id: 'Users',         icon: User,             label: 'Users',           path: '/superadmin/users' },
   { id: 'createAdmin',   icon: CirclePlus,       label: 'Create Admin',   path: '/superadmin/create-admin' },
   { id: 'exchangeAdmin', icon: ArrowRightLeft,   label: 'Exchange Admin', path: '/superadmin/exchange-admin' },
-  { id: 'settings',      icon: Settings,         label: 'Settings',       path: '/profile' },
+  { id: 'profile',       icon: User,             label: 'Profile',        path: '/profile' },
+  { id: 'settings',      icon: Settings,         label: 'Settings',       path: '/settings' },
 ]
 
 /* ─── HIGHLIGHT ──────────────────────────────────────────────────────────── */
@@ -311,7 +313,7 @@ export default function ExchangeAdminPage() {
 
         <nav style={{ padding: '14px 10px', flex: 1 }}>
           <p style={{ fontSize: '9px', fontWeight: 600, color: '#374151', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0 10px', marginBottom: '6px' }}>Navigation</p>
-          {navItems.slice(0, 3).map(item => {
+          {navItems.slice(0, 4).map(item => {
             const Icon = item.icon
             return (
               <button key={item.id} onClick={() => router.push(item.path)}
@@ -323,7 +325,7 @@ export default function ExchangeAdminPage() {
 
           <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: `1px solid rgba(245,158,11,0.07)` }}>
             <p style={{ fontSize: '9px', fontWeight: 600, color: SA.accent, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0 10px', marginBottom: '6px', opacity: 0.6 }}>Superadmin Only</p>
-            {navItems.slice(3, 7).map(item => {
+            {navItems.slice(4, 9).map(item => {
               const Icon = item.icon
               const isActive = item.id === 'exchangeAdmin'
               return (

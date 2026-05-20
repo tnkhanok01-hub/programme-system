@@ -6,7 +6,8 @@ import { supabase } from '../../../lib/supabaseClient'
 import {
   LayoutDashboard, BookOpen, Users, Settings, LogOut, Bell,
   CirclePlus, ArrowRightLeft, Shield, Crown, Search, TrendingUp,
-  UserPlus, Trash2, X, AlertCircle, QrCode, Star, CheckCircle, XCircle, Clock
+  UserPlus, Trash2, X, AlertCircle, QrCode, Star, CheckCircle, XCircle, Clock,
+  UserCircle, CalendarCheck
 } from 'lucide-react'
 
 interface UserData {
@@ -37,16 +38,18 @@ const SA = {
   gradientLogo: 'linear-gradient(135deg, #92400e, #d97706)',
 }
 
-type NavItem = 'dashboard' | 'programmes' | 'attendance' | 'users' | 'createAdmin' | 'exchangeAdmin' | 'settings'
+type NavItem = 'dashboard' | 'programmes' | 'attendance' | 'users' | 'createAdmin' | 'exchangeAdmin' | 'settings' | 'profile' | 'schedule'
 
 const navItems: { id: NavItem; icon: React.ElementType; label: string; path: string }[] = [
   { id: 'dashboard',     icon: LayoutDashboard, label: 'Dashboard',      path: '/superadmin' },
   { id: 'programmes',    icon: BookOpen,         label: 'Add Programmes', path: '/create-programme-form' },
   { id: 'attendance',    icon: QrCode,           label: 'Attendance',     path: '/superadmin/attendance' },
+  { id: 'schedule',      icon: CalendarCheck,    label: 'Schedule',       path: '/superadmin/schedule' },
   { id: 'users',         icon: Users,            label: 'Users',          path: '/superadmin/users' },
   { id: 'createAdmin',   icon: CirclePlus,       label: 'Create Admin',   path: '/superadmin/create-admin' },
   { id: 'exchangeAdmin', icon: ArrowRightLeft,   label: 'Exchange Admin', path: '/superadmin/exchange-admin' },
-  { id: 'settings',      icon: Settings,         label: 'Settings',       path: '/profile' },
+  { id: 'profile',       icon: UserCircle,       label: 'Profile',        path: '/profile' },
+  { id: 'settings',      icon: Settings,         label: 'Settings',       path: '/settings' },
 ]
 
 const getInitials = (name: string) =>
@@ -489,7 +492,7 @@ export default function SuperAdminUsersPage() {
         </div>
         <nav style={{ padding: '14px 10px', flex: 1 }}>
           <p style={{ fontSize: '9px', fontWeight: 600, color: '#374151', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0 10px', marginBottom: '6px' }}>Navigation</p>
-          {navItems.slice(0, 3).map(item => {
+          {navItems.slice(0, 4).map(item => {
             const Icon = item.icon; const isActive = activeNav === item.id
             return (
               <button key={item.id} onClick={() => router.push(item.path)}
@@ -501,7 +504,7 @@ export default function SuperAdminUsersPage() {
           })}
           <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: `1px solid rgba(245,158,11,0.07)` }}>
             <p style={{ fontSize: '9px', fontWeight: 600, color: SA.accent, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0 10px', marginBottom: '6px', opacity: 0.6 }}>Superadmin Only</p>
-            {navItems.slice(3, 7).map(item => {
+            {navItems.slice(4, 9).map(item => {
               const Icon = item.icon; const isActive = activeNav === item.id
               return (
                 <button key={item.id} onClick={() => router.push(item.path)}

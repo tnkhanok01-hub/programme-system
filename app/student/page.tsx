@@ -228,13 +228,11 @@ export default function StudentHomepage() {
   const navItems = [
     { id: 'dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
     { id: 'schedule',   icon: Calendar,         label: 'Schedule' },
-    { id: 'profile',    icon: User,             label: 'Profile' },
     { id: 'attendance', icon: QrCode,           label: 'Attendance' },
   ]
 
   const handleNavClick = (id: string) => {
     setActiveNav(id)
-    if (id === 'profile')    router.push('/profile')
     if (id === 'dashboard')  router.push('/student')
     if (id === 'schedule')   router.push('/student/schedule')
     if (id === 'attendance') router.push('/student/attendance')
@@ -272,7 +270,7 @@ export default function StudentHomepage() {
             </div>
             <div>
               <p style={{ fontWeight: 700, fontSize: '13px', margin: 0, color: t.text, letterSpacing: '-0.02em' }}>UTM-SPMS</p>
-              <p style={{ fontSize: '9px', color: t.textFaint, margin: 0 }}>Student Portal</p>
+              <p style={{ fontSize: '9px', color: t.textFaint, margin: 0 }}>STUDENT PORTAL</p>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -382,7 +380,7 @@ export default function StudentHomepage() {
             </div>
             <div>
               <p style={{ fontWeight: 700, fontSize: '15px', margin: 0, letterSpacing: '-0.02em', color: t.text }}>UTM-SPMS</p>
-              <p style={{ fontSize: '11px', color: t.textFaint, margin: 0 }}>Student Portal</p>
+              <p style={{ fontSize: '11px', color: t.textFaint, margin: 0 }}>STUDENT PORTAL</p>
             </div>
           </div>
         </div>
@@ -402,6 +400,10 @@ export default function StudentHomepage() {
           })}
           <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: `1px solid ${t.border}` }}>
             <p style={{ fontSize: '10px', fontWeight: 600, color: t.textFaint, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '0 12px', marginBottom: '8px' }}>Account</p>
+            <button onClick={() => router.push('/profile')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'transparent', color: t.textMuted, fontSize: '14px', textAlign: 'left', marginBottom: '2px', transition: 'all 0.15s' }}>
+              <User size={16} />Profile
+            </button>
+    
             <button onClick={() => router.push('/settings')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'transparent', color: t.textMuted, fontSize: '14px', textAlign: 'left', marginBottom: '2px', transition: 'all 0.15s' }}>
               <Settings size={16} />Settings
             </button>

@@ -7,7 +7,7 @@ import {
   LayoutDashboard, BookOpen, Users, Settings, LogOut, Bell,
   CirclePlus, Pencil, Trash, Save, CircleX, TrendingUp, Clock,
   CheckCircle, XCircle, AlertCircle, Search, Shield, Calendar,
-  MapPin, DollarSign, Activity, ArrowRightLeft, Crown, Eye, FileText, Upload, QrCode, X, UserCircle
+  MapPin, DollarSign, Activity, ArrowRightLeft, Crown, Eye, FileText, Upload, QrCode, X, UserCircle, CalendarCheck
 } from 'lucide-react'
 import { PRE_CHECKLIST } from '../../lib/constants'
 
@@ -17,7 +17,7 @@ interface Programme {
   budget: number; start_date: string; end_date: string; status: string; created_at: string
 }
 interface Profile { id: string; full_name: string; email: string; roles: { name: string } | null }
-type NavItem = 'dashboard' | 'programmes' | 'createAdmin' | 'exchangeAdmin' | 'settings' | 'attendance' | 'users' | 'profile'
+type NavItem = 'dashboard' | 'programmes' | 'createAdmin' | 'exchangeAdmin' | 'settings' | 'attendance' | 'users' | 'profile' | 'schedule'
 
 /* ─── SUPERADMIN TOKENS ──────────────────────────────────────────────────── */
 const SA = {
@@ -943,6 +943,7 @@ export default function SuperAdminDashboard() {
     { id: 'dashboard',     icon: LayoutDashboard, label: 'Dashboard',      path: '/superadmin' },
     { id: 'programmes',    icon: BookOpen,         label: 'Add Programmes', path: '/create-programme-form' },
     { id: 'attendance',    icon: QrCode,           label: 'Attendance',     path: '/superadmin/attendance' },
+    { id: 'schedule',      icon: CalendarCheck,    label: 'Schedule',       path: '/superadmin/schedule' },
     { id: 'users',         icon: Users,            label: 'Users',          path: '/superadmin/users' },
     { id: 'createAdmin',   icon: CirclePlus,       label: 'Create Admin',   path: '/superadmin/create-admin' },
     { id: 'exchangeAdmin', icon: ArrowRightLeft,   label: 'Exchange Admin', path: '/superadmin/exchange-admin' },
@@ -1138,7 +1139,7 @@ export default function SuperAdminDashboard() {
         </div>
         <nav style={{ padding: '14px 10px', flex: 1 }}>
           <p style={{ fontSize: '9px', fontWeight: 600, color: '#374151', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0 10px', marginBottom: '6px' }}>Navigation</p>
-          {navItems.slice(0, 3).map(item => {
+          {navItems.slice(0, 4).map(item => {
             const Icon = item.icon; const isActive = activeNav === item.id
             return (
               <button key={item.id} onClick={() => handleNavClick(item)}
@@ -1150,7 +1151,7 @@ export default function SuperAdminDashboard() {
           })}
           <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: `1px solid rgba(245,158,11,0.07)` }}>
             <p style={{ fontSize: '9px', fontWeight: 600, color: SA.accent, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0 10px', marginBottom: '6px', opacity: 0.6 }}>Superadmin Only</p>
-            {navItems.slice(3, 8).map(item => {
+            {navItems.slice(4, 9).map(item => {
               const Icon = item.icon; const isActive = activeNav === item.id
               return (
                 <button key={item.id} onClick={() => handleNavClick(item)}
