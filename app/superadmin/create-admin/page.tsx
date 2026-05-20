@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabaseClient'
+import { useTheme } from '@/app/provider/ThemeContext'
 import {
   LayoutDashboard, BookOpen, Users, Settings, LogOut,
   CirclePlus, Shield, Search, ArrowUpCircle, ArrowDownCircle,
@@ -30,13 +31,13 @@ const SA = {
 
 const navItems = [
   { id: 'dashboard',     icon: LayoutDashboard, label: 'Dashboard',      path: '/superadmin' },
-  { id: 'programmes',    icon: BookOpen,         label: 'Add Programmes',     path: '/create-programme-form' },
+  { id: 'programmes',    icon: BookOpen,         label: 'Add Programmes', path: '/create-programme-form' },
   { id: 'attendance',    icon: QrCode,           label: 'Attendance',     path: '/superadmin/attendance' },
   { id: 'schedule',      icon: CalendarCheck,    label: 'Schedule',       path: '/superadmin/schedule' },
-  { id: 'Users',         icon: User,             label: 'Users',           path: '/superadmin/users' },
+  { id: 'Users',         icon: User,             label: 'Users',          path: '/superadmin/users' },
   { id: 'createAdmin',   icon: CirclePlus,       label: 'Create Admin',   path: '/superadmin/create-admin' },
   { id: 'exchangeAdmin', icon: ArrowRightLeft,   label: 'Exchange Admin', path: '/superadmin/exchange-admin' },
-  { id: 'profile',       icon: UserCheck,       label: 'Profile',        path: '/profile' },
+  { id: 'profile',       icon: UserCheck,        label: 'Profile',        path: '/profile' },
   { id: 'settings',      icon: Settings,         label: 'Settings',       path: '/settings' },
 ]
 
@@ -61,6 +62,7 @@ function FilterBar({ roleFilter, setRoleFilter }: {
   roleFilter: 'all' | 'admin' | 'student'
   setRoleFilter: (f: 'all' | 'admin' | 'student') => void
 }) {
+  const { t } = useTheme()
   const filters: { key: 'all' | 'admin' | 'student'; label: string }[] = [
     { key: 'all',     label: 'All' },
     { key: 'admin',   label: 'Admin' },
@@ -70,18 +72,18 @@ function FilterBar({ roleFilter, setRoleFilter }: {
     <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }}>
       {filters.map(f => {
         const isActive = roleFilter === f.key
-        const activeBg    = f.key === 'admin' ? SA.accentBg : f.key === 'student' ? 'rgba(56,189,248,0.1)' : 'rgba(255,255,255,0.07)'
-        const activeColor = f.key === 'admin' ? SA.accentText : f.key === 'student' ? '#38bdf8' : '#e2e8f0'
-        const activeBorder= f.key === 'admin' ? SA.accentBorder : f.key === 'student' ? 'rgba(56,189,248,0.3)' : 'rgba(255,255,255,0.15)'
+        const activeBg    = f.key === 'admin' ? SA.accentBg : f.key === 'student' ? 'rgba(56,189,248,0.1)' : t.bgInput
+        const activeColor = f.key === 'admin' ? SA.accentText : f.key === 'student' ? '#38bdf8' : t.text
+        const activeBorder= f.key === 'admin' ? SA.accentBorder : f.key === 'student' ? 'rgba(56,189,248,0.3)' : t.borderInput
         return (
           <button key={f.key} onClick={() => setRoleFilter(f.key)}
             style={{
               padding: '6px 14px', borderRadius: '20px', border: '1px solid',
               fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
               transition: 'all 0.12s',
-              background:   isActive ? activeBg     : 'transparent',
-              color:        isActive ? activeColor  : '#4b5563',
-              borderColor:  isActive ? activeBorder : 'rgba(255,255,255,0.06)',
+              background:  isActive ? activeBg     : 'transparent',
+              color:       isActive ? activeColor  : t.textFaint,
+              borderColor: isActive ? activeBorder : t.border,
             }}>
             {f.label}
           </button>
@@ -101,19 +103,20 @@ function UserRow({
   onDemote?: () => void
   onDelete: () => void
 }) {
+  const { t } = useTheme()
   return (
     <div
       onClick={onClick}
-      style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer', background: isSelected ? (isAdmin ? SA.accentBg : 'rgba(56,189,248,0.08)') : 'transparent', transition: 'background 0.12s' }}
-      onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = isAdmin ? SA.accentSoft : 'rgba(255,255,255,0.02)' }}
+      style={{ padding: '14px 16px', borderBottom: `1px solid ${t.border}`, cursor: 'pointer', background: isSelected ? (isAdmin ? SA.accentBg : 'rgba(56,189,248,0.08)') : 'transparent', transition: 'background 0.12s' }}
+      onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = isAdmin ? SA.accentSoft : t.bgInput }}
       onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ overflow: 'hidden', paddingRight: '10px', flex: 1 }}>
-          <p style={{ margin: 0, fontWeight: 500, fontSize: '13px', color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <p style={{ margin: 0, fontWeight: 500, fontSize: '13px', color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             <HighlightText text={u.full_name} query={search} />
           </p>
-          <p style={{ margin: '3px 0 0', fontSize: '11px', color: '#4b5563', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <p style={{ margin: '3px 0 0', fontSize: '11px', color: t.textFaint, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {u.matric_number} • {u.email}
           </p>
         </div>
@@ -123,7 +126,7 @@ function UserRow({
       </div>
 
       {isSelected && (
-        <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: `1px solid ${isAdmin ? SA.accentBorder : 'rgba(255,255,255,0.06)'}`, display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+        <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: `1px solid ${isAdmin ? SA.accentBorder : t.border}`, display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
           {isAdmin && onDemote && (
             <button onClick={e => { e.stopPropagation(); onDemote() }}
               style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', background: 'rgba(251,146,60,0.1)', color: '#fb923c', border: '1px solid rgba(251,146,60,0.2)', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -137,7 +140,7 @@ function UserRow({
             </button>
           )}
           <button onClick={e => { e.stopPropagation(); onDelete() }}
-            style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', background: 'rgba(239,68,68,0.08)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.15)', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', background: t.dangerBg, color: t.danger, border: `1px solid ${t.dangerBorder}`, padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit' }}>
             <Trash2 size={12} />Delete
           </button>
         </div>
@@ -154,18 +157,19 @@ function CreateModal({ show, loading, formError, form, onChange, onSubmit, onClo
   onSubmit: () => void
   onClose: () => void
 }) {
+  const { t } = useTheme()
   if (!show) return null
   return (
     <div onClick={e => { if (e.target === e.currentTarget) onClose() }}
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, backdropFilter: 'blur(4px)', padding: '16px' }}>
-      <div style={{ background: '#0f1a24', border: `1px solid ${SA.accentBorder}`, borderRadius: '14px', padding: '24px', width: '100%', maxWidth: '460px', maxHeight: '90vh', overflowY: 'auto' }}>
+      <div style={{ background: t.bgCard, border: `1px solid ${SA.accentBorder}`, borderRadius: '14px', padding: '24px', width: '100%', maxWidth: '460px', maxHeight: '90vh', overflowY: 'auto' }}>
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-          <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: t.text, display: 'flex', alignItems: 'center', gap: '8px' }}>
             <CirclePlus size={15} color={SA.accentText} />Create Admin
           </h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280' }}><X size={18} /></button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textFaint }}><X size={18} /></button>
         </div>
 
         {/* Staff-only notice banner */}
@@ -180,7 +184,7 @@ function CreateModal({ show, loading, formError, form, onChange, onSubmit, onClo
           <UserCheck size={15} color="#a78bfa" style={{ flexShrink: 0, marginTop: '1px' }} />
           <div>
             <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: '#a78bfa' }}>Staff Accounts Only</p>
-            <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#6b7280', lineHeight: 1.5 }}>
+            <p style={{ margin: '2px 0 0', fontSize: '11px', color: t.textFaint, lineHeight: 1.5 }}>
               This form creates <strong style={{ color: '#c4b5fd' }}>ADMIN</strong> role accounts for <strong style={{ color: '#c4b5fd' }}>STAFF</strong> only.
             </p>
           </div>
@@ -196,13 +200,13 @@ function CreateModal({ show, loading, formError, form, onChange, onSubmit, onClo
             { label: 'Confirm Password *', key: 'confirmPassword', type: 'password' },
           ].map(f => (
             <div key={f.key}>
-              <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>{f.label}</label>
+              <label style={{ display: 'block', fontSize: '11px', color: t.textFaint, marginBottom: '5px', fontWeight: 500 }}>{f.label}</label>
               <input type={f.type} value={form[f.key] || ''} onChange={e => onChange({ ...form, [f.key]: e.target.value })}
-                style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: t.bgInput, border: `1px solid ${t.borderInput}`, color: t.text, fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
             </div>
           ))}
           {formError && (
-            <p style={{ margin: 0, fontSize: '12px', color: '#ef4444', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', padding: '8px 12px', borderRadius: '7px' }}>{formError}</p>
+            <p style={{ margin: 0, fontSize: '12px', color: t.danger, background: t.dangerBg, border: `1px solid ${t.dangerBorder}`, padding: '8px 12px', borderRadius: '7px' }}>{formError}</p>
           )}
           <button onClick={onSubmit} disabled={loading}
             style={{ width: '100%', padding: '10px', borderRadius: '8px', border: 'none', background: SA.gradientBtn, color: 'white', fontSize: '13px', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', marginTop: '4px', opacity: loading ? 0.7 : 1 }}>
@@ -220,20 +224,21 @@ function ConfirmDialog({ dialog, onConfirm, onClose }: {
   onConfirm: () => void
   onClose: () => void
 }) {
+  const { t } = useTheme()
   if (!dialog.isOpen) return null
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, backdropFilter: 'blur(4px)', padding: '16px' }}>
-      <div style={{ background: '#0f1a24', border: `1px solid ${SA.accentBorder}`, borderRadius: '14px', padding: '28px', width: '100%', maxWidth: '360px', textAlign: 'center' }}>
+      <div style={{ background: t.bgCard, border: `1px solid ${SA.accentBorder}`, borderRadius: '14px', padding: '28px', width: '100%', maxWidth: '360px', textAlign: 'center' }}>
         <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: SA.accentBg, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
           <Shield size={20} color={SA.accentText} />
         </div>
-        <h3 style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: 600, color: '#f1f5f9' }}>Confirm Action</h3>
-        <p style={{ margin: '0 0 22px', fontSize: '13px', color: '#6b7280', lineHeight: 1.6 }}>
-          Are you sure you want to <strong style={{ color: '#e2e8f0' }}>{dialog.type}</strong> <br />
-          <strong style={{ color: '#f1f5f9' }}>{dialog.target?.full_name}</strong>?
+        <h3 style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: 600, color: t.text }}>Confirm Action</h3>
+        <p style={{ margin: '0 0 22px', fontSize: '13px', color: t.textFaint, lineHeight: 1.6 }}>
+          Are you sure you want to <strong style={{ color: t.text }}>{dialog.type}</strong> <br />
+          <strong style={{ color: t.text }}>{dialog.target?.full_name}</strong>?
         </p>
         <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={onClose} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: '#6b7280', fontSize: '13px', cursor: 'pointer' }}>
+          <button onClick={onClose} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: `1px solid ${t.borderInput}`, background: 'transparent', color: t.textFaint, fontSize: '13px', cursor: 'pointer' }}>
             Cancel
           </button>
           <button onClick={onConfirm} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: SA.gradientBtn, color: 'white', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}>
@@ -250,6 +255,7 @@ function ConfirmDialog({ dialog, onConfirm, onClose }: {
 ═══════════════════════════════════════════════════════════════════════════ */
 export default function CreateAdminPage() {
   const router = useRouter()
+  const { t } = useTheme()
   const [profile, setProfile] = useState<any>(null)
   const [allUsers, setAllUsers] = useState<SystemUser[]>([])
   const [search, setSearch] = useState('')
@@ -261,7 +267,6 @@ export default function CreateAdminPage() {
   const [form, setForm] = useState({ fullName: '', matricNumber: '', email: '', phone: '', password: '', confirmPassword: '' })
   const [loading, setLoading] = useState(false)
   const [formError, setFormError] = useState('')
-
   const [isMobile, setIsMobile] = useState<boolean | null>(null)
 
   useEffect(() => {
@@ -343,7 +348,7 @@ export default function CreateAdminPage() {
     onDelete:  () => setConfirmDialog({ isOpen: true, type: 'delete', target: u }),
   })
 
-  if (isMobile === null) return <div style={{ minHeight: '100vh', background: '#080f1a' }} />
+  if (isMobile === null) return <div style={{ minHeight: '100vh', background: t.bg }} />
 
   const sharedModals = (
     <>
@@ -360,18 +365,17 @@ export default function CreateAdminPage() {
   ══════════════════════════════════════════════════════ */
   if (isMobile) {
     return (
-      <div style={{ minHeight: '100vh', background: '#080f1a', color: '#e2e8f0', fontFamily: "'Inter', -apple-system, sans-serif", paddingBottom: '70px' }}>
-        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      <div style={{ minHeight: '100vh', background: t.bg, color: t.text, fontFamily: "'Inter', -apple-system, sans-serif", paddingBottom: '70px' }}>
 
         {/* Sticky top bar */}
-        <div style={{ background: '#0b1118', borderBottom: `1px solid rgba(245,158,11,0.08)`, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
+        <div style={{ background: t.bgCard, borderBottom: `1px solid ${t.border}`, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: SA.gradientLogo, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
               <Shield size={12} color="white" />
               <Crown size={7} color="#fef3c7" style={{ position: 'absolute', top: '-3px', right: '-3px' }} />
             </div>
             <div>
-              <p style={{ fontWeight: 700, fontSize: '13px', margin: 0, color: '#f1f5f9', letterSpacing: '-0.02em' }}>UTM-SPMS</p>
+              <p style={{ fontWeight: 700, fontSize: '13px', margin: 0, color: t.text, letterSpacing: '-0.02em' }}>UTM-SPMS</p>
               <p style={{ fontSize: '9px', color: SA.accent, margin: 0, fontWeight: 600, letterSpacing: '0.06em' }}>SUPERADMIN</p>
             </div>
           </div>
@@ -385,10 +389,10 @@ export default function CreateAdminPage() {
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '14px', gap: '10px' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px', flexWrap: 'wrap' }}>
-                <h1 style={{ fontSize: '16px', fontWeight: 700, margin: 0, letterSpacing: '-0.02em', color: '#f8fafc' }}>Manage Roles & Admins</h1>
+                <h1 style={{ fontSize: '16px', fontWeight: 700, margin: 0, letterSpacing: '-0.02em', color: t.text }}>Manage Roles & Admins</h1>
                 <span style={{ fontSize: '9px', fontWeight: 600, background: SA.accentBg, color: SA.accentText, border: `1px solid ${SA.accentBorder}`, padding: '2px 6px', borderRadius: '20px', letterSpacing: '0.06em', flexShrink: 0 }}>SA ONLY</span>
               </div>
-              <p style={{ fontSize: '11px', color: '#4b5563', margin: 0 }}>Promote, demote, or remove users</p>
+              <p style={{ fontSize: '11px', color: t.textFaint, margin: 0 }}>Promote, demote, or remove users</p>
             </div>
             <button onClick={() => setShowForm(true)}
               style={{ display: 'flex', alignItems: 'center', gap: '5px', background: SA.gradientBtn, border: 'none', borderRadius: '7px', padding: '8px 12px', color: 'white', fontSize: '11px', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
@@ -398,9 +402,9 @@ export default function CreateAdminPage() {
 
           {/* Search */}
           <div style={{ position: 'relative', marginBottom: '10px' }}>
-            <Search size={12} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#4b5563' }} />
+            <Search size={12} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: t.textFaint }} />
             <input type="text" placeholder="Search by name or matric..." value={search} onChange={e => setSearch(e.target.value)}
-              style={{ width: '100%', background: '#0b1118', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '9px 12px 9px 30px', color: '#e2e8f0', fontSize: '12px', outline: 'none', boxSizing: 'border-box' }} />
+              style={{ width: '100%', background: t.bgCard, border: `1px solid ${t.borderInput}`, borderRadius: '8px', padding: '9px 12px 9px 30px', color: t.text, fontSize: '12px', outline: 'none', boxSizing: 'border-box' }} />
           </div>
 
           {/* Filter buttons */}
@@ -412,11 +416,11 @@ export default function CreateAdminPage() {
               <p style={{ fontSize: '9px', fontWeight: 600, color: SA.accent, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '8px', opacity: 0.7 }}>
                 Administrators ({adminsList.length})
               </p>
-              <div style={{ background: '#0b1118', border: `1px solid ${SA.accentBorder}`, borderRadius: '12px', overflow: 'hidden', marginBottom: '16px' }}>
+              <div style={{ background: t.bgCard, border: `1px solid ${SA.accentBorder}`, borderRadius: '12px', overflow: 'hidden', marginBottom: '16px' }}>
                 {adminsList.length === 0 ? (
-                  <p style={{ padding: '20px', fontSize: '13px', color: '#374151', textAlign: 'center' }}>No admins found.</p>
+                  <p style={{ padding: '20px', fontSize: '13px', color: t.textFaintest, textAlign: 'center' }}>No admins found.</p>
                 ) : adminsList.map((u, i) => (
-                  <div key={u.id} style={{ borderBottom: i < adminsList.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                  <div key={u.id} style={{ borderBottom: i < adminsList.length - 1 ? `1px solid ${t.border}` : 'none' }}>
                     <UserRow {...userRowProps(u, true)} />
                   </div>
                 ))}
@@ -427,14 +431,14 @@ export default function CreateAdminPage() {
           {/* Students list */}
           {(roleFilter === 'all' || roleFilter === 'student') && (
             <>
-              <p style={{ fontSize: '9px', fontWeight: 600, color: '#374151', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '8px' }}>
+              <p style={{ fontSize: '9px', fontWeight: 600, color: t.textFaintest, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '8px' }}>
                 Students ({studentsList.length})
               </p>
-              <div style={{ background: '#0b1118', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', overflow: 'hidden' }}>
+              <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: '12px', overflow: 'hidden' }}>
                 {studentsList.length === 0 ? (
-                  <p style={{ padding: '20px', fontSize: '13px', color: '#374151', textAlign: 'center' }}>No students found.</p>
+                  <p style={{ padding: '20px', fontSize: '13px', color: t.textFaintest, textAlign: 'center' }}>No students found.</p>
                 ) : studentsList.map((u, i) => (
-                  <div key={u.id} style={{ borderBottom: i < studentsList.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                  <div key={u.id} style={{ borderBottom: i < studentsList.length - 1 ? `1px solid ${t.border}` : 'none' }}>
                     <UserRow {...userRowProps(u, false)} />
                   </div>
                 ))}
@@ -444,15 +448,15 @@ export default function CreateAdminPage() {
         </div>
 
         {/* Fixed bottom tab bar */}
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#0b1118', borderTop: `1px solid rgba(245,158,11,0.08)`, display: 'flex', zIndex: 20 }}>
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: t.bgCard, borderTop: `1px solid ${t.border}`, display: 'flex', zIndex: 20 }}>
           {navItems.map(item => {
             const Icon = item.icon
             const isActive = item.id === 'createAdmin'
             return (
               <button key={item.id} onClick={() => router.push(item.path)}
                 style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px 4px', cursor: 'pointer', gap: '3px', border: 'none', background: 'transparent' }}>
-                <Icon size={15} color={isActive ? SA.accentText : '#4b5563'} />
-                <span style={{ fontSize: '8px', fontWeight: 500, color: isActive ? SA.accentText : '#4b5563', textAlign: 'center', lineHeight: 1.1 }}>{item.label}</span>
+                <Icon size={15} color={isActive ? SA.accentText : t.textFaint} />
+                <span style={{ fontSize: '8px', fontWeight: 500, color: isActive ? SA.accentText : t.textFaint, textAlign: 'center', lineHeight: 1.1 }}>{item.label}</span>
               </button>
             )
           })}
@@ -467,50 +471,49 @@ export default function CreateAdminPage() {
      DESKTOP LAYOUT
   ══════════════════════════════════════════════════════ */
   return (
-    <div style={{ minHeight: '100vh', background: '#080f1a', display: 'flex', fontFamily: "'Inter', -apple-system, sans-serif", color: '#e2e8f0' }}>
+    <div style={{ minHeight: '100vh', background: t.bg, display: 'flex', fontFamily: "'Inter', -apple-system, sans-serif", color: t.text }}>
 
       {/* SIDEBAR */}
-      <aside style={{ width: '220px', background: '#0b1118', borderRight: `1px solid rgba(245,158,11,0.07)`, display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 20 }}>
-        <div style={{ padding: '24px 20px', borderBottom: `1px solid rgba(245,158,11,0.07)` }}>
+      <aside style={{ width: '220px', background: t.bgCard, borderRight: `1px solid ${t.border}`, display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 20 }}>
+        <div style={{ padding: '24px 20px', borderBottom: `1px solid ${t.border}` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: '34px', height: '34px', borderRadius: '9px', background: SA.gradientLogo, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
               <Shield size={14} color="white" />
               <Crown size={8} color="#fef3c7" style={{ position: 'absolute', top: '-4px', right: '-4px' }} />
             </div>
             <div>
-              <p style={{ fontWeight: 700, fontSize: '14px', margin: 0, color: '#f1f5f9', letterSpacing: '-0.02em' }}>UTM-SPMS</p>
+              <p style={{ fontWeight: 700, fontSize: '14px', margin: 0, color: t.text, letterSpacing: '-0.02em' }}>UTM-SPMS</p>
               <p style={{ fontSize: '10px', color: SA.accent, margin: 0, fontWeight: 600, letterSpacing: '0.06em' }}>SUPERADMIN</p>
             </div>
           </div>
         </div>
 
         <nav style={{ padding: '14px 10px', flex: 1 }}>
-          <p style={{ fontSize: '9px', fontWeight: 600, color: '#374151', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0 10px', marginBottom: '6px' }}>Navigation</p>
+          <p style={{ fontSize: '9px', fontWeight: 600, color: t.textFaintest, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0 10px', marginBottom: '6px' }}>Navigation</p>
           {navItems.slice(0, 4).map(item => {
             const Icon = item.icon
             return (
               <button key={item.id} onClick={() => router.push(item.path)}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'transparent', color: '#6b7280', fontSize: '13px', fontWeight: 400, marginBottom: '2px', textAlign: 'left', transition: 'all 0.12s' }}>
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'transparent', color: t.textFaint, fontSize: '13px', fontWeight: 400, marginBottom: '2px', textAlign: 'left', transition: 'all 0.12s' }}>
                 <Icon size={15} />{item.label}
               </button>
             )
           })}
 
-          <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: `1px solid rgba(245,158,11,0.07)` }}>
+          <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: `1px solid ${t.border}` }}>
             <p style={{ fontSize: '9px', fontWeight: 600, color: SA.accent, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0 10px', marginBottom: '6px', opacity: 0.6 }}>Superadmin Only</p>
             {navItems.slice(4, 9).map(item => {
               const Icon = item.icon
               const isActive = item.id === 'createAdmin'
               return (
                 <button key={item.id} onClick={() => router.push(item.path)}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: isActive ? SA.accentBg : 'transparent', color: isActive ? SA.accentText : '#6b7280', fontSize: '13px', fontWeight: isActive ? 500 : 400, marginBottom: '2px', textAlign: 'left', transition: 'all 0.12s' }}>
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: isActive ? SA.accentBg : 'transparent', color: isActive ? SA.accentText : t.textFaint, fontSize: '13px', fontWeight: isActive ? 500 : 400, marginBottom: '2px', textAlign: 'left', transition: 'all 0.12s' }}>
                   <Icon size={15} />{item.label}
                   {isActive && <div style={{ marginLeft: 'auto', width: '4px', height: '4px', borderRadius: '50%', background: SA.accent }} />}
                 </button>
               )
             })}
           </div>
-
 
           <div style={{ marginTop: '12px' }}>
             <button onClick={() => setShowForm(true)}
@@ -520,16 +523,16 @@ export default function CreateAdminPage() {
           </div>
         </nav>
 
-        <div style={{ padding: '14px', borderTop: `1px solid rgba(245,158,11,0.07)` }}>
+        <div style={{ padding: '14px', borderTop: `1px solid ${t.border}` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '9px', borderRadius: '9px', background: SA.accentSoft }}>
             <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: SA.gradientLogo, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 600, color: 'white', flexShrink: 0 }}>
               {getInitials(profile?.full_name || '')}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ margin: 0, fontSize: '12px', fontWeight: 500, color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile?.full_name || 'Superadmin'}</p>
+              <p style={{ margin: 0, fontSize: '12px', fontWeight: 500, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile?.full_name || 'Superadmin'}</p>
               <p style={{ margin: 0, fontSize: '10px', color: SA.accent, fontWeight: 500 }}>Superadmin</p>
             </div>
-            <button onClick={handleLogout} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', padding: '3px' }}>
+            <button onClick={handleLogout} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textFaint, padding: '3px' }}>
               <LogOut size={13} />
             </button>
           </div>
@@ -541,10 +544,10 @@ export default function CreateAdminPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
-              <h1 style={{ fontSize: '20px', fontWeight: 700, margin: 0, letterSpacing: '-0.02em', color: '#f8fafc' }}>Manage Roles & Admins</h1>
+              <h1 style={{ fontSize: '20px', fontWeight: 700, margin: 0, letterSpacing: '-0.02em', color: t.text }}>Manage Roles & Admins</h1>
               <span style={{ fontSize: '10px', fontWeight: 600, background: SA.accentBg, color: SA.accentText, border: `1px solid ${SA.accentBorder}`, padding: '2px 8px', borderRadius: '20px', letterSpacing: '0.06em' }}>SUPERADMIN ONLY</span>
             </div>
-            <p style={{ fontSize: '13px', color: '#4b5563', margin: 0 }}>Promote, demote, or remove user accounts</p>
+            <p style={{ fontSize: '13px', color: t.textFaint, margin: 0 }}>Promote, demote, or remove user accounts</p>
           </div>
           <button onClick={() => setShowForm(true)}
             style={{ display: 'flex', alignItems: 'center', gap: '7px', background: SA.gradientBtn, border: 'none', borderRadius: '9px', padding: '9px 16px', color: 'white', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}>
@@ -554,9 +557,9 @@ export default function CreateAdminPage() {
 
         {/* Search */}
         <div style={{ position: 'relative', marginBottom: '10px', maxWidth: '400px' }}>
-          <Search size={13} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#4b5563' }} />
+          <Search size={13} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: t.textFaint }} />
           <input type="text" placeholder="Search users by name or matric..." value={search} onChange={e => setSearch(e.target.value)}
-            style={{ width: '100%', background: '#0b1118', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '9px', padding: '9px 12px 9px 34px', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+            style={{ width: '100%', background: t.bgCard, border: `1px solid ${t.borderInput}`, borderRadius: '9px', padding: '9px 12px 9px 34px', color: t.text, fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
         </div>
 
         {/* Filter buttons */}
@@ -568,11 +571,11 @@ export default function CreateAdminPage() {
             <p style={{ fontSize: '9px', fontWeight: 600, color: SA.accent, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '10px', opacity: 0.7 }}>
               Administrators ({adminsList.length})
             </p>
-            <div style={{ background: '#0b1118', border: `1px solid ${SA.accentBorder}`, borderRadius: '12px', overflow: 'hidden', marginBottom: '24px' }}>
+            <div style={{ background: t.bgCard, border: `1px solid ${SA.accentBorder}`, borderRadius: '12px', overflow: 'hidden', marginBottom: '24px' }}>
               {adminsList.length === 0 ? (
-                <p style={{ padding: '20px', fontSize: '13px', color: '#374151', textAlign: 'center' }}>No admins found.</p>
+                <p style={{ padding: '20px', fontSize: '13px', color: t.textFaintest, textAlign: 'center' }}>No admins found.</p>
               ) : adminsList.map((u, i) => (
-                <div key={u.id} style={{ borderBottom: i < adminsList.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                <div key={u.id} style={{ borderBottom: i < adminsList.length - 1 ? `1px solid ${t.border}` : 'none' }}>
                   <UserRow {...userRowProps(u, true)} />
                 </div>
               ))}
@@ -583,14 +586,14 @@ export default function CreateAdminPage() {
         {/* Students */}
         {(roleFilter === 'all' || roleFilter === 'student') && (
           <>
-            <p style={{ fontSize: '9px', fontWeight: 600, color: '#374151', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '10px' }}>
+            <p style={{ fontSize: '9px', fontWeight: 600, color: t.textFaintest, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '10px' }}>
               Students ({studentsList.length})
             </p>
-            <div style={{ background: '#0b1118', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', overflow: 'hidden' }}>
+            <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: '12px', overflow: 'hidden' }}>
               {studentsList.length === 0 ? (
-                <p style={{ padding: '20px', fontSize: '13px', color: '#374151', textAlign: 'center' }}>No students found.</p>
+                <p style={{ padding: '20px', fontSize: '13px', color: t.textFaintest, textAlign: 'center' }}>No students found.</p>
               ) : studentsList.map((u, i) => (
-                <div key={u.id} style={{ borderBottom: i < studentsList.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                <div key={u.id} style={{ borderBottom: i < studentsList.length - 1 ? `1px solid ${t.border}` : 'none' }}>
                   <UserRow {...userRowProps(u, false)} />
                 </div>
               ))}

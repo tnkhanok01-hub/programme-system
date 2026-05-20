@@ -3,9 +3,10 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabaseClient'
+import { useTheme } from '@/app/provider/ThemeContext'
 import {
   LayoutDashboard, BookOpen, Settings, LogOut,
-  CirclePlus, Shield, Search, ArrowRightLeft, Crown, AlertTriangle, QrCode, User, CalendarCheck, 
+  CirclePlus, Shield, Search, ArrowRightLeft, Crown, AlertTriangle, QrCode, User, CalendarCheck,
 } from 'lucide-react'
 
 interface AdminData {
@@ -58,6 +59,7 @@ function AdminRow({ admin, search, isSelected, onClick, onTransfer }: {
   admin: AdminData; search: string; isSelected: boolean
   onClick: () => void; onTransfer: () => void
 }) {
+  const { t } = useTheme()
   return (
     <div
       onClick={onClick}
@@ -67,10 +69,10 @@ function AdminRow({ admin, search, isSelected, onClick, onTransfer }: {
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ overflow: 'hidden', paddingRight: '10px', flex: 1 }}>
-          <p style={{ margin: 0, fontWeight: 500, fontSize: '13px', color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <p style={{ margin: 0, fontWeight: 500, fontSize: '13px', color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             <HighlightText text={admin.full_name} query={search} />
           </p>
-          <p style={{ margin: '3px 0 0', fontSize: '11px', color: '#4b5563', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <p style={{ margin: '3px 0 0', fontSize: '11px', color: t.textFaint, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {admin.matric_number} • <HighlightText text={admin.email ?? ''} query={search} />
           </p>
         </div>
@@ -93,26 +95,27 @@ function AdminRow({ admin, search, isSelected, onClick, onTransfer }: {
 function ConfirmTransferModal({ admin, onConfirm, onClose }: {
   admin: AdminData; onConfirm: () => void; onClose: () => void
 }) {
+  const { t } = useTheme()
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, backdropFilter: 'blur(6px)', padding: '16px' }}>
-      <div style={{ background: '#0f1a24', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '420px', textAlign: 'center' }}>
-        <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'rgba(239,68,68,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-          <Shield size={24} color="#ef4444" />
+      <div style={{ background: t.bgCardAlt, border: `1px solid ${t.dangerBorder}`, borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '420px', textAlign: 'center' }}>
+        <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: t.dangerBg, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+          <Shield size={24} color={t.danger} />
         </div>
-        <h3 style={{ margin: '0 0 10px', fontSize: '18px', fontWeight: 700, color: '#f1f5f9' }}>Transfer Superadmin?</h3>
-        <p style={{ margin: '0 0 6px', fontSize: '13px', color: '#6b7280', lineHeight: 1.6 }}>
+        <h3 style={{ margin: '0 0 10px', fontSize: '18px', fontWeight: 700, color: t.text }}>Transfer Superadmin?</h3>
+        <p style={{ margin: '0 0 6px', fontSize: '13px', color: t.textFaint, lineHeight: 1.6 }}>
           You are about to transfer your superadmin role to
         </p>
-        <p style={{ margin: '0 0 18px', fontSize: '15px', fontWeight: 600, color: '#f1f5f9' }}>
+        <p style={{ margin: '0 0 18px', fontSize: '15px', fontWeight: 600, color: t.text }}>
           {admin.full_name}
-          <span style={{ display: 'block', fontSize: '12px', fontWeight: 400, color: '#6b7280', marginTop: '2px' }}>{admin.matric_number}</span>
+          <span style={{ display: 'block', fontSize: '12px', fontWeight: 400, color: t.textFaint, marginTop: '2px' }}>{admin.matric_number}</span>
         </p>
-        <p style={{ margin: '0 0 22px', fontSize: '12px', color: '#fca5a5', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.12)', padding: '10px 14px', borderRadius: '8px', lineHeight: 1.6 }}>
+        <p style={{ margin: '0 0 22px', fontSize: '12px', color: t.danger, background: t.dangerBg, border: `1px solid ${t.dangerBorder}`, padding: '10px 14px', borderRadius: '8px', lineHeight: 1.6 }}>
           You will lose superadmin access immediately and cannot reverse this action.
         </p>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button onClick={onClose}
-            style={{ flex: 1, padding: '11px', borderRadius: '9px', border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: '#6b7280', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }}>
+            style={{ flex: 1, padding: '11px', borderRadius: '9px', border: `1px solid ${t.borderInput}`, background: 'transparent', color: t.textFaint, fontSize: '13px', cursor: 'pointer', fontWeight: 500 }}>
             Cancel
           </button>
           <button onClick={onConfirm}
@@ -130,6 +133,7 @@ function ConfirmTransferModal({ admin, onConfirm, onClose }: {
 ═══════════════════════════════════════════════════════════════════════════ */
 export default function ExchangeAdminPage() {
   const router = useRouter()
+  const { t } = useTheme()
   const [profile, setProfile] = useState<any>(null)
   const [admins, setAdmins] = useState<AdminData[]>([])
   const [search, setSearch] = useState('')
@@ -183,13 +187,13 @@ export default function ExchangeAdminPage() {
   )
 
   /* ── Wait for viewport measurement ── */
-  if (isMobile === null) return <div style={{ minHeight: '100vh', background: '#080f1a' }} />
+  if (isMobile === null) return <div style={{ minHeight: '100vh', background: t.bg }} />
 
   /* ── Shared warning banner ── */
   const WarningBanner = () => (
-    <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: '10px', padding: '12px 14px', marginBottom: '16px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-      <AlertTriangle size={14} color="#ef4444" style={{ flexShrink: 0, marginTop: '1px' }} />
-      <p style={{ margin: 0, fontSize: '12px', color: '#fca5a5', lineHeight: 1.5 }}>
+    <div style={{ background: t.dangerBg, border: `1px solid ${t.dangerBorder}`, borderRadius: '10px', padding: '12px 14px', marginBottom: '16px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+      <AlertTriangle size={14} color={t.danger} style={{ flexShrink: 0, marginTop: '1px' }} />
+      <p style={{ margin: 0, fontSize: '12px', color: t.danger, lineHeight: 1.5 }}>
         This action cannot be undone. Once transferred, you will lose all superadmin privileges immediately.
       </p>
     </div>
@@ -198,12 +202,12 @@ export default function ExchangeAdminPage() {
   /* ── Shared admin list ── */
   const AdminList = () => (
     <>
-      <p style={{ fontSize: '9px', fontWeight: 600, color: '#374151', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '8px' }}>
+      <p style={{ fontSize: '9px', fontWeight: 600, color: t.textFaintest, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '8px' }}>
         Select an Administrator ({filteredAdmins.length})
       </p>
-      <div style={{ background: '#0b1118', border: `1px solid ${SA.accentBorder}`, borderRadius: '12px', overflow: 'hidden' }}>
+      <div style={{ background: t.bgCard, border: `1px solid ${SA.accentBorder}`, borderRadius: '12px', overflow: 'hidden' }}>
         {filteredAdmins.length === 0 ? (
-          <p style={{ padding: '32px', fontSize: '13px', color: '#374151', textAlign: 'center' }}>No administrators found.</p>
+          <p style={{ padding: '32px', fontSize: '13px', color: t.textFaintest, textAlign: 'center' }}>No administrators found.</p>
         ) : filteredAdmins.map((admin, i) => (
           <div key={admin.id} style={{ borderBottom: i < filteredAdmins.length - 1 ? `1px solid rgba(245,158,11,0.07)` : 'none' }}>
             <AdminRow
@@ -223,17 +227,17 @@ export default function ExchangeAdminPage() {
   ══════════════════════════════════════════════════════ */
   if (isMobile) {
     return (
-      <div style={{ minHeight: '100vh', background: '#080f1a', color: '#e2e8f0', fontFamily: "'Inter', -apple-system, sans-serif", paddingBottom: '70px' }}>
+      <div style={{ minHeight: '100vh', background: t.bg, color: t.text, fontFamily: "'Inter', -apple-system, sans-serif", paddingBottom: '70px' }}>
 
         {/* Sticky top bar */}
-        <div style={{ background: '#0b1118', borderBottom: `1px solid rgba(245,158,11,0.08)`, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
+        <div style={{ background: t.bgCard, borderBottom: `1px solid rgba(245,158,11,0.08)`, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: SA.gradientLogo, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
               <Shield size={12} color="white" />
               <Crown size={7} color="#fef3c7" style={{ position: 'absolute', top: '-3px', right: '-3px' }} />
             </div>
             <div>
-              <p style={{ fontWeight: 700, fontSize: '13px', margin: 0, color: '#f1f5f9', letterSpacing: '-0.02em' }}>UTM-SPMS</p>
+              <p style={{ fontWeight: 700, fontSize: '13px', margin: 0, color: t.text, letterSpacing: '-0.02em' }}>UTM-SPMS</p>
               <p style={{ fontSize: '9px', color: SA.accent, margin: 0, fontWeight: 600, letterSpacing: '0.06em' }}>SUPERADMIN</p>
             </div>
           </div>
@@ -248,10 +252,10 @@ export default function ExchangeAdminPage() {
           {/* Header */}
           <div style={{ marginBottom: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', flexWrap: 'wrap' }}>
-              <h1 style={{ fontSize: '16px', fontWeight: 700, margin: 0, letterSpacing: '-0.02em', color: '#f8fafc' }}>Exchange Superadmin Access</h1>
-              <span style={{ fontSize: '9px', fontWeight: 600, background: 'rgba(239,68,68,0.12)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.2)', padding: '2px 6px', borderRadius: '20px', letterSpacing: '0.06em', flexShrink: 0 }}>IRREVERSIBLE</span>
+              <h1 style={{ fontSize: '16px', fontWeight: 700, margin: 0, letterSpacing: '-0.02em', color: t.text }}>Exchange Superadmin Access</h1>
+              <span style={{ fontSize: '9px', fontWeight: 600, background: t.dangerBg, color: t.danger, border: `1px solid ${t.dangerBorder}`, padding: '2px 6px', borderRadius: '20px', letterSpacing: '0.06em', flexShrink: 0 }}>IRREVERSIBLE</span>
             </div>
-            <p style={{ fontSize: '11px', color: '#4b5563', margin: 0, lineHeight: 1.6 }}>
+            <p style={{ fontSize: '11px', color: t.textFaint, margin: 0, lineHeight: 1.6 }}>
               Transfer your superadmin privileges to another admin. You will be demoted immediately.
             </p>
           </div>
@@ -260,24 +264,24 @@ export default function ExchangeAdminPage() {
 
           {/* Search */}
           <div style={{ position: 'relative', marginBottom: '14px' }}>
-            <Search size={12} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#4b5563' }} />
+            <Search size={12} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: t.textFaint }} />
             <input type="text" placeholder="Search admins by name or matric..." value={search} onChange={e => setSearch(e.target.value)}
-              style={{ width: '100%', background: '#0b1118', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '9px 12px 9px 30px', color: '#e2e8f0', fontSize: '12px', outline: 'none', boxSizing: 'border-box' }} />
+              style={{ width: '100%', background: t.bgCard, border: `1px solid ${t.borderInput}`, borderRadius: '8px', padding: '9px 12px 9px 30px', color: t.text, fontSize: '12px', outline: 'none', boxSizing: 'border-box' }} />
           </div>
 
           <AdminList />
         </div>
 
         {/* Fixed bottom tab bar */}
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#0b1118', borderTop: `1px solid rgba(245,158,11,0.08)`, display: 'flex', zIndex: 20 }}>
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: t.bgCard, borderTop: `1px solid rgba(245,158,11,0.08)`, display: 'flex', zIndex: 20 }}>
           {navItems.map(item => {
             const Icon = item.icon
             const isActive = item.id === 'exchangeAdmin'
             return (
               <button key={item.id} onClick={() => router.push(item.path)}
                 style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px 4px', cursor: 'pointer', gap: '3px', border: 'none', background: 'transparent' }}>
-                <Icon size={15} color={isActive ? SA.accentText : '#4b5563'} />
-                <span style={{ fontSize: '8px', fontWeight: 500, color: isActive ? SA.accentText : '#4b5563', textAlign: 'center', lineHeight: 1.1 }}>{item.label}</span>
+                <Icon size={15} color={isActive ? SA.accentText : t.textFaint} />
+                <span style={{ fontSize: '8px', fontWeight: 500, color: isActive ? SA.accentText : t.textFaint, textAlign: 'center', lineHeight: 1.1 }}>{item.label}</span>
               </button>
             )
           })}
@@ -291,13 +295,13 @@ export default function ExchangeAdminPage() {
   }
 
   /* ══════════════════════════════════════════════════════
-     DESKTOP LAYOUT  (unchanged from original)
+     DESKTOP LAYOUT
   ══════════════════════════════════════════════════════ */
   return (
-    <div style={{ minHeight: '100vh', background: '#080f1a', display: 'flex', fontFamily: "'Inter', -apple-system, sans-serif", color: '#e2e8f0' }}>
+    <div style={{ minHeight: '100vh', background: t.bg, display: 'flex', fontFamily: "'Inter', -apple-system, sans-serif", color: t.text }}>
 
       {/* SIDEBAR */}
-      <aside style={{ width: '220px', background: '#0b1118', borderRight: `1px solid rgba(245,158,11,0.07)`, display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 20 }}>
+      <aside style={{ width: '220px', background: t.bgCard, borderRight: `1px solid rgba(245,158,11,0.07)`, display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 20 }}>
         <div style={{ padding: '24px 20px', borderBottom: `1px solid rgba(245,158,11,0.07)` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: '34px', height: '34px', borderRadius: '9px', background: SA.gradientLogo, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
@@ -305,19 +309,19 @@ export default function ExchangeAdminPage() {
               <Crown size={8} color="#fef3c7" style={{ position: 'absolute', top: '-4px', right: '-4px' }} />
             </div>
             <div>
-              <p style={{ fontWeight: 700, fontSize: '14px', margin: 0, color: '#f1f5f9', letterSpacing: '-0.02em' }}>UTM-SPMS</p>
+              <p style={{ fontWeight: 700, fontSize: '14px', margin: 0, color: t.text, letterSpacing: '-0.02em' }}>UTM-SPMS</p>
               <p style={{ fontSize: '10px', color: SA.accent, margin: 0, fontWeight: 600, letterSpacing: '0.06em' }}>SUPERADMIN</p>
             </div>
           </div>
         </div>
 
         <nav style={{ padding: '14px 10px', flex: 1 }}>
-          <p style={{ fontSize: '9px', fontWeight: 600, color: '#374151', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0 10px', marginBottom: '6px' }}>Navigation</p>
+          <p style={{ fontSize: '9px', fontWeight: 600, color: t.textFaintest, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0 10px', marginBottom: '6px' }}>Navigation</p>
           {navItems.slice(0, 4).map(item => {
             const Icon = item.icon
             return (
               <button key={item.id} onClick={() => router.push(item.path)}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'transparent', color: '#6b7280', fontSize: '13px', fontWeight: 400, marginBottom: '2px', textAlign: 'left', transition: 'all 0.12s' }}>
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'transparent', color: t.textFaint, fontSize: '13px', fontWeight: 400, marginBottom: '2px', textAlign: 'left', transition: 'all 0.12s' }}>
                 <Icon size={15} />{item.label}
               </button>
             )
@@ -330,7 +334,7 @@ export default function ExchangeAdminPage() {
               const isActive = item.id === 'exchangeAdmin'
               return (
                 <button key={item.id} onClick={() => router.push(item.path)}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: isActive ? SA.accentBg : 'transparent', color: isActive ? SA.accentText : '#6b7280', fontSize: '13px', fontWeight: isActive ? 500 : 400, marginBottom: '2px', textAlign: 'left', transition: 'all 0.12s' }}>
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: isActive ? SA.accentBg : 'transparent', color: isActive ? SA.accentText : t.textFaint, fontSize: '13px', fontWeight: isActive ? 500 : 400, marginBottom: '2px', textAlign: 'left', transition: 'all 0.12s' }}>
                   <Icon size={15} />{item.label}
                   {isActive && <div style={{ marginLeft: 'auto', width: '4px', height: '4px', borderRadius: '50%', background: SA.accent }} />}
                 </button>
@@ -352,10 +356,10 @@ export default function ExchangeAdminPage() {
               {getInitials(profile?.full_name || '')}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ margin: 0, fontSize: '12px', fontWeight: 500, color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile?.full_name || 'Superadmin'}</p>
+              <p style={{ margin: 0, fontSize: '12px', fontWeight: 500, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile?.full_name || 'Superadmin'}</p>
               <p style={{ margin: 0, fontSize: '10px', color: SA.accent, fontWeight: 500 }}>Superadmin</p>
             </div>
-            <button onClick={handleLogout} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', padding: '3px' }}>
+            <button onClick={handleLogout} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textFaint, padding: '3px' }}>
               <LogOut size={13} />
             </button>
           </div>
@@ -366,10 +370,10 @@ export default function ExchangeAdminPage() {
       <main style={{ flex: 1, marginLeft: '220px', padding: '28px 32px', overflowX: 'hidden' }}>
         <div style={{ marginBottom: '28px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
-            <h1 style={{ fontSize: '20px', fontWeight: 700, margin: 0, letterSpacing: '-0.02em', color: '#f8fafc' }}>Exchange Superadmin Access</h1>
+            <h1 style={{ fontSize: '20px', fontWeight: 700, margin: 0, letterSpacing: '-0.02em', color: t.text }}>Exchange Superadmin Access</h1>
             <span style={{ fontSize: '10px', fontWeight: 600, background: SA.accentBg, color: SA.accentText, border: `1px solid ${SA.accentBorder}`, padding: '2px 8px', borderRadius: '20px', letterSpacing: '0.06em' }}>IRREVERSIBLE</span>
           </div>
-          <p style={{ fontSize: '13px', color: '#4b5563', margin: 0, maxWidth: '560px', lineHeight: 1.6 }}>
+          <p style={{ fontSize: '13px', color: t.textFaint, margin: 0, maxWidth: '560px', lineHeight: 1.6 }}>
             Transfer your superadmin privileges to another administrator. You will be demoted to a regular admin immediately and redirected to the admin dashboard.
           </p>
         </div>
@@ -377,9 +381,9 @@ export default function ExchangeAdminPage() {
         <WarningBanner />
 
         <div style={{ position: 'relative', marginBottom: '20px', maxWidth: '400px' }}>
-          <Search size={13} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#4b5563' }} />
+          <Search size={13} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: t.textFaint }} />
           <input type="text" placeholder="Search admins by name or matric..." value={search} onChange={e => setSearch(e.target.value)}
-            style={{ width: '100%', background: '#0b1118', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '9px', padding: '9px 12px 9px 34px', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+            style={{ width: '100%', background: t.bgCard, border: `1px solid ${t.borderInput}`, borderRadius: '9px', padding: '9px 12px 9px 34px', color: t.text, fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
         </div>
 
         <AdminList />
