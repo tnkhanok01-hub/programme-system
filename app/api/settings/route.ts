@@ -205,3 +205,53 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ message: 'Password updated successfully.' })
 }
+
+// ── DELETE /api/settings ──────────────────────────────────────────────────────
+// Permanently deletes the authenticated user's account.
+// Body: { password: string }
+
+export async function DELETE(request: Request) {
+  const auth = await authenticate(request)
+  if (auth.error) return auth.error
+  const { supabase, user } = auth
+
+  let body: Record<string, unknown>
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 })
+  }
+
+  const { password } = body as { password: string }
+
+  if (!password || typeof password !== 'string') {
+    return NextResponse.json({ error: 'Password is required to confirm account deletion.' }, { status: 400 })
+  }
+
+  const email = user.email
+  if (!email) {
+    return NextResponse.json({ error: 'Could not retrieve account email.' }, { status: 500 })
+  }
+
+  // Verify password before deleting
+  const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+  if (signInError) {
+    return NextResponse.json({ error: 'Incorrect password. Account not deleted.' }, { status: 401 })
+  }
+
+  const adminClient = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  // Delete profile row first (cascade handles related data via FK)
+  await adminClient.from('users').delete().eq('id', user.id)
+
+  // Delete auth user
+  const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id)
+  if (deleteError) {
+    return NextResponse.json({ error: deleteError.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ message: 'Account deleted successfully.' })
+}

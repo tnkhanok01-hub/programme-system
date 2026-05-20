@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabaseClient'
 import { useTheme } from '@/app/provider/ThemeContext'
 import {
   ArrowLeft, Lock, Bell, Eye, EyeOff, Globe,
-  Check, Loader2, Shield, AlertTriangle, Save, Moon, Sun,
+  Check, Loader2, Shield, AlertTriangle, Save, Moon, Sun, Trash2,
 } from 'lucide-react'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -40,7 +40,7 @@ function Section({ title, icon, children, t }: { title: string; icon: React.Reac
         <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: t.accentBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           {icon}
         </div>
-        <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: t.text, letterSpacing: '-0.01em' }}>{title}</p>
+        <p style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: t.text, letterSpacing: '-0.01em' }}>{title}</p>
       </div>
       <div>{children}</div>
     </div>
@@ -53,8 +53,8 @@ function ToggleRow({ label, sub, value, onChange, t }: { label: string; sub?: st
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', padding: '14px 20px', borderBottom: `1px solid ${t.border}` }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ margin: 0, fontSize: '13px', color: t.text, fontWeight: 500 }}>{label}</p>
-        {sub && <p style={{ margin: '2px 0 0', fontSize: '11px', color: t.textFaint, lineHeight: 1.4 }}>{sub}</p>}
+        <p style={{ margin: 0, fontSize: '15px', color: t.text, fontWeight: 500 }}>{label}</p>
+        {sub && <p style={{ margin: '2px 0 0', fontSize: '15px', color: t.textFaint, lineHeight: 1.4 }}>{sub}</p>}
       </div>
       <button
         onClick={() => onChange(!value)}
@@ -78,7 +78,7 @@ function ToggleRow({ label, sub, value, onChange, t }: { label: string; sub?: st
 function FieldRow({ label, children, last = false, t }: { label: string; children: React.ReactNode; last?: boolean; t: any }) {
   return (
     <div style={{ padding: '14px 20px', borderBottom: last ? 'none' : `1px solid ${t.border}` }}>
-      <p style={{ margin: '0 0 6px', fontSize: '11px', color: t.textFaint, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</p>
+      <p style={{ margin: '0 0 6px', fontSize: '15px', color: t.textFaint, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</p>
       {children}
     </div>
   )
@@ -88,7 +88,7 @@ function getInputStyle(t: any): React.CSSProperties {
   return {
     width: '100%', padding: '9px 11px', borderRadius: '8px',
     background: t.bgInput, border: `1px solid ${t.borderInput}`,
-    color: t.text, fontSize: '13px', outline: 'none',
+    color: t.text, fontSize: '15px', outline: 'none',
     boxSizing: 'border-box', fontFamily: "'DM Sans', sans-serif",
     transition: 'border-color 0.15s',
   }
@@ -115,6 +115,13 @@ export default function SettingsPage() {
   const [pwSaving, setPwSaving] = useState(false)
   const [pwError, setPwError] = useState('')
   const [pwSuccess, setPwSuccess] = useState(false)
+
+  // Delete account
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deleteShowPw, setDeleteShowPw] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   const LANGS = [
     { id: 'en', label: 'English' },
@@ -172,6 +179,26 @@ export default function SettingsPage() {
     }
   }
 
+  // ── Delete account (DELETE) ────────────────────────────────────────────────
+  const handleDeleteAccount = async () => {
+    setDeleteError('')
+    if (!deletePassword) { setDeleteError('Please enter your password to confirm.'); return }
+    setDeleteLoading(true)
+    const res = await fetch('/api/settings', {
+      method: 'DELETE',
+      headers: authHeaders,
+      body: JSON.stringify({ password: deletePassword }),
+    })
+    const data = await res.json()
+    if (res.ok) {
+      await supabase.auth.signOut()
+      router.replace('/login')
+    } else {
+      setDeleteError(data.error ?? 'Failed to delete account.')
+      setDeleteLoading(false)
+    }
+  }
+
   // ── Change password (POST) ─────────────────────────────────────────────────
   const handleChangePassword = async () => {
     setPwError('')
@@ -225,7 +252,7 @@ export default function SettingsPage() {
             <button onClick={() => router.back()} style={{ background: 'none', border: 'none', color: t.textFaint, cursor: 'pointer', padding: '2px', display: 'flex' }}>
               <ArrowLeft size={20} />
             </button>
-            <h1 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: t.text }}>Settings</h1>
+            <h1 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: t.text }}>Settings</h1>
           </div>
         )}
 
@@ -234,11 +261,11 @@ export default function SettingsPage() {
           {/* Desktop header */}
           {!isMobile && (
             <div style={{ marginBottom: '28px' }}>
-              <button onClick={() => router.back()} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', color: t.textFaint, cursor: 'pointer', fontSize: '13px', padding: 0, marginBottom: '20px' }}>
+              <button onClick={() => router.back()} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', color: t.textFaint, cursor: 'pointer', fontSize: '15px', padding: 0, marginBottom: '20px' }}>
                 <ArrowLeft size={14} />Back
               </button>
-              <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 700, color: t.text, letterSpacing: '-0.02em' }}>Settings</h1>
-              <p style={{ margin: '4px 0 0', fontSize: '13px', color: t.textFaint }}>Manage your account preferences and privacy.</p>
+              <h1 style={{ margin: 0, fontSize: '26px', fontWeight: 700, color: t.text, letterSpacing: '-0.02em' }}>Settings</h1>
+              <p style={{ margin: '4px 0 0', fontSize: '15px', color: t.textFaint }}>Manage your account preferences and privacy.</p>
             </div>
           )}
 
@@ -247,13 +274,13 @@ export default function SettingsPage() {
             {pwSuccess && (
               <div style={{ margin: '12px 20px 0', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 13px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '8px' }}>
                 <Check size={14} color="#10b981" style={{ flexShrink: 0 }} />
-                <p style={{ margin: 0, fontSize: '12px', color: '#10b981', fontWeight: 500 }}>Password updated successfully!</p>
+                <p style={{ margin: 0, fontSize: '14px', color: '#10b981', fontWeight: 500 }}>Password updated successfully!</p>
               </div>
             )}
             {pwError && (
               <div style={{ margin: '12px 20px 0', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 13px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '8px' }}>
                 <AlertTriangle size={14} color="#ef4444" style={{ flexShrink: 0 }} />
-                <p style={{ margin: 0, fontSize: '12px', color: '#ef4444' }}>{pwError}</p>
+                <p style={{ margin: 0, fontSize: '14px', color: '#ef4444' }}>{pwError}</p>
               </div>
             )}
             {(['current', 'next', 'confirm'] as const).map((field, i) => {
@@ -284,7 +311,7 @@ export default function SettingsPage() {
               <button
                 onClick={handleChangePassword}
                 disabled={pwSaving}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', border: 'none', background: pwSaving ? 'rgba(99,102,241,0.35)' : 'linear-gradient(135deg, #4f46e5, #6366f1)', color: 'white', fontSize: '12px', fontWeight: 600, cursor: pwSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', border: 'none', background: pwSaving ? 'rgba(99,102,241,0.35)' : 'linear-gradient(135deg, #4f46e5, #6366f1)', color: 'white', fontSize: '14px', fontWeight: 600, cursor: pwSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}
               >
                 {pwSaving ? <Loader2 size={12} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Shield size={12} />}
                 {pwSaving ? 'Updating...' : 'Update Password'}
@@ -314,22 +341,6 @@ export default function SettingsPage() {
             />
           </Section>
 
-          {/* ── PRIVACY ── */}
-          <Section title="Privacy" icon={<Eye size={14} color="#818cf8" />} t={t}>
-            <ToggleRow t={t}
-              label="Show Phone Number"
-              sub="Visible to other committee members in the same programme"
-              value={settings.show_phone}
-              onChange={v => set('show_phone', v)}
-            />
-            <ToggleRow t={t}
-              label="Show Matric Number"
-              sub="Visible to programme directors and admins"
-              value={settings.show_matric}
-              onChange={v => set('show_matric', v)}
-            />
-          </Section>
-
           {/* ── APPEARANCE ── */}
           <Section title="Appearance" icon={<Moon size={14} color="#818cf8" />} t={t}>
             <div style={{ padding: '14px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -355,8 +366,8 @@ export default function SettingsPage() {
                       <Icon size={15} color={active ? t.accentText : t.textFaint} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ margin: 0, fontSize: '13px', color: active ? t.accentText : t.textMuted, fontWeight: active ? 600 : 400 }}>{opt.label}</p>
-                      <p style={{ margin: '2px 0 0', fontSize: '11px', color: t.textFaint, lineHeight: 1.3 }}>{opt.sub}</p>
+                      <p style={{ margin: 0, fontSize: '15px', color: active ? t.accentText : t.textMuted, fontWeight: active ? 600 : 400 }}>{opt.label}</p>
+                      <p style={{ margin: '2px 0 0', fontSize: '15px', color: t.textFaint, lineHeight: 1.3 }}>{opt.sub}</p>
                     </div>
                     {active && (
                       <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -384,7 +395,7 @@ export default function SettingsPage() {
                     cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
                   }}
                 >
-                  <span style={{ fontSize: '13px', color: settings.language === lang.id ? t.accentText : t.textMuted, fontWeight: settings.language === lang.id ? 600 : 400 }}>
+                  <span style={{ fontSize: '15px', color: settings.language === lang.id ? t.accentText : t.textMuted, fontWeight: settings.language === lang.id ? 600 : 400 }}>
                     {lang.label}
                   </span>
                   {settings.language === lang.id && (
@@ -397,27 +408,70 @@ export default function SettingsPage() {
             </div>
           </Section>
 
-          {/* ── Save preferences ── */}
-          {settingsError && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '8px', marginBottom: '12px' }}>
-              <AlertTriangle size={13} color="#ef4444" style={{ flexShrink: 0 }} />
-              <p style={{ margin: 0, fontSize: '12px', color: '#ef4444' }}>{settingsError}</p>
+          {/* ── DANGER ZONE ── */}
+          <div style={{ background: t.bgCard, border: '1px solid rgba(239,68,68,0.3)', borderRadius: '14px', overflow: 'hidden', marginBottom: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 20px', borderBottom: '1px solid rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.04)' }}>
+              <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'rgba(239,68,68,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Trash2 size={14} color="#ef4444" />
+              </div>
+              <p style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#ef4444', letterSpacing: '-0.01em' }}>Danger Zone</p>
             </div>
-          )}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px', marginBottom: '32px' }}>
-            {settingsSaved && (
-              <span style={{ fontSize: '12px', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Check size={12} />Preferences saved
-              </span>
-            )}
-            <button
-              onClick={saveSettings}
-              disabled={settingsSaving}
-              style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '10px 20px', borderRadius: '9px', border: 'none', background: settingsSaving ? 'rgba(99,102,241,0.35)' : 'linear-gradient(135deg, #4f46e5, #6366f1)', color: 'white', fontSize: '13px', fontWeight: 600, cursor: settingsSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}
-            >
-              {settingsSaving ? <Loader2 size={13} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Save size={13} />}
-              {settingsSaving ? 'Saving...' : 'Save Preferences'}
-            </button>
+
+            <div style={{ padding: '16px 20px' }}>
+              <p style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: 500, color: t.text }}>Delete Account</p>
+              <p style={{ margin: '0 0 14px', fontSize: '14px', color: t.textFaint, lineHeight: 1.5 }}>
+                Permanently deletes your account and all associated data. This action cannot be undone.
+              </p>
+
+              {!showDeleteConfirm ? (
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.08)', color: '#ef4444', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  <Trash2 size={13} />Delete My Account
+                </button>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '14px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px' }}>
+                  <p style={{ margin: 0, fontSize: '14px', color: '#ef4444', fontWeight: 500 }}>
+                    Enter your password to confirm deletion:
+                  </p>
+                  {deleteError && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '8px 11px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '7px' }}>
+                      <AlertTriangle size={13} color="#ef4444" style={{ flexShrink: 0 }} />
+                      <p style={{ margin: 0, fontSize: '14px', color: '#ef4444' }}>{deleteError}</p>
+                    </div>
+                  )}
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={deleteShowPw ? 'text' : 'password'}
+                      placeholder="Your current password"
+                      value={deletePassword}
+                      onChange={e => setDeletePassword(e.target.value)}
+                      style={{ ...getInputStyle(t), paddingRight: '40px', border: '1px solid rgba(239,68,68,0.35)' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setDeleteShowPw(p => !p)}
+                      style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: t.textFaint, display: 'flex', padding: '2px' }}>
+                      {deleteShowPw ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={() => { setShowDeleteConfirm(false); setDeletePassword(''); setDeleteError('') }}
+                      style={{ flex: 1, padding: '8px', borderRadius: '8px', border: `1px solid ${t.border}`, background: 'transparent', color: t.textMuted, fontSize: '14px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleDeleteAccount}
+                      disabled={deleteLoading || !deletePassword}
+                      style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '8px', borderRadius: '8px', border: 'none', background: deleteLoading || !deletePassword ? 'rgba(239,68,68,0.3)' : '#ef4444', color: 'white', fontSize: '14px', fontWeight: 600, cursor: deleteLoading || !deletePassword ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                      {deleteLoading ? <Loader2 size={12} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Trash2 size={12} />}
+                      {deleteLoading ? 'Deleting...' : 'Confirm Delete'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
         </div>
