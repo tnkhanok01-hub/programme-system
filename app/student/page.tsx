@@ -1,5 +1,5 @@
 'use client'
-
+import NotificationBell from "../../components/notifications/NotificationBell";
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabaseClient'
@@ -274,10 +274,9 @@ export default function StudentHomepage() {
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button style={{ position: 'relative', background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '8px', width: '34px', height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.textMuted }}>
-              <Bell size={14} />
-              <span style={{ position: 'absolute', top: '7px', right: '7px', width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444', border: `1.5px solid ${t.bg}` }} />
-            </button>
+            <div style={{ zIndex: 99999, position: "relative" }}>
+  <NotificationBell />
+</div>
             <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'linear-gradient(135deg,#1d4ed8,#60a5fa)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 600, color: 'white' }}>
               {getInitials(profile?.full_name || '')}
             </div>
@@ -437,10 +436,7 @@ export default function StudentHomepage() {
               {currentTime.toLocaleDateString('en-MY', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
           </div>
-          <button style={{ position: 'relative', background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '10px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.textMuted }}>
-            <Bell size={16} />
-            <span style={{ position: 'absolute', top: '8px', right: '8px', width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444', border: `1.5px solid ${t.bg}` }} />
-          </button>
+          <NotificationBell />
         </div>
 
         {/* Stat cards */}

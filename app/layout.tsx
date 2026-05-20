@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import SessionProvider from "@/app/provider/SessionProvider";
 import { ThemeProvider } from "@/app/provider/ThemeContext";
+import NotificationBell from "@/components/notifications/NotificationBell";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,8 +32,10 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
-          <SessionProvider>{children}</SessionProvider>
-        </ThemeProvider>
+  <SessionProvider>
+    {children}
+  </SessionProvider>
+</ThemeProvider>
       </body>
     </html>
   );
