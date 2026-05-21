@@ -50,7 +50,7 @@ export async function POST(
 
   const { data: programme, error: fetchError } = await makeServiceClient()
     .from('programmes')
-    .select('id, status')
+    .select('id, name, status, programme_director_id')
     .eq('id', programmeId)
     .single();
 
@@ -74,6 +74,15 @@ export async function POST(
     .single();
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
+
+  // Notify the programme director
+  if (programme.programme_director_id) {
+    await makeServiceClient().from('notifications').insert({
+      user_id: programme.programme_director_id,
+      title: 'Programme Rejected',
+      message: `Your programme "${updated.name}" has been rejected.${reason ? ` Reason: ${reason}` : ''}`,
+    });
+  }
 
   return NextResponse.json({ message: 'Programme rejected successfully.', programme: updated });
 }

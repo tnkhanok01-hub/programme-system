@@ -43,7 +43,7 @@ export async function POST(
 
   const { data: programme, error: fetchError } = await svc
     .from('programmes')
-    .select('id, status, advisor_id')
+    .select('id, name, status, advisor_id, programme_director_id')
     .eq('id', programmeId)
     .single();
 
@@ -109,6 +109,24 @@ export async function POST(
       .single();
 
     if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
+
+    // Notify all superadmins
+    const { data: superadminRoles } = await svc.from('roles').select('id').eq('name', 'superadmin');
+    const superadminRoleIds = (superadminRoles ?? []).map((r: any) => r.id);
+    if (superadminRoleIds.length > 0) {
+      const { data: superadminUsers } = await svc.from('users').select('id').in('role_id', superadminRoleIds);
+      const superadminIds = (superadminUsers ?? []).map((u: any) => u.id);
+      if (superadminIds.length > 0) {
+        await svc.from('notifications').insert(
+          superadminIds.map((uid: string) => ({
+            user_id: uid,
+            title: 'Programme Under Review',
+            message: `"${updated.name}" has been approved by admin and is waiting for your final review.`,
+          }))
+        );
+      }
+    }
+
     return NextResponse.json({ message: 'Programme sent for superadmin review.', programme: updated });
   }
 
@@ -152,5 +170,15 @@ export async function POST(
     .single();
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
+
+  // Notify the programme director
+  if (programme.programme_director_id) {
+    await svc.from('notifications').insert({
+      user_id: programme.programme_director_id,
+      title: 'Programme Approved',
+      message: `Your programme "${updated.name}" has been approved. Congratulations!`,
+    });
+  }
+
   return NextResponse.json({ message: 'Programme approved.', programme: updated });
 }

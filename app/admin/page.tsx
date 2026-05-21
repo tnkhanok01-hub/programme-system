@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabaseClient'
 import {
-  LayoutDashboard, BookOpen, Users, Settings, LogOut, Bell,
+  LayoutDashboard, BookOpen, Users, Settings, LogOut,
   CirclePlus, Pencil, Trash, Save, CircleX, X, TrendingUp, Clock,
   CheckCircle, XCircle, AlertCircle, Search, Shield, Calendar,
   MapPin, DollarSign, Activity, Eye, FileText, Upload, QrCode, UserCircle,
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { PRE_CHECKLIST } from '../../lib/constants'
 import { useTheme } from '../provider/ThemeContext'
+import NotificationBell from '../../components/notifications/NotificationBell'
 
 /* ─── TYPES ──────────────────────────────────────────────────────────────── */
 interface Programme {
@@ -969,10 +970,7 @@ export default function AdminHomepage() {
               style={{ background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '8px', width: '34px', height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.textFaint }}>
               {mode === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
             </button>
-            <button style={{ position: 'relative', background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '8px', width: '34px', height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.textFaint }}>
-              <Bell size={14} />
-              {stats.pending > 0 && <span style={{ position: 'absolute', top: '7px', right: '7px', width: '6px', height: '6px', borderRadius: '50%', background: '#f59e0b', border: `1.5px solid ${t.bg}` }} />}
-            </button>
+            <NotificationBell />
             <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'linear-gradient(135deg,#5b21b6,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 600, color: 'white' }}>
               {getInitials(profile?.full_name || '')}
             </div>
@@ -1115,10 +1113,7 @@ export default function AdminHomepage() {
               style={{ background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '9px', width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.textFaint }}>
               {mode === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
             </button>
-            <button style={{ position: 'relative', background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '9px', width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.textFaint }}>
-              <Bell size={15} />
-              {stats.pending > 0 && <span style={{ position: 'absolute', top: '7px', right: '7px', width: '7px', height: '7px', borderRadius: '50%', background: '#f59e0b', border: `1.5px solid ${t.bg}` }} />}
-            </button>
+            <NotificationBell />
           </div>
         </div>
 

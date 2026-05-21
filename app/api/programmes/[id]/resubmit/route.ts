@@ -101,6 +101,35 @@ export async function POST(
     return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
 
+  // Notify all admins and superadmins of resubmission
+  const svc = makeServiceClient();
+
+  const { data: adminRoles } = await svc
+    .from('roles')
+    .select('id')
+    .in('name', ['admin', 'superadmin']);
+
+  const roleIds = (adminRoles ?? []).map((r: any) => r.id);
+
+  if (roleIds.length > 0) {
+    const { data: adminUsers } = await svc
+      .from('users')
+      .select('id')
+      .in('role_id', roleIds);
+
+    const adminIds = (adminUsers ?? []).map((u: any) => u.id);
+
+    if (adminIds.length > 0) {
+      await svc.from('notifications').insert(
+        adminIds.map((uid: string) => ({
+          user_id: uid,
+          title: 'Programme Resubmitted for Review',
+          message: `"${updated.name}" has been resubmitted and is waiting for your review.`,
+        }))
+      );
+    }
+  }
+
   return NextResponse.json({
     message: 'Programme resubmitted successfully.',
     programme: updated,

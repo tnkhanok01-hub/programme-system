@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabaseClient'
 import { useTheme } from '@/app/provider/ThemeContext'
 import {
-  LayoutDashboard, BookOpen, Users, Settings, LogOut, Bell,
+  LayoutDashboard, BookOpen, Users, Settings, LogOut,
   CirclePlus, Pencil, Trash, Save, CircleX, TrendingUp, Clock,
   CheckCircle, XCircle, AlertCircle, Search, Shield, Calendar,
   MapPin, DollarSign, Activity, ArrowRightLeft, Crown, Eye, FileText, Upload, QrCode, X, UserCircle, CalendarCheck,
   Sun, Moon
 } from 'lucide-react'
 import { PRE_CHECKLIST } from '../../lib/constants'
+import NotificationBell from '../../components/notifications/NotificationBell'
 
 /* ─── TYPES ──────────────────────────────────────────────────────────────── */
 interface Programme {
@@ -977,10 +978,7 @@ export default function SuperAdminDashboard() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <ThemeToggle theme={theme} onToggle={toggleTheme} T={T} />
-            <button style={{ position: 'relative', background: T.inputBg, border: `1px solid ${T.borderSoft}`, borderRadius: '8px', width: '34px', height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: T.textSecondary }}>
-              <Bell size={14} />
-              {stats.pending > 0 && <span style={{ position: 'absolute', top: '7px', right: '7px', width: '6px', height: '6px', borderRadius: '50%', background: T.accent, border: `1.5px solid ${T.pageBg}` }} />}
-            </button>
+            <NotificationBell />
             <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: T.gradientLogo, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 600, color: 'white' }}>
               {getInitials(profile?.full_name || '')}
             </div>
@@ -1162,10 +1160,7 @@ export default function SuperAdminDashboard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             {/* Theme toggle */}
             <ThemeToggle theme={theme} onToggle={toggleTheme} T={T} />
-            <button style={{ position: 'relative', background: T.inputBg, border: `1px solid ${T.borderSoft}`, borderRadius: '9px', width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: T.textSecondary }}>
-              <Bell size={15} />
-              {stats.pending > 0 && <span style={{ position: 'absolute', top: '7px', right: '7px', width: '7px', height: '7px', borderRadius: '50%', background: T.accent, border: `1.5px solid ${T.pageBg}` }} />}
-            </button>
+            <NotificationBell />
             <button onClick={() => router.push('/superadmin/create-admin')}
               style={{ display: 'flex', alignItems: 'center', gap: '7px', background: T.gradientBtn, border: 'none', borderRadius: '9px', padding: '9px 16px', color: 'white', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}>
               <CirclePlus size={14} />New Admin
