@@ -116,36 +116,18 @@ export async function POST(request: Request) {
     );
   }
 
-  // 8. Send notification to all admins and superadmins
+  // 8. Notify the assigned advisor only
   const adminClient = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const { data: adminRoles } = await adminClient
-    .from('roles')
-    .select('id')
-    .in('name', ['admin', 'superadmin']);
-
-  const roleIds = (adminRoles ?? []).map((r: any) => r.id);
-
-  if (roleIds.length > 0) {
-    const { data: adminUsers } = await adminClient
-      .from('users')
-      .select('id')
-      .in('role_id', roleIds);
-
-    const adminIds = (adminUsers ?? []).map((u: any) => u.id);
-
-    if (adminIds.length > 0) {
-      await adminClient.from('notifications').insert(
-        adminIds.map((uid: string) => ({
-          user_id: uid,
-          title: 'New Programme Needs Review',
-          message: `"${name}" has been submitted and is waiting for your review.`,
-        }))
-      );
-    }
+  if (advisor_id) {
+    await adminClient.from('notifications').insert({
+      user_id: advisor_id,
+      title: 'New Programme Needs Review',
+      message: `"${name}" has been submitted and is waiting for your review.`,
+    });
   }
 
   // 9. Return success

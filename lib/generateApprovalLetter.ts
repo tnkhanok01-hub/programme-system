@@ -52,7 +52,7 @@ function budgetLabel(amount: number): string {
   const whole = Math.floor(amount)
   const cents = Math.round((amount - whole) * 100)
   let words = toWords(whole) + ' Ringgit'
-  if (cents > 0) words += ` Dan Sen ${toWords(cents)}`
+  if (cents > 0) words += ` Dan ${toWords(cents)} Sen`
   return `RM${amount.toFixed(2)} (${words} Sahaja)`
 }
 
