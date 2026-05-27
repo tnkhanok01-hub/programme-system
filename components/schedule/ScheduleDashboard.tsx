@@ -8,7 +8,7 @@ import {
   Calendar, User, LayoutDashboard, LogOut, Award, Bell,
   Settings, ChevronLeft, ChevronRight, List, Grid,
   Filter, X, MapPin, Clock, Info, QrCode, Shield, Crown,
-  Users, BookOpen, ArrowRightLeft, CirclePlus, UserCircle,
+  Users, BookOpen, ArrowRightLeft, CirclePlus, UserCircle, Menu,
 } from 'lucide-react'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -101,6 +101,7 @@ export default function ScheduleDashboard({ sysRole }: { sysRole: SysRole }) {
   const [selectedCategory, setSelectedCategory] = useState<string>('All')
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
   const [isMobile, setIsMobile] = useState<boolean | null>(null)
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
 
   const navItems = getNavItems(sysRole)
   const homeRoute = getHomeRoute(sysRole)
@@ -387,16 +388,51 @@ export default function ScheduleDashboard({ sysRole }: { sysRole: SysRole }) {
   }
 
   const renderMobileHeader = () => (
-    <div style={{ background: t.bgCardAlt, borderBottom: `1px solid ${t.border}`, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
+    <div style={{ background: t.bgCardAlt, borderBottom: `1px solid ${t.border}`, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 30 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <LogoIcon sysRole={sysRole} />
         <p style={{ fontWeight: 700, fontSize: '13px', margin: 0, color: t.text }}>UTM-SPMS</p>
       </div>
-      <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'linear-gradient(135deg,#1d4ed8,#60a5fa)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 600, color: 'white' }}>
-        {getInitials(profile?.full_name || '')}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'linear-gradient(135deg,#1d4ed8,#60a5fa)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 600, color: 'white' }}>
+          {getInitials(profile?.full_name || '')}
+        </div>
+        {sysRole === 'superadmin' && (
+          <button onClick={() => setShowMobileMenu(v => !v)} style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '8px', width: '34px', height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fbbf24' }}>
+            {showMobileMenu ? <X size={16} /> : <Menu size={16} />}
+          </button>
+        )}
       </div>
     </div>
   )
+
+  const renderSuperadminMobileMenu = () => {
+    if (sysRole !== 'superadmin' || !showMobileMenu) return null
+    return (
+      <>
+        <div onClick={() => setShowMobileMenu(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 25 }} />
+        <div style={{ position: 'fixed', top: '57px', left: 0, right: 0, background: t.bgCardAlt, borderBottom: `1px solid rgba(245,158,11,0.2)`, zIndex: 26, padding: '8px 0', maxHeight: '80vh', overflowY: 'auto' }}>
+          {navItems.map(item => {
+            const Icon = item.icon
+            const isActive = item.id === 'schedule'
+            return (
+              <button key={item.id} onClick={() => { router.push(item.path); setShowMobileMenu(false) }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', border: 'none', background: isActive ? 'rgba(245,158,11,0.1)' : 'transparent', color: isActive ? '#fbbf24' : t.textMuted, fontSize: '14px', fontWeight: isActive ? 600 : 400, cursor: 'pointer', textAlign: 'left', borderLeft: isActive ? '3px solid #f59e0b' : '3px solid transparent' }}>
+                <Icon size={16} />
+                {item.label}
+              </button>
+            )
+          })}
+          <div style={{ borderTop: `1px solid ${t.border}`, margin: '8px 0' }} />
+          <button onClick={() => { handleLogout(); setShowMobileMenu(false) }}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', border: 'none', background: 'transparent', color: t.textFaint, fontSize: '14px', cursor: 'pointer', textAlign: 'left', borderLeft: '3px solid transparent' }}>
+            <LogOut size={16} />
+            Logout
+          </button>
+        </div>
+      </>
+    )
+  }
 
   const renderMobileBottomNav = () => (
     <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: t.bgCardAlt, borderTop: `1px solid ${t.border}`, display: 'flex', zIndex: 20 }}>
@@ -535,8 +571,9 @@ export default function ScheduleDashboard({ sysRole }: { sysRole: SysRole }) {
 
       {!isMobile && renderSidebar()}
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: isMobile ? '0' : '240px', paddingBottom: isMobile ? '70px' : '0' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: isMobile ? '0' : '240px', paddingBottom: isMobile && sysRole !== 'superadmin' ? '70px' : '0' }}>
         {isMobile && renderMobileHeader()}
+        {isMobile && renderSuperadminMobileMenu()}
 
         <main style={{ padding: isMobile ? '16px' : '32px 36px', maxWidth: '100%', overflowX: 'hidden' }}>
 
@@ -573,7 +610,7 @@ export default function ScheduleDashboard({ sysRole }: { sysRole: SysRole }) {
           {view === 'calendar' ? renderCalendarView() : renderTimelineView()}
         </main>
 
-        {isMobile && renderMobileBottomNav()}
+        {isMobile && sysRole !== 'superadmin' && renderMobileBottomNav()}
       </div>
 
       {renderModal()}

@@ -231,11 +231,21 @@ export default function StudentHomepage() {
     { id: 'attendance', icon: QrCode,           label: 'Attendance' },
   ]
 
+  const mobileNavItems = [
+    { id: 'dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
+    { id: 'schedule',   icon: Calendar,         label: 'Schedule' },
+    { id: 'attendance', icon: QrCode,           label: 'Attendance' },
+    { id: 'profile',    icon: User,             label: 'Profile' },
+    { id: 'settings',   icon: Settings,         label: 'Settings' },
+  ]
+
   const handleNavClick = (id: string) => {
     setActiveNav(id)
     if (id === 'dashboard')  router.push('/student')
     if (id === 'schedule')   router.push('/student/schedule')
     if (id === 'attendance') router.push('/student/attendance')
+    if (id === 'profile')    router.push('/profile')
+    if (id === 'settings')   router.push('/settings')
   }
 
   const statCards = [
@@ -347,7 +357,7 @@ export default function StudentHomepage() {
 
         {/* Fixed bottom tab bar */}
         <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: t.bgCardAlt, borderTop: `1px solid ${t.border}`, display: 'flex', zIndex: 20 }}>
-          {navItems.map(item => {
+          {mobileNavItems.map(item => {
             const Icon = item.icon
             const isActive = activeNav === item.id
             return (

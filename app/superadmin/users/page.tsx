@@ -8,7 +8,7 @@ import {
   LayoutDashboard, BookOpen, Users, Settings, LogOut, Bell,
   CirclePlus, ArrowRightLeft, Shield, Crown, Search, TrendingUp,
   UserPlus, Trash2, X, AlertCircle, QrCode, Star, CheckCircle, XCircle, Clock,
-  UserCircle, CalendarCheck
+  UserCircle, CalendarCheck, Menu
 } from 'lucide-react'
 
 interface UserData {
@@ -279,6 +279,7 @@ export default function SuperAdminUsersPage() {
   const [formLoading, setFormLoading] = useState(false)
   const [formError, setFormError] = useState('')
   const [isMobile, setIsMobile] = useState<boolean | null>(null)
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [currentTime] = useState(new Date())
 
   const rowAltBg = mode === 'dark' ? 'rgba(255,255,255,0.01)' : 'rgba(0,0,0,0.02)'
@@ -362,11 +363,11 @@ export default function SuperAdminUsersPage() {
   /* ══════════════════ MOBILE ══════════════════ */
   if (isMobile) {
     return (
-      <div style={{ minHeight: '100vh', background: t.bg, color: t.text, fontFamily: "'Inter', -apple-system, sans-serif", paddingBottom: '70px' }}>
+      <div style={{ minHeight: '100vh', background: t.bg, color: t.text, fontFamily: "'Inter', -apple-system, sans-serif" }}>
         <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
 
         {/* Top bar */}
-        <div style={{ background: t.bgCard, borderBottom: `1px solid ${t.border}`, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
+        <div style={{ background: t.bgCard, borderBottom: `1px solid ${t.border}`, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 30 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: SA.gradientLogo, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
               <Shield size={12} color="white" />
@@ -381,8 +382,34 @@ export default function SuperAdminUsersPage() {
             <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: SA.gradientLogo, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 600, color: 'white' }}>
               {getInitials(profile?.full_name || '')}
             </div>
+            <button onClick={() => setShowMobileMenu(v => !v)}
+              style={{ width: '32px', height: '32px', borderRadius: '8px', background: showMobileMenu ? SA.accentBg : 'rgba(255,255,255,0.04)', border: `1px solid ${showMobileMenu ? SA.accentBorder : t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+              {showMobileMenu ? <X size={16} color={SA.accentText} /> : <Menu size={16} color={t.textFaint} />}
+            </button>
           </div>
         </div>
+
+        {showMobileMenu && (
+          <>
+            <div onClick={() => setShowMobileMenu(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 25, backdropFilter: 'blur(2px)' }} />
+            <div style={{ position: 'fixed', top: '57px', left: 0, right: 0, zIndex: 26, background: t.bgCard, borderBottom: `1px solid ${t.border}`, boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
+              <div style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                {navItems.map(item => {
+                  const Icon = item.icon
+                  const isActive = activeNav === item.id
+                  return (
+                    <button key={item.id} onClick={() => { router.push(item.path); setShowMobileMenu(false) }}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 12px', borderRadius: '9px', border: 'none', cursor: 'pointer', background: isActive ? SA.accentBg : 'transparent', color: isActive ? SA.accentText : t.textFaint, fontSize: '14px', fontWeight: isActive ? 600 : 400, textAlign: 'left', fontFamily: 'inherit' }}>
+                      <Icon size={17} />
+                      <span>{item.label}</span>
+                      {isActive && <div style={{ marginLeft: 'auto', width: '6px', height: '6px', borderRadius: '50%', background: SA.accent, flexShrink: 0 }} />}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </>
+        )}
 
         <div style={{ padding: '16px' }}>
           {/* Header */}
@@ -461,19 +488,6 @@ export default function SuperAdminUsersPage() {
           )}
         </div>
 
-        {/* Bottom nav */}
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: t.bgCard, borderTop: `1px solid ${t.border}`, display: 'flex', zIndex: 20 }}>
-          {navItems.map(item => {
-            const Icon = item.icon; const isActive = activeNav === item.id
-            return (
-              <button key={item.id} onClick={() => router.push(item.path)}
-                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px 4px', cursor: 'pointer', gap: '3px', border: 'none', background: 'transparent' }}>
-                <Icon size={15} color={isActive ? SA.accentText : t.textFaint} />
-                <span style={{ fontSize: '8px', fontWeight: 500, color: isActive ? SA.accentText : t.textFaint, textAlign: 'center', lineHeight: 1.1 }}>{item.label}</span>
-              </button>
-            )
-          })}
-        </div>
         {sharedModals}
       </div>
     )

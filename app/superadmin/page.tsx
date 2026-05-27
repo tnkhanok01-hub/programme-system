@@ -9,7 +9,7 @@ import {
   CirclePlus, Pencil, Trash, Save, CircleX, TrendingUp, Clock,
   CheckCircle, XCircle, AlertCircle, Search, Shield, Calendar,
   MapPin, DollarSign, Activity, ArrowRightLeft, Crown, Eye, FileText, Upload, QrCode, X, UserCircle, CalendarCheck,
-  Sun, Moon
+  Sun, Moon, Menu
 } from 'lucide-react'
 import { PRE_CHECKLIST } from '../../lib/constants'
 import NotificationBell from '../../components/notifications/NotificationBell'
@@ -771,6 +771,7 @@ export default function SuperAdminDashboard() {
   const [reviewDocs, setReviewDocs] = useState<Array<{ id: string; phase: string; doc_type?: string; file_name?: string; file_path?: string }>>([])
   const [reviewDocsLoading, setReviewDocsLoading] = useState(false)
   const [isMobile, setIsMobile] = useState<boolean | null>(null)
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
 
   // ── THEME ──────────────────────────────────────────────────────────────
   const { mode: theme, setMode } = useTheme()
@@ -961,11 +962,11 @@ export default function SuperAdminDashboard() {
   ══════════════════════════════════════════════════════ */
   if (isMobile) {
     return (
-      <div style={{ minHeight: '100vh', background: T.pageBg, color: T.textBody, fontFamily: "'Inter', -apple-system, sans-serif", paddingBottom: '70px', transition: 'background 0.25s, color 0.25s' }}>
+      <div style={{ minHeight: '100vh', background: T.pageBg, color: T.textBody, fontFamily: "'Inter', -apple-system, sans-serif", transition: 'background 0.25s, color 0.25s' }}>
         <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
 
         {/* Sticky top bar */}
-        <div style={{ background: T.surfaceBg, borderBottom: `1px solid ${T.accentBorderSub}`, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20, transition: 'background 0.25s' }}>
+        <div style={{ background: T.surfaceBg, borderBottom: `1px solid ${T.accentBorderSub}`, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 30, transition: 'background 0.25s' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: T.gradientLogo, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
               <Shield size={12} color="white" />
@@ -982,8 +983,51 @@ export default function SuperAdminDashboard() {
             <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: T.gradientLogo, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 600, color: 'white' }}>
               {getInitials(profile?.full_name || '')}
             </div>
+            <button
+              onClick={() => setShowMobileMenu(v => !v)}
+              style={{ width: '32px', height: '32px', borderRadius: '8px', background: showMobileMenu ? T.accentBg : T.inputBg, border: `1px solid ${showMobileMenu ? T.accentBorder : T.borderSoft}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+            >
+              {showMobileMenu ? <X size={16} color={T.textAccent} /> : <Menu size={16} color={T.textSecondary} />}
+            </button>
           </div>
         </div>
+
+        {/* Mobile nav drawer */}
+        {showMobileMenu && (
+          <>
+            <div
+              onClick={() => setShowMobileMenu(false)}
+              style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 25, backdropFilter: 'blur(2px)' }}
+            />
+            <div style={{
+              position: 'fixed', top: '57px', left: 0, right: 0, zIndex: 26,
+              background: T.surfaceBg, borderBottom: `1px solid ${T.accentBorderSub}`,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+            }}>
+              <div style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                {navItems.map(item => {
+                  const Icon = item.icon
+                  const isActive = activeNav === item.id
+                  return (
+                    <button key={item.id} onClick={() => { handleNavClick(item); setShowMobileMenu(false) }}
+                      style={{
+                        width: '100%', display: 'flex', alignItems: 'center', gap: '12px',
+                        padding: '11px 12px', borderRadius: '9px', border: 'none', cursor: 'pointer',
+                        background: isActive ? T.accentBg : 'transparent',
+                        color: isActive ? T.textAccent : T.textSecondary,
+                        fontSize: '14px', fontWeight: isActive ? 600 : 400,
+                        textAlign: 'left', fontFamily: 'inherit', transition: 'background 0.15s',
+                      }}>
+                      <Icon size={17} />
+                      <span>{item.label}</span>
+                      {isActive && <div style={{ marginLeft: 'auto', width: '6px', height: '6px', borderRadius: '50%', background: T.accent, flexShrink: 0 }} />}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </>
+        )}
 
         <div style={{ padding: '16px' }}>
           <div style={{ marginBottom: '16px' }}>
@@ -1054,19 +1098,6 @@ export default function SuperAdminDashboard() {
           </div>
         </div>
 
-        {/* Bottom tab bar */}
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: T.surfaceBg, borderTop: `1px solid ${T.accentBorderSub}`, display: 'flex', zIndex: 20, transition: 'background 0.25s' }}>
-          {navItems.map(item => {
-            const Icon = item.icon; const isActive = activeNav === item.id
-            return (
-              <button key={item.id} onClick={() => handleNavClick(item)}
-                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px 4px', cursor: 'pointer', gap: '3px', border: 'none', background: 'transparent' }}>
-                <Icon size={15} color={isActive ? T.textAccent : T.textSecondary} />
-                <span style={{ fontSize: '8px', fontWeight: 500, color: isActive ? T.textAccent : T.textSecondary, textAlign: 'center', lineHeight: 1.1 }}>{item.label}</span>
-              </button>
-            )
-          })}
-        </div>
 
         <EditModal show={showEditModal} isMobile={true} editForm={editForm} actionLoading={actionLoading}
           onClose={() => setShowEditModal(false)} onChange={setEditForm} onUpdate={handleUpdate} T={T} />

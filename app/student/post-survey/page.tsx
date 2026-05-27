@@ -3,7 +3,6 @@
 import { Suspense, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
-import { validateAttendance } from '@/lib/attendance'
 import { ArrowLeft, CheckCircle, Star } from 'lucide-react'
 
 function PostSurveyContent() {
@@ -48,30 +47,15 @@ function PostSurveyContent() {
       return
     }
 
-    await supabase.from('attendance').upsert(
-      { user_id: user.id, programme_id: programmeId, post_survey: true },
-      { onConflict: 'user_id,programme_id' }
-    )
-
-    const { data: attRow } = await supabase
-      .from('attendance')
-      .select('qr_start, qr_end, pre_survey, post_survey')
-      .eq('user_id', user.id)
-      .eq('programme_id', programmeId)
-      .maybeSingle()
-
-    if (attRow && validateAttendance(attRow) === 'valid') {
-      await supabase.from('merit').upsert(
-        {
-          user_id:      user.id,
-          programme_id: programmeId,
-          points:       1,
-          status:       'awarded',
-          updated_at:   new Date().toISOString(),
-        },
-        { onConflict: 'user_id,programme_id' }
-      )
-    }
+    const { data: { session } } = await supabase.auth.getSession()
+    await fetch('/api/merit/award', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token}`,
+      },
+      body: JSON.stringify({ programme_id: programmeId }),
+    })
 
     setLoading(false)
     setSubmitted(true)

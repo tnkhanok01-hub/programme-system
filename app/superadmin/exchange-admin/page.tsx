@@ -6,7 +6,7 @@ import { supabase } from '../../../lib/supabaseClient'
 import { useTheme } from '@/app/provider/ThemeContext'
 import {
   LayoutDashboard, BookOpen, Settings, LogOut,
-  CirclePlus, Shield, Search, ArrowRightLeft, Crown, AlertTriangle, QrCode, User, CalendarCheck,
+  CirclePlus, Shield, Search, ArrowRightLeft, Crown, AlertTriangle, QrCode, User, CalendarCheck, X, Menu,
 } from 'lucide-react'
 
 interface AdminData {
@@ -143,6 +143,7 @@ export default function ExchangeAdminPage() {
 
   // null = not yet measured — prevents desktop flash on mobile
   const [isMobile, setIsMobile] = useState<boolean | null>(null)
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -227,10 +228,10 @@ export default function ExchangeAdminPage() {
   ══════════════════════════════════════════════════════ */
   if (isMobile) {
     return (
-      <div style={{ minHeight: '100vh', background: t.bg, color: t.text, fontFamily: "'Inter', -apple-system, sans-serif", paddingBottom: '70px' }}>
+      <div style={{ minHeight: '100vh', background: t.bg, color: t.text, fontFamily: "'Inter', -apple-system, sans-serif" }}>
 
         {/* Sticky top bar */}
-        <div style={{ background: t.bgCard, borderBottom: `1px solid rgba(245,158,11,0.08)`, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
+        <div style={{ background: t.bgCard, borderBottom: `1px solid rgba(245,158,11,0.08)`, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 30 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: SA.gradientLogo, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
               <Shield size={12} color="white" />
@@ -241,10 +242,38 @@ export default function ExchangeAdminPage() {
               <p style={{ fontSize: '9px', color: SA.accent, margin: 0, fontWeight: 600, letterSpacing: '0.06em' }}>SUPERADMIN</p>
             </div>
           </div>
-          <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: SA.gradientLogo, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 600, color: 'white' }}>
-            {getInitials(profile?.full_name || '')}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: SA.gradientLogo, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 600, color: 'white' }}>
+              {getInitials(profile?.full_name || '')}
+            </div>
+            <button onClick={() => setShowMobileMenu(v => !v)}
+              style={{ width: '32px', height: '32px', borderRadius: '8px', background: showMobileMenu ? SA.accentBg : 'rgba(255,255,255,0.04)', border: `1px solid ${showMobileMenu ? SA.accentBorder : t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+              {showMobileMenu ? <X size={16} color={SA.accentText} /> : <Menu size={16} color={t.textFaint} />}
+            </button>
           </div>
         </div>
+
+        {showMobileMenu && (
+          <>
+            <div onClick={() => setShowMobileMenu(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 25, backdropFilter: 'blur(2px)' }} />
+            <div style={{ position: 'fixed', top: '57px', left: 0, right: 0, zIndex: 26, background: t.bgCard, borderBottom: `1px solid rgba(245,158,11,0.08)`, boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
+              <div style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                {navItems.map(item => {
+                  const Icon = item.icon
+                  const isActive = item.id === 'exchangeAdmin'
+                  return (
+                    <button key={item.id} onClick={() => { router.push(item.path); setShowMobileMenu(false) }}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 12px', borderRadius: '9px', border: 'none', cursor: 'pointer', background: isActive ? SA.accentBg : 'transparent', color: isActive ? SA.accentText : t.textFaint, fontSize: '14px', fontWeight: isActive ? 600 : 400, textAlign: 'left', fontFamily: 'inherit' }}>
+                      <Icon size={17} />
+                      <span>{item.label}</span>
+                      {isActive && <div style={{ marginLeft: 'auto', width: '6px', height: '6px', borderRadius: '50%', background: SA.accent, flexShrink: 0 }} />}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Content */}
         <div style={{ padding: '16px' }}>
@@ -270,21 +299,6 @@ export default function ExchangeAdminPage() {
           </div>
 
           <AdminList />
-        </div>
-
-        {/* Fixed bottom tab bar */}
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: t.bgCard, borderTop: `1px solid rgba(245,158,11,0.08)`, display: 'flex', zIndex: 20 }}>
-          {navItems.map(item => {
-            const Icon = item.icon
-            const isActive = item.id === 'exchangeAdmin'
-            return (
-              <button key={item.id} onClick={() => router.push(item.path)}
-                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px 4px', cursor: 'pointer', gap: '3px', border: 'none', background: 'transparent' }}>
-                <Icon size={15} color={isActive ? SA.accentText : t.textFaint} />
-                <span style={{ fontSize: '8px', fontWeight: 500, color: isActive ? SA.accentText : t.textFaint, textAlign: 'center', lineHeight: 1.1 }}>{item.label}</span>
-              </button>
-            )
-          })}
         </div>
 
         {confirmTransfer && selectedAdmin && (

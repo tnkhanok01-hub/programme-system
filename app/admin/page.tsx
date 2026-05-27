@@ -1021,15 +1021,17 @@ export default function AdminHomepage() {
           </div>
         </div>
 
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: t.bgCard, borderTop: `1px solid ${t.border}`, display: 'flex', zIndex: 20 }}>
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: t.bgCard, borderTop: `1px solid ${t.border}`, display: 'flex', overflowX: 'auto', zIndex: 20 }}>
           {navItems.map(item => {
             const Icon = item.icon
             const isActive = activeNav === item.id
+            const shortLabel: Record<string, string> = { programmes: 'Programmes' }
+            const label = shortLabel[item.id] ?? item.label
             return (
               <button key={item.id} onClick={() => handleNavClick(item.id)}
-                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px 4px', cursor: 'pointer', gap: '3px', border: 'none', background: 'transparent' }}>
+                style={{ minWidth: '64px', flex: '1 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px 4px', cursor: 'pointer', gap: '3px', border: 'none', background: 'transparent' }}>
                 <Icon size={16} color={isActive ? '#a78bfa' : t.textFaintest} />
-                <span style={{ fontSize: '9px', fontWeight: 500, color: isActive ? '#a78bfa' : t.textFaintest }}>{item.label}</span>
+                <span style={{ fontSize: '9px', fontWeight: 500, color: isActive ? '#a78bfa' : t.textFaintest, whiteSpace: 'nowrap' }}>{label}</span>
               </button>
             )
           })}
