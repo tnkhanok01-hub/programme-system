@@ -117,6 +117,28 @@ export async function POST(
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
+    // Notify the programme director that someone is waiting for approval
+    const [{ data: prog }, { data: student }] = await Promise.all([
+      supabaseAdmin
+        .from('programmes')
+        .select('name, programme_director_id')
+        .eq('id', programme_id)
+        .single(),
+      supabaseAdmin
+        .from('users')
+        .select('full_name')
+        .eq('id', user.id)
+        .single(),
+    ])
+
+    if (prog?.programme_director_id) {
+      await supabaseAdmin.from('notifications').insert({
+        user_id: prog.programme_director_id,
+        title: 'New Committee Join Request',
+        message: `${student?.full_name ?? 'A student'} has requested to join "${prog.name}" as ${roleToAssign} and is awaiting your approval.`,
+      })
+    }
+
     return NextResponse.json({ member: data }, { status: 201 })
   }
 
@@ -124,7 +146,7 @@ export async function POST(
   if (add_members) {
     const { data: prog } = await supabaseAdmin
       .from('programmes')
-      .select('programme_director_id')
+      .select('name, programme_director_id')
       .eq('id', programme_id)
       .single()
 
@@ -201,6 +223,12 @@ export async function POST(
         continue
       }
 
+      await supabaseAdmin.from('notifications').insert({
+        user_id: matchedUser.id,
+        title: 'Added to Committee',
+        message: `You have been added to programme "${prog?.name}" as ${roleToAssign}.`,
+      })
+
       results.push({ identifier, role: roleToAssign, status: 'added' })
     }
 
@@ -220,7 +248,7 @@ export async function PATCH(req: Request) {
 
   const { data: prog } = await supabaseAdmin
     .from('programmes')
-    .select('programme_director_id')
+    .select('name, programme_director_id')
     .eq('id', programme_id)
     .single()
 
@@ -264,6 +292,12 @@ export async function PATCH(req: Request) {
       .eq('programme_id', programme_id)
       .eq('user_id', user_id)
 
+    await supabaseAdmin.from('notifications').insert({
+      user_id,
+      title: 'Committee Request Approved',
+      message: `Your request to join "${prog?.name}" as ${member.role} has been approved.`,
+    })
+
     return NextResponse.json({ success: true })
   }
 
@@ -273,6 +307,12 @@ export async function PATCH(req: Request) {
       .delete()
       .eq('programme_id', programme_id)
       .eq('user_id', user_id)
+
+    await supabaseAdmin.from('notifications').insert({
+      user_id,
+      title: 'Committee Request Rejected',
+      message: `Your request to join "${prog?.name}" as ${member.role} has been rejected.`,
+    })
 
     return NextResponse.json({ success: true })
   }
@@ -290,7 +330,7 @@ export async function DELETE(req: Request) {
 
   const { data: prog } = await supabaseAdmin
     .from('programmes')
-    .select('programme_director_id')
+    .select('name, programme_director_id')
     .eq('id', programme_id)
     .single()
 
@@ -308,11 +348,26 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  const { data: memberRole } = await supabaseAdmin
+    .from('programme_roles')
+    .select('role')
+    .eq('programme_id', programme_id)
+    .eq('user_id', user_id)
+    .single()
+
   await supabaseAdmin
     .from('programme_roles')
     .delete()
     .eq('programme_id', programme_id)
     .eq('user_id', user_id)
+
+  if (!isSelf && prog?.name && memberRole?.role) {
+    await supabaseAdmin.from('notifications').insert({
+      user_id,
+      title: 'Removed from Committee',
+      message: `You have been removed from programme "${prog.name}" as ${memberRole.role}.`,
+    })
+  }
 
   return NextResponse.json({ success: true })
 }

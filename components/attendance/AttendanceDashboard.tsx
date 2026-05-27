@@ -41,7 +41,6 @@ function CompletedList({ programmeId, t }: { programmeId: string; t: any }) {
         .from('attendance')
         .select('users(full_name, matric_number)')
         .eq('programme_id', programmeId)
-        .eq('pre_survey', true)
         .eq('post_survey', true)
       setList((data ?? []).map((r: any) => r.users).filter(Boolean))
       setLoading(false)
@@ -53,7 +52,7 @@ function CompletedList({ programmeId, t }: { programmeId: string; t: any }) {
     <div style={{ marginBottom: '20px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
         <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: t.textFaint, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          Completed Both Surveys
+          Attendance Completed
         </p>
         <span style={{ fontSize: '11px', fontWeight: 700, color: t.success, background: t.successBg, border: `1px solid ${t.successBorder}`, borderRadius: '6px', padding: '2px 8px' }}>
           {loading ? '…' : list.length}
@@ -102,7 +101,7 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
   const [isMobile, setIsMobile] = useState(false)
   const [selectedProg, setSelectedProg] = useState<Programme | null>(null)
   const [showScanner, setShowScanner] = useState(false)
-  const [qrModal, setQrModal] = useState<{ progId: string; type: 'pre' | 'post'; name: string } | null>(null)
+  const [qrModal, setQrModal] = useState<{ progId: string; name: string } | null>(null)
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 640)
@@ -148,28 +147,27 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
   const handleScan = async (result: string) => {
     try {
       const payload = JSON.parse(result)
-      if (!payload.spms_qr || !payload.progId || !payload.type) return
+      if (!payload.spms_qr || !payload.progId || payload.type !== 'post') return
 
       const { data: existing } = await supabase
         .from('surveys').select('id')
-        .eq('user_id', currentUserId).eq('programme_id', payload.progId).eq('type', payload.type)
+        .eq('user_id', currentUserId).eq('programme_id', payload.progId).eq('type', 'post')
         .maybeSingle()
 
       if (existing) {
-        alert(`You have already completed the ${payload.type.toUpperCase()} survey for this programme.`)
+        alert('You have already completed attendance for this programme.')
         setShowScanner(false)
         return
       }
 
-      const qrField = payload.type === 'pre' ? 'qr_start' : 'qr_end'
       const { error: attError } = await supabase
         .from('attendance')
-        .upsert({ user_id: currentUserId, programme_id: payload.progId, [qrField]: true }, { onConflict: 'user_id,programme_id' })
+        .upsert({ user_id: currentUserId, programme_id: payload.progId, qr_end: true }, { onConflict: 'user_id,programme_id' })
 
-      if (attError) { alert('Could not record attendance scan. Please try again.'); return }
+      if (attError) { alert('Could not record attendance. Please try again.'); return }
 
       setShowScanner(false)
-      router.push(`/student/${payload.type}-survey?programme_id=${payload.progId}`)
+      router.push(`/student/post-survey?programme_id=${payload.progId}`)
     } catch {
       // Ignore non-SPMS QR codes
     }
@@ -259,13 +257,11 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
                 <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: t.text, lineHeight: 1.4, flex: 1, paddingRight: '10px' }}>{prog.name}</h3>
                 {sysRole === 'student' && (() => {
-                  const progSurveys = surveys.filter(s => String(s.programme_id) === String(prog.id))
-                  const hasPre = progSurveys.some(s => s.type === 'pre')
-                  const hasPost = progSurveys.some(s => s.type === 'post')
-                  let label = '2 surveys remain'
-                  let color: string = t.danger; let bg: string = t.dangerBg; let Icon = XCircle
-                  if (hasPre && hasPost) { label = 'Completed'; color = t.success; bg = t.successBg; Icon = CheckCircle }
-                  else if (hasPre || hasPost) { label = '1 survey remains'; color = '#f59e0b'; bg = 'rgba(245,158,11,0.1)'; Icon = AlertCircle }
+                  const hasPost = surveys.some(s => String(s.programme_id) === String(prog.id) && s.type === 'post')
+                  const label = hasPost ? 'Attended' : 'Not Attended'
+                  const color = hasPost ? t.success : t.danger
+                  const bg    = hasPost ? t.successBg : t.dangerBg
+                  const Icon  = hasPost ? CheckCircle : XCircle
                   return (
                     <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, background: bg, color }}>
                       <Icon size={12} />{label}
@@ -325,20 +321,12 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
                   Programme has ended — QR unavailable
                 </div>
               ) : (
-                <>
-                  <button
-                    onClick={() => setQrModal({ progId: selectedProg.id, type: 'pre', name: selectedProg.name })}
-                    style={{ flex: 1, padding: '12px', borderRadius: '8px', border: `1px solid ${t.successBorder}`, background: t.successBg, color: t.success, fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
-                  >
-                    Generate Start QR
-                  </button>
-                  <button
-                    onClick={() => setQrModal({ progId: selectedProg.id, type: 'post', name: selectedProg.name })}
-                    style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid rgba(245,158,11,0.3)', background: 'rgba(245,158,11,0.1)', color: '#f59e0b', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
-                  >
-                    Generate End QR
-                  </button>
-                </>
+                <button
+                  onClick={() => setQrModal({ progId: selectedProg.id, name: selectedProg.name })}
+                  style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid rgba(245,158,11,0.3)', background: 'rgba(245,158,11,0.1)', color: '#f59e0b', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                >
+                  Generate End QR
+                </button>
               )}
             </div>
           </div>
@@ -352,15 +340,15 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
             <button onClick={() => setQrModal(null)} style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(0,0,0,0.05)', border: 'none', borderRadius: '50%', padding: '6px', cursor: 'pointer' }}>
               <X size={18} color="#475569" />
             </button>
-            <h3 style={{ margin: '0 0 8px', color: '#0f172a', fontSize: '18px', fontWeight: 700 }}>{qrModal.type === 'pre' ? 'Start Attendance' : 'End Attendance'}</h3>
+            <h3 style={{ margin: '0 0 8px', color: '#0f172a', fontSize: '18px', fontWeight: 700 }}>End Attendance QR</h3>
             <p style={{ margin: '0 0 24px', color: '#64748b', fontSize: '12px', lineHeight: 1.4 }}>{qrModal.name}</p>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
               <QRCodeCanvas
-                value={JSON.stringify({ spms_qr: true, progId: qrModal.progId, type: qrModal.type })}
+                value={JSON.stringify({ spms_qr: true, progId: qrModal.progId, type: 'post' })}
                 size={220} level="H" includeMargin={true}
               />
             </div>
-            <p style={{ margin: 0, color: '#94a3b8', fontSize: '11px' }}>Ask participants to scan this QR to access the {qrModal.type === 'pre' ? 'Pre-Survey' : 'Post-Survey'}.</p>
+            <p style={{ margin: 0, color: '#94a3b8', fontSize: '11px' }}>Ask participants to scan this QR to record their attendance.</p>
           </div>
         </div>
       )}

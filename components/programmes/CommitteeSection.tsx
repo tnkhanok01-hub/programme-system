@@ -47,6 +47,10 @@ export default function CommitteeSection({
   const [joinRole, setJoinRole] = useState('Member')
   const [joinError, setJoinError] = useState('')
   const [removingId, setRemovingId] = useState<string | null>(null)
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null)
+  const [confirmLeave, setConfirmLeave] = useState(false)
+  const [removeError, setRemoveError] = useState('')
+  const [actionError, setActionError] = useState('')
 
   // PD — add members panel
   const [showAddPanel, setShowAddPanel] = useState(false)
@@ -60,6 +64,7 @@ export default function CommitteeSection({
   const [searchLoading, setSearchLoading] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const addResultsTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Mobile detection
   const [isMobile, setIsMobile] = useState(false)
@@ -127,32 +132,37 @@ export default function CommitteeSection({
 
   const handleLeave = async () => {
     const mine = members.find((m) => m.user_id === currentUserId)
-    if (!mine || !confirm('Leave this committee?')) return
+    if (!mine) return
+    setRemoveError('')
     setRemovingId(mine.id)
     try {
       await removeCommitteeMember(programmeId, token, mine.id)
       setMembers((prev) => prev.filter((m) => m.id !== mine.id))
-    } catch (err) {
-      alert('Failed to leave')
+      setConfirmLeave(false)
+    } catch {
+      setRemoveError('Failed to leave committee.')
     } finally {
       setRemovingId(null)
     }
   }
 
   const handleRemove = async (memberId: string) => {
-    if (!confirm('Remove this committee member?')) return
+    setRemoveError('')
     setRemovingId(memberId)
     try {
       await removeCommitteeMember(programmeId, token, memberId)
       setMembers((prev) => prev.filter((m) => m.id !== memberId))
-    } catch (err) {
-      alert('Failed to remove')
+      setConfirmRemoveId(null)
+    } catch {
+      setRemoveError('Failed to remove member.')
+      setConfirmRemoveId(null)
     } finally {
       setRemovingId(null)
     }
   }
 
   const handleApprove = async (memberId: string) => {
+    setActionError('')
     try {
       const res = await fetch(`/api/programmes/${programmeId}/committee`, {
         method: 'PATCH',
@@ -164,11 +174,12 @@ export default function CommitteeSection({
       const updated = await getCommittee(programmeId, token)
       setMembers(updated.members ?? [])
     } catch (err: any) {
-      alert(err.message || 'Approve failed')
+      setActionError(err.message || 'Approve failed')
     }
   }
 
   const handleReject = async (memberId: string) => {
+    setActionError('')
     try {
       const res = await fetch(`/api/programmes/${programmeId}/committee`, {
         method: 'PATCH',
@@ -180,7 +191,7 @@ export default function CommitteeSection({
       const updated = await getCommittee(programmeId, token)
       setMembers(updated.members ?? [])
     } catch (err: any) {
-      alert(err.message || 'Reject failed')
+      setActionError(err.message || 'Reject failed')
     }
   }
 
@@ -193,6 +204,8 @@ export default function CommitteeSection({
       const { results } = await addCommitteeMembers(programmeId, token, entries)
       const enriched = results.map((r, i) => ({ ...r, identifier: pendingMembers[i]?.user.full_name ?? r.identifier }))
       setAddResults(enriched)
+      if (addResultsTimer.current) clearTimeout(addResultsTimer.current)
+      addResultsTimer.current = setTimeout(() => setAddResults([]), 4000)
       const addedMatrics = new Set(results.filter(r => r.status === 'added').map(r => r.identifier))
       if (addedMatrics.size > 0) {
         const updated = await getCommittee(programmeId, token)
@@ -262,16 +275,38 @@ export default function CommitteeSection({
 
         {isApproved && !canManage && (
           isMember ? (
-            <button onClick={handleLeave} disabled={!!removingId} style={{
-              display: 'flex', alignItems: 'center', gap: '5px',
-              background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
-              borderRadius: '7px', padding: '6px 12px',
-              color: '#f87171', fontSize: '12px', fontWeight: 500,
-              cursor: removingId ? 'not-allowed' : 'pointer',
-              opacity: removingId ? 0.6 : 1, flexShrink: 0,
-            }}>
-              <UserX size={13} />Leave
-            </button>
+            confirmLeave ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                <span style={{ fontSize: '12px', color: '#f87171' }}>Leave committee?</span>
+                <button onClick={handleLeave} disabled={!!removingId} style={{
+                  padding: '5px 10px', borderRadius: '6px', border: 'none',
+                  background: 'rgba(239,68,68,0.8)', color: 'white',
+                  fontSize: '12px', fontWeight: 600, cursor: removingId ? 'not-allowed' : 'pointer',
+                  opacity: removingId ? 0.6 : 1,
+                }}>
+                  {removingId ? 'Leaving…' : 'Confirm'}
+                </button>
+                <button onClick={() => setConfirmLeave(false)} disabled={!!removingId} style={{
+                  padding: '5px 10px', borderRadius: '6px',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: 'transparent', color: '#94a3b8',
+                  fontSize: '12px', cursor: 'pointer',
+                }}>
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => setConfirmLeave(true)} disabled={!!removingId} style={{
+                display: 'flex', alignItems: 'center', gap: '5px',
+                background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
+                borderRadius: '7px', padding: '6px 12px',
+                color: '#f87171', fontSize: '12px', fontWeight: 500,
+                cursor: removingId ? 'not-allowed' : 'pointer',
+                opacity: removingId ? 0.6 : 1, flexShrink: 0,
+              }}>
+                <UserX size={13} />Leave
+              </button>
+            )
           ) : (
             <button onClick={() => {
               setJoinError('')
@@ -433,6 +468,7 @@ export default function CommitteeSection({
           {/* Per-entry results */}
           {addResults.length > 0 && (
             <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              <style>{`@keyframes fadeOutResult { 0%, 55% { opacity: 1 } 100% { opacity: 0 } }`}</style>
               {addResults.map((r, i) => {
                 const isOk   = r.status === 'added'
                 const isSkip = r.status === 'skipped'
@@ -445,6 +481,7 @@ export default function CommitteeSection({
                     display: 'flex', alignItems: 'center', gap: '8px',
                     padding: '7px 10px', background: bg,
                     border: `1px solid ${border}`, borderRadius: '7px', flexWrap: 'wrap',
+                    animation: 'fadeOutResult 4s ease forwards',
                   }}>
                     <Icon size={13} color={color} style={{ flexShrink: 0 }} />
                     <span style={{ fontSize: '12px', color: '#94a3b8', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: '80px' }}>{r.identifier}</span>
@@ -521,6 +558,25 @@ export default function CommitteeSection({
         </div>
       )}
 
+      {/* ── Inline error banners ── */}
+      {(removeError || actionError) && (
+        <div style={{
+          margin: '0 16px', padding: '8px 12px',
+          background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
+          borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+            <XCircle size={13} color="#f87171" style={{ flexShrink: 0 }} />
+            <span style={{ fontSize: '12px', color: '#f87171' }}>{removeError || actionError}</span>
+          </div>
+          <button onClick={() => { setRemoveError(''); setActionError('') }} style={{
+            background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', padding: '2px', display: 'flex',
+          }}>
+            <X size={13} />
+          </button>
+        </div>
+      )}
+
       {/* ── Members list ── */}
       <div style={{ padding: isMobile ? '10px 14px' : '12px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {loading ? (
@@ -558,15 +614,38 @@ export default function CommitteeSection({
                         <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#475569' }}>{m.users?.matric_number ?? '—'}</p>
                       </div>
                       <span style={{ fontSize: '11px', fontWeight: 500, background: rc.bg, color: rc.color, padding: '3px 9px', borderRadius: '5px', flexShrink: 0 }}>{m.role}</span>
-                      <button onClick={() => handleRemove(m.id)} disabled={removingId === m.id}
-                        style={{
-                          background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)',
-                          borderRadius: '6px', padding: '5px 7px', color: '#f87171',
-                          cursor: 'pointer', display: 'flex', alignItems: 'center',
-                          opacity: removingId === m.id ? 0.5 : 1, flexShrink: 0,
-                        }}>
-                        <UserX size={13} />
-                      </button>
+                      {confirmRemoveId === m.id ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                          <span style={{ fontSize: '12px', color: '#f87171' }}>Remove?</span>
+                          <button onClick={() => handleRemove(m.id)} disabled={removingId === m.id} style={{
+                            padding: '4px 10px', borderRadius: '6px', border: 'none',
+                            background: 'rgba(239,68,68,0.8)', color: 'white',
+                            fontSize: '12px', fontWeight: 600,
+                            cursor: removingId === m.id ? 'not-allowed' : 'pointer',
+                            opacity: removingId === m.id ? 0.5 : 1,
+                          }}>
+                            {removingId === m.id ? '…' : 'Confirm'}
+                          </button>
+                          <button onClick={() => setConfirmRemoveId(null)} disabled={removingId === m.id} style={{
+                            padding: '4px 10px', borderRadius: '6px',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            background: 'transparent', color: '#94a3b8',
+                            fontSize: '12px', cursor: 'pointer',
+                          }}>
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setConfirmRemoveId(m.id)} disabled={!!removingId}
+                          style={{
+                            background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)',
+                            borderRadius: '6px', padding: '5px 7px', color: '#f87171',
+                            cursor: removingId ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center',
+                            opacity: removingId ? 0.5 : 1, flexShrink: 0,
+                          }}>
+                          <UserX size={13} />
+                        </button>
+                      )}
                     </div>
                   )
                 })}

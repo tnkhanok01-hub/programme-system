@@ -135,13 +135,6 @@ interface ProgrammeData {
   approved_by_admin_name?: string | null
 }
 
-// Deterministic 2-digit sequence number from programme UUID
-function programmeSeq(id: string): string {
-  let h = 7
-  for (const c of id) h = ((h * 31) + c.charCodeAt(0)) >>> 0
-  return String((h % 99) + 1).padStart(2, '0')
-}
-
 interface DirectorData {
   full_name: string
   matric_number: string
@@ -228,13 +221,10 @@ export async function generateApprovalLetter(
   const approvalDay = String(approvalDate.getDate()).padStart(2, '0')
   const approvalMonth = MALAY_MONTHS[approvalDate.getMonth()]
   const approvalYear = approvalDate.getFullYear()
-  const seq = programmeSeq(programme.id)
-
   y = 50
   setStyle(10)
   doc.text('Ruj. Kami', refLabelX, y)
   doc.text(':', refColonX, y)
-  doc.text(`UTM.K.06.01/13.16/11 (${seq})`, refValueX, y)
   y += LH
   doc.text('Tarikh', refLabelX, y)
   doc.text(':', refColonX, y)
