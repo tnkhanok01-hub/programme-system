@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { sendEmail } from "@/lib/sendEmail";
+
 
 function getToken(request: Request): string | null {
   const auth = request.headers.get('Authorization');
@@ -171,6 +173,12 @@ export async function POST(
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
 
+  const { data: director } = await svc
+  .from("users")
+  .select("email")
+  .eq("id", programme.programme_director_id)
+  .single();
+
   // Notify the programme director
   if (programme.programme_director_id) {
     await svc.from('notifications').insert({
@@ -178,7 +186,22 @@ export async function POST(
       title: 'Programme Approved',
       message: `Your programme "${updated.name}" has been approved. Congratulations!`,
     });
+   if (director?.email) {
+  await sendEmail(
+  director.email,
+  "Programme Approved",
+  `Dear Programme Director,
+
+We are pleased to inform you that your programme "${updated.name}" has been approved.
+
+You may now proceed with the next stages of programme management.
+
+Regards,
+UTM-SPMS`
+);
+}
   }
 
   return NextResponse.json({ message: 'Programme approved.', programme: updated });
 }
+

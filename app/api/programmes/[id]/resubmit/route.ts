@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { sendEmail } from "@/lib/sendEmail";
 
 function getToken(request: Request): string | null {
   const auth = request.headers.get('Authorization');
@@ -100,6 +101,11 @@ export async function POST(
   if (updateError) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
+const { data: advisor } = await makeServiceClient()
+  .from("users")
+  .select("email")
+  .eq("id", programme.advisor_id)
+  .single();
 
   // Notify the assigned advisor only
   if (programme.advisor_id) {
@@ -108,6 +114,18 @@ export async function POST(
       title: 'Programme Resubmitted for Review',
       message: `"${updated.name}" has been resubmitted and is waiting for your review.`,
     });
+    if (advisor?.email) {
+  await sendEmail(
+  advisor.email,
+  "Programme Resubmitted for Review",
+  `Dear Advisor,
+
+The programme "${updated.name}" has been resubmitted and is awaiting your review.
+
+Regards,
+UTM-SPMS`
+);
+}
   }
 
   return NextResponse.json({

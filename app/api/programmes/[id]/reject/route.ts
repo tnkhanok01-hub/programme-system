@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { sendEmail } from "@/lib/sendEmail";
 
 function getToken(request: Request): string | null {
   const auth = request.headers.get('Authorization');
@@ -75,6 +76,12 @@ export async function POST(
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
 
+  const { data: director } = await makeServiceClient()
+  .from("users")
+  .select("email")
+  .eq("id", programme.programme_director_id)
+  .single();
+  
   // Notify the programme director
   if (programme.programme_director_id) {
     await makeServiceClient().from('notifications').insert({
@@ -82,6 +89,22 @@ export async function POST(
       title: 'Programme Rejected',
       message: `Your programme "${updated.name}" has been rejected.${reason ? ` Reason: ${reason}` : ''}`,
     });
+    if (director?.email) {
+  await sendEmail(
+  director.email,
+  "Programme Rejected",
+  `Dear Programme Director,
+
+Your programme "${updated.name}" has been rejected.
+
+${reason ? `Reason: ${reason}` : ""}
+
+Please revise and resubmit your programme.
+
+Regards,
+UTM-SPMS`
+);
+}
   }
 
   return NextResponse.json({ message: 'Programme rejected successfully.', programme: updated });

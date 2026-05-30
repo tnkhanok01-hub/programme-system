@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { sendEmail } from "@/lib/sendEmail";
 
 import { SINGLE_ROLE_LIMIT } from '@/lib/constants'
 
@@ -222,13 +223,28 @@ export async function POST(
         }
         continue
       }
-
+const { data: memberUser } = await supabaseAdmin
+  .from("users")
+  .select("email")
+  .eq("id", matchedUser.id)
+  .single();
       await supabaseAdmin.from('notifications').insert({
         user_id: matchedUser.id,
         title: 'Added to Committee',
         message: `You have been added to programme "${prog?.name}" as ${roleToAssign}.`,
       })
+if (memberUser?.email) {
+  await sendEmail(
+  memberUser.email,
+  "Added to Committee",
+  `Dear Student,
 
+You have been added to the programme "${prog?.name}" as ${roleToAssign}.
+
+Regards,
+UTM-SPMS`
+);
+}
       results.push({ identifier, role: roleToAssign, status: 'added' })
     }
 
@@ -291,13 +307,29 @@ export async function PATCH(req: Request) {
       .update({ status: 'approved' })
       .eq('programme_id', programme_id)
       .eq('user_id', user_id)
+const { data: memberUser } = await supabaseAdmin
+  .from("users")
+  .select("email")
+  .eq("id", user_id)
+  .single();
 
     await supabaseAdmin.from('notifications').insert({
       user_id,
       title: 'Committee Request Approved',
       message: `Your request to join "${prog?.name}" as ${member.role} has been approved.`,
     })
+if (memberUser?.email) {
+  await sendEmail(
+  memberUser.email,
+  "Committee Application Approved",
+  `Dear Student,
 
+Congratulations! Your application to join "${prog?.name}" as ${member.role} has been approved.
+
+Regards,
+UTM-SPMS`
+);
+}
     return NextResponse.json({ success: true })
   }
 
@@ -307,12 +339,29 @@ export async function PATCH(req: Request) {
       .delete()
       .eq('programme_id', programme_id)
       .eq('user_id', user_id)
+const { data: memberUser } = await supabaseAdmin
+  .from("users")
+  .select("email")
+  .eq("id", user_id)
+  .single();
 
     await supabaseAdmin.from('notifications').insert({
       user_id,
       title: 'Committee Request Rejected',
       message: `Your request to join "${prog?.name}" as ${member.role} has been rejected.`,
     })
+    if (memberUser?.email) {
+  await sendEmail(
+  memberUser.email,
+  "Committee Application Rejected",
+  `Dear Student,
+
+Your application to join "${prog?.name}" as ${member.role} was not approved.
+
+Regards,
+UTM-SPMS`
+);
+}
 
     return NextResponse.json({ success: true })
   }
@@ -360,13 +409,29 @@ export async function DELETE(req: Request) {
     .delete()
     .eq('programme_id', programme_id)
     .eq('user_id', user_id)
-
+const { data: memberUser } = await supabaseAdmin
+  .from("users")
+  .select("email")
+  .eq("id", user_id)
+  .single();
   if (!isSelf && prog?.name && memberRole?.role) {
     await supabaseAdmin.from('notifications').insert({
       user_id,
       title: 'Removed from Committee',
       message: `You have been removed from programme "${prog.name}" as ${memberRole.role}.`,
     })
+    if (memberUser?.email) {
+  await sendEmail(
+  memberUser.email,
+  "Removed from Committee",
+  `Dear Student,
+
+You have been removed from the programme "${prog.name}" as ${memberRole.role}.
+
+Regards,
+UTM-SPMS`
+);
+}
   }
 
   return NextResponse.json({ success: true })
