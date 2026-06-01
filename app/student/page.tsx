@@ -32,7 +32,8 @@ interface Programme {
   status: string
   created_at: string
   venue?: string
-  date?: string
+  start_date?: string
+  end_date?: string
   programme_director_id?: string
 }
 
@@ -116,9 +117,13 @@ function ProgrammeCard({
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        {prog.date && (
+        {prog.start_date && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: t.textFaint }}>
-            <Clock size={11} /> {new Date(prog.date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+            <Clock size={11} />
+            {new Date(prog.start_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+            {prog.end_date && prog.end_date !== prog.start_date && (
+              <> – {new Date(prog.end_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}</>
+            )}
           </div>
         )}
         {prog.venue && (
@@ -126,7 +131,7 @@ function ProgrammeCard({
             <MapPin size={11} /> {prog.venue}
           </div>
         )}
-        {!prog.date && !prog.venue && (
+        {!prog.start_date && !prog.venue && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: t.textFaint }}>
             <Clock size={11} /> Added {new Date(prog.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' })}
           </div>
@@ -156,6 +161,8 @@ export default function StudentHomepage() {
   const [enrolledCount, setEnrolledCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedMonth, setSelectedMonth] = useState('')
+  const [showMineOnly, setShowMineOnly] = useState(false)
   const [activeNav, setActiveNav] = useState('dashboard')
   const [currentTime, setCurrentTime] = useState(new Date())
   const [userId, setUserId] = useState<string | null>(null)
@@ -183,7 +190,7 @@ export default function StudentHomepage() {
       if (profileData) setProfile(profileData)
 
       const { data: programmeData } = await supabase
-        .from('programmes').select('*').order('created_at', { ascending: false }).limit(6)
+        .from('programmes').select('*').order('created_at', { ascending: false })
 
       if (programmeData) {
         const sorted = [...programmeData].sort((a, b) => {
@@ -218,12 +225,24 @@ export default function StudentHomepage() {
   const getInitials = (name: string) =>
     name?.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'ST'
 
-  const filtered = programmes.filter(p =>
-    p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.code?.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const availableMonths = Array.from(
+    new Set(
+      programmes
+        .map(p => p.start_date?.slice(0, 7))
+        .filter((m): m is string => !!m)
+    )
+  ).sort()
 
-  const displayList = filtered.length > 0 ? filtered : programmes
+  const filtered = programmes.filter(p => {
+    const matchesSearch = !searchQuery ||
+      p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.code?.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesMonth = !selectedMonth || p.start_date?.startsWith(selectedMonth)
+    const matchesMine = !showMineOnly || p.programme_director_id === userId
+    return matchesSearch && matchesMonth && matchesMine
+  })
+
+  const displayList = filtered
 
   const navItems = [
     { id: 'dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
@@ -332,21 +351,44 @@ export default function StudentHomepage() {
                   Add Programme <Plus size={12} />
                 </button>
               </div>
-              <div style={{ position: 'relative' }}>
-                <Search size={12} style={{ position: 'absolute', left: '9px', top: '50%', transform: 'translateY(-50%)', color: t.textFaint }} />
-                <input
-                  type="text" placeholder="Search programmes..." value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  style={{ width: '100%', padding: '8px 10px 8px 28px', background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '7px', color: t.text, fontSize: '12px', outline: 'none', boxSizing: 'border-box' }}
-                />
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <Search size={12} style={{ position: 'absolute', left: '9px', top: '50%', transform: 'translateY(-50%)', color: t.textFaint, pointerEvents: 'none' }} />
+                  <input
+                    type="text" placeholder="Search..." value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    style={{ width: '100%', padding: '8px 10px 8px 28px', background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '7px', color: t.text, fontSize: '12px', outline: 'none', boxSizing: 'border-box' as const }}
+                  />
+                </div>
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <Calendar size={12} style={{ position: 'absolute', left: '9px', top: '50%', transform: 'translateY(-50%)', color: t.textFaint, pointerEvents: 'none', zIndex: 1 }} />
+                  <select
+                    value={selectedMonth}
+                    onChange={e => setSelectedMonth(e.target.value)}
+                    style={{ width: '100%', padding: '8px 10px 8px 28px', background: t.bgInput, border: `1px solid ${selectedMonth ? '#3b82f6' : t.border}`, borderRadius: '7px', color: t.text, fontSize: '12px', outline: 'none', boxSizing: 'border-box' as const, appearance: 'none' as const, cursor: 'pointer' }}
+                  >
+                    <option value="" style={{ background: '#1e293b', color: '#f1f5f9' }}>All months</option>
+                    {availableMonths.map(m => (
+                      <option key={m} value={m} style={{ background: '#1e293b', color: '#f1f5f9' }}>
+                        {new Date(m + '-01').toLocaleDateString('en-MY', { month: 'short', year: 'numeric' })}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
+              <button
+                onClick={() => setShowMineOnly(v => !v)}
+                style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 12px', borderRadius: '7px', border: `1px solid ${showMineOnly ? '#6366f1' : t.border}`, background: showMineOnly ? 'rgba(99,102,241,0.15)' : t.bgInput, color: showMineOnly ? '#818cf8' : t.textFaint, fontSize: '11px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' as const, alignSelf: 'flex-start' }}
+              >
+                <User size={11} /> My Programmes
+              </button>
             </div>
 
             <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {displayList.length === 0 && searchQuery ? (
+              {displayList.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '32px', color: t.textFaint }}>
                   <AlertCircle size={22} style={{ marginBottom: '8px', color: t.textFaintest }} />
-                  <p style={{ margin: 0, fontSize: '13px' }}>No programmes match "{searchQuery}"</p>
+                  <p style={{ margin: 0, fontSize: '13px' }}>No programmes found{searchQuery ? ` for "${searchQuery}"` : ''}{selectedMonth ? ` in ${new Date(selectedMonth + '-01').toLocaleDateString('en-MY', { month: 'long', year: 'numeric' })}` : ''}</p>
                 </div>
               ) : displayList.map(prog => (
                 <ProgrammeCard key={prog.id} prog={prog} userId={userId} onClick={() => router.push(`/programmes/${prog.id}`)} t={t} />
@@ -480,6 +522,27 @@ export default function StudentHomepage() {
                 <input type="text" placeholder="Search programmes..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                   style={{ background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '8px', padding: '8px 12px 8px 32px', color: t.text, fontSize: '13px', outline: 'none', width: '200px' }} />
               </div>
+              <div style={{ position: 'relative' }}>
+                <Calendar size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: t.textFaint, pointerEvents: 'none', zIndex: 1 }} />
+                <select
+                  value={selectedMonth}
+                  onChange={e => setSelectedMonth(e.target.value)}
+                  style={{ background: t.bgInput, border: `1px solid ${selectedMonth ? '#3b82f6' : t.border}`, borderRadius: '8px', padding: '8px 12px 8px 32px', color: t.text, fontSize: '13px', outline: 'none', width: '170px', appearance: 'none' as const, cursor: 'pointer' }}
+                >
+                  <option value="" style={{ background: '#1e293b', color: '#f1f5f9' }}>All months</option>
+                  {availableMonths.map(m => (
+                    <option key={m} value={m} style={{ background: '#1e293b', color: '#f1f5f9' }}>
+                      {new Date(m + '-01').toLocaleDateString('en-MY', { month: 'long', year: 'numeric' })}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={() => setShowMineOnly(v => !v)}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', border: `1px solid ${showMineOnly ? '#6366f1' : t.border}`, background: showMineOnly ? 'rgba(99,102,241,0.15)' : t.bgInput, color: showMineOnly ? '#818cf8' : t.textMuted, fontSize: '13px', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' as const }}
+              >
+                <User size={14} /> My Programmes
+              </button>
               <button onClick={() => router.push('/create-programme-form')} style={{ background: '#1d4ed8', border: 'none', borderRadius: '8px', padding: '8px 16px', color: 'white', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
                 New Programme <Plus size={14} />
               </button>
@@ -487,15 +550,14 @@ export default function StudentHomepage() {
           </div>
 
           <div style={{ padding: '20px 24px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '14px' }}>
-            {displayList.map(prog => (
-              <ProgrammeCard key={prog.id} prog={prog} userId={userId} onClick={() => router.push(`/programmes/${prog.id}`)} t={t} />
-            ))}
-            {filtered.length === 0 && searchQuery && (
+            {displayList.length === 0 ? (
               <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px', color: t.textFaint }}>
                 <AlertCircle size={24} style={{ marginBottom: '8px', color: t.textFaintest }} />
-                <p style={{ margin: 0, fontSize: '14px' }}>No programmes match "{searchQuery}"</p>
+                <p style={{ margin: 0, fontSize: '14px' }}>No programmes found{searchQuery ? ` for "${searchQuery}"` : ''}{selectedMonth ? ` in ${new Date(selectedMonth + '-01').toLocaleDateString('en-MY', { month: 'long', year: 'numeric' })}` : ''}</p>
               </div>
-            )}
+            ) : displayList.map(prog => (
+              <ProgrammeCard key={prog.id} prog={prog} userId={userId} onClick={() => router.push(`/programmes/${prog.id}`)} t={t} />
+            ))}
           </div>
         </div>
       </main>

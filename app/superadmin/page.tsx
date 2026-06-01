@@ -18,6 +18,7 @@ import NotificationBell from '../../components/notifications/NotificationBell'
 interface Programme {
   id: string; name: string; category: string; organiser: string; venue: string
   budget: number; start_date: string; end_date: string; status: string; created_at: string
+  programme_director_id?: string; advisor_id?: string
 }
 interface Profile { id: string; full_name: string; email: string; roles: { name: string } | null }
 type NavItem = 'dashboard' | 'programmes' | 'createAdmin' | 'exchangeAdmin' | 'settings' | 'attendance' | 'users' | 'profile' | 'schedule'
@@ -352,10 +353,10 @@ function EditModal({ show, isMobile, editForm, actionLoading, onClose, onChange,
 }
 
 /* ─── REVIEW MODAL ───────────────────────────────────────────────────────── */
-function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoading, preDocs, preDocsLoading, getToken, onClose, onCommentChange, onApprove, onReject, onDocsChange, T }: {
+function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoading, preDocs, preDocsLoading, getToken, directorName, advisorName, onClose, onCommentChange, onApprove, onReject, onDocsChange, T }: {
   prog: Programme | null; isMobile: boolean; rejectComment: string; actionLoading: boolean; rejectLoading: boolean
   preDocs: Array<{ id: string; phase: string; doc_type?: string; file_name?: string; file_path?: string }>; preDocsLoading: boolean
-  getToken: () => Promise<string | null>
+  getToken: () => Promise<string | null>; directorName: string; advisorName: string
   onClose: () => void; onCommentChange: (v: string) => void; onApprove: () => void; onReject: () => void
   onDocsChange: (docs: Array<{ id: string; phase: string; doc_type?: string; file_name?: string; file_path?: string }>) => void
   T: ReturnType<typeof getTheme>
@@ -485,7 +486,9 @@ function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoadi
 
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '10px', marginBottom: '18px' }}>
             {[
-              { label: 'Programme Name', value: prog.name, span: isMobile ? 1 : 2 },
+              { label: 'Programme Name',     value: prog.name,             span: isMobile ? 1 : 2 },
+              { label: 'Programme Director', value: directorName || '—',   span: 1 },
+              { label: 'Advisor',            value: advisorName  || '—',   span: 1 },
               { label: 'Category',  value: prog.category || '—', span: 1 },
               { label: 'Organiser', value: prog.organiser || '—', span: 1 },
               { label: 'Venue',     value: prog.venue || '—', span: isMobile ? 1 : 2 },
@@ -770,6 +773,8 @@ export default function SuperAdminDashboard() {
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [reviewDocs, setReviewDocs] = useState<Array<{ id: string; phase: string; doc_type?: string; file_name?: string; file_path?: string }>>([])
   const [reviewDocsLoading, setReviewDocsLoading] = useState(false)
+  const [reviewDirectorName, setReviewDirectorName] = useState('')
+  const [reviewAdvisorName, setReviewAdvisorName] = useState('')
   const [isMobile, setIsMobile] = useState<boolean | null>(null)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
 
@@ -831,16 +836,30 @@ export default function SuperAdminDashboard() {
   }
 
   const handleOpenReview = async (prog: Programme) => {
-    setReviewProg(prog); setRejectComment(''); setReviewDocs([]); setReviewDocsLoading(true)
+    setReviewProg(prog); setRejectComment(''); setReviewDocs([])
+    setReviewDirectorName(''); setReviewAdvisorName(''); setReviewDocsLoading(true)
     try {
       const token = await getToken()
-      const res = await fetch(`/api/programmes/${prog.id}/documents`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
-      if (res.ok) { const data = await res.json(); setReviewDocs(Array.isArray(data) ? data : (data.data ?? [])) }
+      const [docsRes] = await Promise.all([
+        fetch(`/api/programmes/${prog.id}/documents`, { headers: token ? { Authorization: `Bearer ${token}` } : {} }),
+        prog.programme_director_id
+          ? supabase.from('users').select('full_name').eq('id', prog.programme_director_id).single()
+              .then(({ data }) => { if (data?.full_name) setReviewDirectorName(data.full_name) })
+          : Promise.resolve(),
+        prog.advisor_id
+          ? supabase.from('users').select('full_name').eq('id', prog.advisor_id).single()
+              .then(({ data }) => { if (data?.full_name) setReviewAdvisorName(data.full_name) })
+          : Promise.resolve(),
+      ])
+      if (docsRes.ok) { const data = await docsRes.json(); setReviewDocs(Array.isArray(data) ? data : (data.data ?? [])) }
     } catch (_) {}
     setReviewDocsLoading(false)
   }
 
-  const handleCloseReview = () => { setReviewProg(null); setRejectComment(''); setReviewDocs([]) }
+  const handleCloseReview = () => {
+    setReviewProg(null); setRejectComment(''); setReviewDocs([])
+    setReviewDirectorName(''); setReviewAdvisorName('')
+  }
   const handleLogout = async () => { await supabase.auth.signOut(); router.replace('/login') }
   const handleEdit = (prog: Programme) => {
     setEditForm({ ...prog, start_date: prog.start_date?.slice(0, 10), end_date: prog.end_date?.slice(0, 10) })
@@ -939,6 +958,8 @@ export default function SuperAdminDashboard() {
     preDocs: reviewDocs, preDocsLoading: reviewDocsLoading,
     getToken,
     rejectComment,
+    directorName: reviewDirectorName,
+    advisorName:  reviewAdvisorName,
     onClose:         handleCloseReview,
     onCommentChange: setRejectComment,
     onApprove:       handleApprove,
