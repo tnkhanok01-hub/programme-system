@@ -14,7 +14,7 @@ export async function sendEmail(
   });
 
   await transporter.sendMail({
-    from: process.env.EMAIL_USER,
+    from: `"UTM SPMS" <${process.env.EMAIL_USER}>`,
     to,
     subject,
     text,

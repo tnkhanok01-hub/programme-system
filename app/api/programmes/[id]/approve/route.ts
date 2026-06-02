@@ -186,20 +186,13 @@ export async function POST(
       title: 'Programme Approved',
       message: `Your programme "${updated.name}" has been approved. Congratulations!`,
     });
-   if (director?.email) {
-  await sendEmail(
-  director.email,
-  "Programme Approved",
-  `Dear Programme Director,
-
-We are pleased to inform you that your programme "${updated.name}" has been approved.
-
-You may now proceed with the next stages of programme management.
-
-Regards,
-UTM-SPMS`
-);
-}
+    if (director?.email) {
+      await sendEmail(
+        director.email,
+        "Programme Approved",
+        `Dear Programme Director,\n\nWe are pleased to inform you that your programme "${updated.name}" has been approved.\n\nYou may now proceed with the next stages of programme management.\n\nRegards,\nUTM-SPMS`
+      ).catch(() => {})
+    }
   }
 
   return NextResponse.json({ message: 'Programme approved.', programme: updated });

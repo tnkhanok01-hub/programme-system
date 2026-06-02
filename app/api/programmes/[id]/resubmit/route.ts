@@ -115,17 +115,12 @@ const { data: advisor } = await makeServiceClient()
       message: `"${updated.name}" has been resubmitted and is waiting for your review.`,
     });
     if (advisor?.email) {
-  await sendEmail(
-  advisor.email,
-  "Programme Resubmitted for Review",
-  `Dear Advisor,
-
-The programme "${updated.name}" has been resubmitted and is awaiting your review.
-
-Regards,
-UTM-SPMS`
-);
-}
+      await sendEmail(
+        advisor.email,
+        "Programme Resubmitted for Review",
+        `Dear Advisor,\n\nThe programme "${updated.name}" has been resubmitted and is awaiting your review.\n\nRegards,\nUTM-SPMS`
+      ).catch(() => {})
+    }
   }
 
   return NextResponse.json({

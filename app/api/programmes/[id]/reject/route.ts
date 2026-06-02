@@ -90,21 +90,12 @@ export async function POST(
       message: `Your programme "${updated.name}" has been rejected.${reason ? ` Reason: ${reason}` : ''}`,
     });
     if (director?.email) {
-  await sendEmail(
-  director.email,
-  "Programme Rejected",
-  `Dear Programme Director,
-
-Your programme "${updated.name}" has been rejected.
-
-${reason ? `Reason: ${reason}` : ""}
-
-Please revise and resubmit your programme.
-
-Regards,
-UTM-SPMS`
-);
-}
+      await sendEmail(
+        director.email,
+        "Programme Rejected",
+        `Dear Programme Director,\n\nYour programme "${updated.name}" has been rejected.\n\n${reason ? `Reason: ${reason}\n\n` : ""}Please revise and resubmit your programme.\n\nRegards,\nUTM-SPMS`
+      ).catch(() => {})
+    }
   }
 
   return NextResponse.json({ message: 'Programme rejected successfully.', programme: updated });

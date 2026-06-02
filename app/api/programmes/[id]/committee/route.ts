@@ -235,15 +235,10 @@ const { data: memberUser } = await supabaseAdmin
       })
 if (memberUser?.email) {
   await sendEmail(
-  memberUser.email,
-  "Added to Committee",
-  `Dear Student,
-
-You have been added to the programme "${prog?.name}" as ${roleToAssign}.
-
-Regards,
-UTM-SPMS`
-);
+    memberUser.email,
+    "Added to Committee",
+    `Dear Student,\n\nYou have been added to the programme "${prog?.name}" as ${roleToAssign}.\n\nRegards,\nUTM-SPMS`
+  ).catch(() => {})
 }
       results.push({ identifier, role: roleToAssign, status: 'added' })
     }
@@ -320,15 +315,10 @@ const { data: memberUser } = await supabaseAdmin
     })
 if (memberUser?.email) {
   await sendEmail(
-  memberUser.email,
-  "Committee Application Approved",
-  `Dear Student,
-
-Congratulations! Your application to join "${prog?.name}" as ${member.role} has been approved.
-
-Regards,
-UTM-SPMS`
-);
+    memberUser.email,
+    "Committee Application Approved",
+    `Dear Student,\n\nCongratulations! Your application to join "${prog?.name}" as ${member.role} has been approved.\n\nRegards,\nUTM-SPMS`
+  ).catch(() => {})
 }
     return NextResponse.json({ success: true })
   }
@@ -351,17 +341,12 @@ const { data: memberUser } = await supabaseAdmin
       message: `Your request to join "${prog?.name}" as ${member.role} has been rejected.`,
     })
     if (memberUser?.email) {
-  await sendEmail(
-  memberUser.email,
-  "Committee Application Rejected",
-  `Dear Student,
-
-Your application to join "${prog?.name}" as ${member.role} was not approved.
-
-Regards,
-UTM-SPMS`
-);
-}
+      await sendEmail(
+        memberUser.email,
+        "Committee Application Rejected",
+        `Dear Student,\n\nYour application to join "${prog?.name}" as ${member.role} was not approved.\n\nRegards,\nUTM-SPMS`
+      ).catch(() => {})
+    }
 
     return NextResponse.json({ success: true })
   }
@@ -421,17 +406,12 @@ const { data: memberUser } = await supabaseAdmin
       message: `You have been removed from programme "${prog.name}" as ${memberRole.role}.`,
     })
     if (memberUser?.email) {
-  await sendEmail(
-  memberUser.email,
-  "Removed from Committee",
-  `Dear Student,
-
-You have been removed from the programme "${prog.name}" as ${memberRole.role}.
-
-Regards,
-UTM-SPMS`
-);
-}
+      await sendEmail(
+        memberUser.email,
+        "Removed from Committee",
+        `Dear Student,\n\nYou have been removed from the programme "${prog.name}" as ${memberRole.role}.\n\nRegards,\nUTM-SPMS`
+      ).catch(() => {})
+    }
   }
 
   return NextResponse.json({ success: true })
