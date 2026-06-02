@@ -7,7 +7,8 @@ import { QRCodeCanvas } from 'qrcode.react'
 import { Scanner } from '@yudiel/react-qr-scanner'
 import {
   QrCode, Calendar, MapPin, Search, AlertCircle,
-  CheckCircle, XCircle, ArrowLeft, Maximize, X
+  CheckCircle, XCircle, ArrowLeft, Maximize, X,
+  ArrowUp, ArrowDown
 } from 'lucide-react'
 
 interface Programme {
@@ -98,6 +99,8 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
   const [attendance, setAttendance] = useState<any[]>([])
   const [activeTab, setActiveTab] = useState<'ongoing' | 'expired'>('ongoing')
   const [searchQuery, setSearchQuery] = useState('')
+  const [sortBy, setSortBy] = useState<'name' | 'start_date'>('start_date')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
   const [isMobile, setIsMobile] = useState(false)
   const [selectedProg, setSelectedProg] = useState<Programme | null>(null)
   const [showScanner, setShowScanner] = useState(false)
@@ -137,12 +140,23 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
 
   const todayStr = new Date().toLocaleDateString('sv-SE')
 
-  const filteredProgrammes = programmes.filter(p => {
-    const isOngoing = p.end_date >= todayStr
-    const matchTab = activeTab === 'ongoing' ? isOngoing : !isOngoing
-    const matchSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase())
-    return matchTab && matchSearch
-  })
+  const filteredProgrammes = programmes
+    .filter(p => {
+      const isOngoing = p.end_date >= todayStr
+      const matchTab = activeTab === 'ongoing' ? isOngoing : !isOngoing
+      const matchSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase())
+      return matchTab && matchSearch
+    })
+    .sort((a, b) => {
+      const valA = sortBy === 'name' ? a.name.toLowerCase() : a.start_date
+      const valB = sortBy === 'name' ? b.name.toLowerCase() : b.start_date
+      return sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA)
+    })
+
+  const toggleSort = (key: 'name' | 'start_date') => {
+    if (sortBy === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortBy(key); setSortDir('asc') }
+  }
 
   const handleScan = async (result: string) => {
     try {
@@ -228,12 +242,30 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
               </button>
             ))}
           </div>
-          <div style={{ position: 'relative', flex: isMobile ? 1 : '0 1 300px' }}>
-            <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: t.textFaint }} />
-            <input
-              type="text" placeholder="Search programmes..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-              style={{ width: '100%', padding: '10px 12px 10px 34px', background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '8px', color: t.text, fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
-            />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: isMobile ? 1 : '0 1 auto' }}>
+            {(['name', 'start_date'] as const).map(key => {
+              const active = sortBy === key
+              const label = key === 'name' ? 'Name' : 'Start Date'
+              const Icon = sortDir === 'asc' ? ArrowUp : ArrowDown
+              return (
+                <button key={key} onClick={() => toggleSort(key)} style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '4px',
+                  padding: '8px 12px', borderRadius: '8px', border: `1px solid ${active ? t.accentBorder : t.border}`,
+                  background: active ? t.accentBg : 'transparent',
+                  color: active ? t.accentText : t.textFaint,
+                  fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+                }}>
+                  {label}{active && <Icon size={11} />}
+                </button>
+              )
+            })}
+            <div style={{ position: 'relative' }}>
+              <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: t.textFaint }} />
+              <input
+                type="text" placeholder="Search programmes..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                style={{ width: isMobile ? '100%' : '220px', padding: '10px 12px 10px 34px', background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '8px', color: t.text, fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+              />
+            </div>
           </div>
         </div>
       </div>

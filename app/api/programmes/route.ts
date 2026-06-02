@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { sendEmail } from "@/lib/sendEmail";
 
 export async function POST(request: Request) {
 
@@ -128,6 +129,20 @@ export async function POST(request: Request) {
       title: 'New Programme Needs Review',
       message: `"${name}" has been submitted and is waiting for your review.`,
     });
+
+    const { data: advisorUser } = await adminClient
+      .from('users')
+      .select('email, full_name')
+      .eq('id', advisor_id)
+      .single();
+
+    if (advisorUser?.email) {
+      await sendEmail(
+        advisorUser.email,
+        'New Programme Needs Review',
+        `Dear ${advisorUser.full_name ?? 'Advisor'},\n\nA new programme "${name}" has been submitted and is awaiting your review.\n\nPlease log in to UTM-SPMS to review it.\n\nRegards,\nUTM-SPMS`
+      ).catch(() => {})
+    }
   }
 
   // 9. Return success

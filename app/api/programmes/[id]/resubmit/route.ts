@@ -103,7 +103,7 @@ export async function POST(
   }
 const { data: advisor } = await makeServiceClient()
   .from("users")
-  .select("email")
+  .select("email, full_name")
   .eq("id", programme.advisor_id)
   .single();
 
@@ -118,7 +118,7 @@ const { data: advisor } = await makeServiceClient()
       await sendEmail(
         advisor.email,
         "Programme Resubmitted for Review",
-        `Dear Advisor,\n\nThe programme "${updated.name}" has been resubmitted and is awaiting your review.\n\nRegards,\nUTM-SPMS`
+        `Dear ${advisor?.full_name ?? 'Advisor'},\n\nThe programme "${updated.name}" has been resubmitted and is awaiting your review.\n\nRegards,\nUTM-SPMS`
       ).catch(() => {})
     }
   }

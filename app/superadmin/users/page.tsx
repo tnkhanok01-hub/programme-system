@@ -97,12 +97,16 @@ function MeritDrawer({ userId, userName, onClose }: {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase
-        .from('merit')
-        .select('id, programme_id, points, status, updated_at, programmes(name)')
-        .eq('user_id', userId)
-        .order('updated_at', { ascending: false })
-      setRecords((data ?? []) as unknown as MeritRecord[])
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { setLoading(false); return }
+      const res = await fetch('/api/merit/all', { headers: { Authorization: `Bearer ${session.access_token}` } })
+      if (res.ok) {
+        const { merit } = await res.json()
+        const userRecords = merit
+          .filter((m: any) => m.user_id === userId)
+          .sort((a: any, b: any) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+        setRecords(userRecords as unknown as MeritRecord[])
+      }
       setLoading(false)
     }
     load()
@@ -304,10 +308,11 @@ export default function SuperAdminUsersPage() {
         setUsers(usersData.map((u: any) => ({ ...u, role: u.roles?.name || 'student', matric_number: u.matric_number || 'N/A', email: u.email || 'N/A' })))
       }
 
-      const { data: meritData } = await supabase.from('merit').select('user_id, points').eq('status', 'approved')
-      if (meritData) {
+      const meritRes = await fetch('/api/merit/all', { headers: { Authorization: `Bearer ${session.access_token}` } })
+      if (meritRes.ok) {
+        const { merit } = await meritRes.json()
         const totals: Record<string, number> = {}
-        meritData.forEach((m: any) => { totals[m.user_id] = (totals[m.user_id] || 0) + m.points })
+        merit.forEach((m: any) => { totals[m.user_id] = (totals[m.user_id] || 0) + m.points })
         setMeritTotals(totals)
       }
       setLoading(false)

@@ -20,9 +20,7 @@ interface Props {
 
 interface AttendanceRow {
   user_id: string
-  qr_start: boolean
   qr_end: boolean
-  pre_survey: boolean
   post_survey: boolean
   users?: { full_name: string; matric_number: string }
 }
@@ -94,8 +92,6 @@ function hexToRgb(hex: string): [number, number, number] {
 
 export default function SurveyReportTab({ programmeId, programmeName }: Props) {
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'pre' | 'post'>('pre')
-  const [preSurveys, setPreSurveys] = useState<SurveyRow[]>([])
   const [postSurveys, setPostSurveys] = useState<SurveyRow[]>([])
   const [generatingPdf, setGeneratingPdf] = useState(false)
   const [generatingAttendance, setGeneratingAttendance] = useState(false)
@@ -110,12 +106,11 @@ export default function SurveyReportTab({ programmeId, programmeName }: Props) {
         .eq('completed', true)
         .order('created_at', { ascending: true })
       const rows = (surveyData ?? []) as unknown as SurveyRow[]
-      setPreSurveys(rows.filter(r => r.type === 'pre'))
       setPostSurveys(rows.filter(r => r.type === 'post'))
 
       const { data: attData } = await supabase
         .from('attendance')
-        .select('user_id, qr_start, qr_end, pre_survey, post_survey, users(full_name, matric_number)')
+        .select('user_id, qr_end, post_survey, users(full_name, matric_number)')
         .eq('programme_id', programmeId)
       setAttendance((attData ?? []) as unknown as AttendanceRow[])
       setLoading(false)
@@ -134,11 +129,9 @@ export default function SurveyReportTab({ programmeId, programmeName }: Props) {
     return map
   }
 
-  const sourceCounts   = countBy(preSurveys, 'source')
   const expCounts      = countBy(postSurveys, 'experience')
   const participCounts = countBy(postSurveys, 'participation')
   const expColors: Record<string, string> = { Excellent: '#10b981', Good: '#60a5fa', Average: '#f59e0b', Poor: '#ef4444' }
-  const sourceColors = ['#818cf8','#34d399','#f59e0b','#f87171','#a78bfa']
 
   const generatePDF = async () => {
     setGeneratingPdf(true)
@@ -285,7 +278,7 @@ export default function SurveyReportTab({ programmeId, programmeName }: Props) {
       doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(80, 80, 80)
       doc.text(programmeName || 'Programme Survey Analysis', ML, y); y += 5
       doc.setFontSize(8); doc.setTextColor(140, 140, 140)
-      doc.text(`Generated on ${generated}   ·   Pre-survey: ${preSurveys.length}   ·   Post-survey: ${postSurveys.length}`, ML, y)
+      doc.text(`Generated on ${generated}   ·   Post-survey: ${postSurveys.length} response${postSurveys.length !== 1 ? 's' : ''}`, ML, y)
       y += 3
 
       // Thin UTM-red rule under title
@@ -293,40 +286,11 @@ export default function SurveyReportTab({ programmeId, programmeName }: Props) {
       doc.line(ML, y + 2, MR, y + 2)
       y += 8
 
-      // ── PRE-SURVEY ──────────────────────────────────────────────────────────
-      if (preSurveys.length > 0) {
-        secTitle(`Pre-Survey (${preSurveys.length} responses)`)
-        const ap = avgFamiliarity(preSurveys)
-        if (ap !== null) statRow('Average Familiarity (Before)', `${ap.toFixed(1)} / 5`)
-        y += 2
-
-        if (Object.keys(sourceCounts).length > 0) {
-          checkPage(16)
-          doc.setTextColor(60, 60, 60); doc.setFont('helvetica', 'bold'); doc.setFontSize(9)
-          doc.text('How they heard about it', ML, y); y += 7
-          Object.entries(sourceCounts).forEach(([src, cnt], i) => bar(src, cnt, preSurveys.length, sourceColors[i % 5]))
-        }
-        y += 4
-        secTitle('Pre-Survey — Individual Responses')
-        preSurveys.forEach((row, i) => {
-          participantHeader(row, i, '#6366f1')
-          Object.entries(row.answers).forEach(([k, v]) => { if (v) textBlock(k, v) })
-          y += 4
-        })
-      }
-
       // ── POST-SURVEY ──────────────────────────────────────────────────────────
       if (postSurveys.length > 0) {
-        startPage()
         secTitle(`Post-Survey (${postSurveys.length} responses)`)
         const aPost = avgFamiliarity(postSurveys)
-        const aPre  = avgFamiliarity(preSurveys)
-        if (aPost !== null) statRow('Average Familiarity (After)',  `${aPost.toFixed(1)} / 5`, '#10b981')
-        if (aPre  !== null) statRow('Average Familiarity (Before)', `${aPre.toFixed(1)} / 5`,  '#6366f1')
-        if (aPost !== null && aPre !== null) {
-          const diff = aPost - aPre
-          statRow('Knowledge Gain', `${diff >= 0 ? '+' : ''}${diff.toFixed(1)}`, diff >= 0 ? '#10b981' : '#ef4444')
-        }
+        if (aPost !== null) statRow('Average Familiarity', `${aPost.toFixed(1)} / 5`, '#10b981')
         y += 4
 
         if (Object.keys(expCounts).length > 0) {
@@ -378,7 +342,7 @@ export default function SurveyReportTab({ programmeId, programmeName }: Props) {
         })
       } catch { bg = null }
 
-      const qualified = attendance.filter(a => a.pre_survey && a.post_survey)
+      const qualified = attendance.filter(a => a.post_survey)
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
       const W = doc.internal.pageSize.getWidth()
       const H = doc.internal.pageSize.getHeight()
@@ -431,7 +395,7 @@ export default function SurveyReportTab({ programmeId, programmeName }: Props) {
 
       // Sub-label
       doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(100, 100, 100)
-      doc.text('Only participants who completed BOTH pre & post surveys are listed.', ML, y)
+      doc.text('Only participants who completed the post survey are listed.', ML, y)
       y += 8
 
       if (qualified.length === 0) {
@@ -487,10 +451,10 @@ export default function SurveyReportTab({ programmeId, programmeName }: Props) {
     }
   }
 
-  const rows = tab === 'pre' ? preSurveys : postSurveys
+  const rows = postSurveys
   const total = rows.length
-  const hasData = preSurveys.length > 0 || postSurveys.length > 0
-  const qualifiedCount = attendance.filter(a => a.pre_survey && a.post_survey).length
+  const hasData = postSurveys.length > 0
+  const qualifiedCount = attendance.filter(a => a.post_survey).length
 
   if (loading) return (
     <div style={{ display:'flex', justifyContent:'center', padding:'40px' }}>
@@ -501,21 +465,12 @@ export default function SurveyReportTab({ programmeId, programmeName }: Props) {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:'20px' }}>
 
-      {/* Header: tabs + download */}
+      {/* Header: title + download */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'10px' }}>
-        <div style={{ display:'flex', gap:'8px', background:'rgba(255,255,255,0.03)', padding:'4px', borderRadius:'10px' }}>
-          {(['pre','post'] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)} style={{
-              padding:'7px 18px', borderRadius:'7px', border:'none', fontFamily:'inherit',
-              background: tab===t ? (t==='pre'?'rgba(96,165,250,0.15)':'rgba(167,139,250,0.15)') : 'transparent',
-              color: tab===t ? (t==='pre'?'#60a5fa':'#a78bfa') : '#6b7280',
-              fontSize:'13px', fontWeight: tab===t ? 600 : 400, cursor:'pointer',
-            }}>
-              {t==='pre' ? 'Pre-Survey' : 'Post-Survey'}
-              <span style={{ marginLeft:'6px', fontSize:'11px', opacity:0.7 }}>({t==='pre'?preSurveys.length:postSurveys.length})</span>
-            </button>
-          ))}
-        </div>
+        <p style={{ margin:0, fontSize:'14px', fontWeight:600, color:'#a78bfa' }}>
+          Post-Survey
+          <span style={{ marginLeft:'8px', fontSize:'12px', fontWeight:400, color:'#475569' }}>({postSurveys.length} response{postSurveys.length !== 1 ? 's' : ''})</span>
+        </p>
 
         {hasData && (
           <button onClick={generatePDF} disabled={generatingPdf} style={{
@@ -542,7 +497,7 @@ export default function SurveyReportTab({ programmeId, programmeName }: Props) {
       {total === 0 ? (
         <div style={{ textAlign:'center', padding:'40px 20px', color:'#475569' }}>
           <MessageSquare size={28} style={{ margin:'0 auto 10px', color:'#334155' }} />
-          <p style={{ margin:0, fontSize:'14px' }}>No {tab}-survey responses yet.</p>
+          <p style={{ margin:0, fontSize:'14px' }}>No post-survey responses yet.</p>
         </div>
       ) : (
         <>
@@ -551,25 +506,15 @@ export default function SurveyReportTab({ programmeId, programmeName }: Props) {
               <BarChart2 size={12} />Summary — {total} response{total!==1?'s':''}
             </p>
             <div style={{ display:'flex', gap:'10px', marginBottom:'16px', flexWrap:'wrap' }}>
-              {tab==='pre' && <AvgBadge label="Avg Familiarity (Before)" value={avgFamiliarity(preSurveys)} />}
-              {tab==='post' && <>
-                <AvgBadge label="Avg Familiarity (After)"  value={avgFamiliarity(postSurveys)} />
-                {preSurveys.length>0 && <AvgBadge label="Avg Familiarity (Before)" value={avgFamiliarity(preSurveys)} />}
-              </>}
+              <AvgBadge label="Avg Familiarity" value={avgFamiliarity(postSurveys)} />
             </div>
-            {tab==='pre' && Object.keys(sourceCounts).length>0 && (
-              <div style={{ background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.06)', borderRadius:'10px', padding:'14px', marginBottom:'12px' }}>
-                <p style={{ margin:'0 0 10px', fontSize:'12px', fontWeight:600, color:'#94a3b8' }}>How they heard about it</p>
-                {Object.entries(sourceCounts).map(([src, cnt], i) => <StatBar key={src} label={src} value={cnt} total={total} color={sourceColors[i%sourceColors.length]} />)}
-              </div>
-            )}
-            {tab==='post' && Object.keys(expCounts).length>0 && (
+            {Object.keys(expCounts).length>0 && (
               <div style={{ background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.06)', borderRadius:'10px', padding:'14px', marginBottom:'12px' }}>
                 <p style={{ margin:'0 0 10px', fontSize:'12px', fontWeight:600, color:'#94a3b8' }}>Overall Experience</p>
                 {['Excellent','Good','Average','Poor'].map(exp => expCounts[exp]!=null && <StatBar key={exp} label={exp} value={expCounts[exp]} total={total} color={expColors[exp]} />)}
               </div>
             )}
-            {tab==='post' && Object.keys(participCounts).length>0 && (
+            {Object.keys(participCounts).length>0 && (
               <div style={{ background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.06)', borderRadius:'10px', padding:'14px', marginBottom:'12px' }}>
                 <p style={{ margin:'0 0 10px', fontSize:'12px', fontWeight:600, color:'#94a3b8' }}>Active Participation</p>
                 {Object.entries(participCounts).map(([val, cnt]) => <StatBar key={val} label={val} value={cnt} total={total} color={val==='Yes'?'#10b981':'#ef4444'} />)}

@@ -116,7 +116,7 @@ export async function POST(
     const { data: superadminRoles } = await svc.from('roles').select('id').eq('name', 'superadmin');
     const superadminRoleIds = (superadminRoles ?? []).map((r: any) => r.id);
     if (superadminRoleIds.length > 0) {
-      const { data: superadminUsers } = await svc.from('users').select('id').in('role_id', superadminRoleIds);
+      const { data: superadminUsers } = await svc.from('users').select('id, email, full_name').in('role_id', superadminRoleIds);
       const superadminIds = (superadminUsers ?? []).map((u: any) => u.id);
       if (superadminIds.length > 0) {
         await svc.from('notifications').insert(
@@ -125,6 +125,18 @@ export async function POST(
             title: 'Programme Under Review',
             message: `"${updated.name}" has been approved by admin and is waiting for your final review.`,
           }))
+        );
+
+        await Promise.all(
+          (superadminUsers ?? [])
+            .filter((u: any) => u.email)
+            .map((u: any) =>
+              sendEmail(
+                u.email,
+                'Programme Needs Your Final Review',
+                `Dear ${u.full_name ?? 'Superadmin'},\n\nThe programme "${updated.name}" has been reviewed and approved by the admin.\n\nIt is now awaiting your final review and approval.\n\nPlease log in to UTM-SPMS to proceed.\n\nRegards,\nUTM-SPMS`
+              ).catch(() => {})
+            )
         );
       }
     }
@@ -173,9 +185,23 @@ export async function POST(
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
 
+  // Award 5 merit points to the programme director
+  if (programme.programme_director_id) {
+    await svc.from('merit').upsert(
+      {
+        user_id:      programme.programme_director_id,
+        programme_id: programmeId,
+        points:       5,
+        status:       'awarded',
+        updated_at:   new Date().toISOString(),
+      },
+      { onConflict: 'user_id,programme_id' }
+    )
+  }
+
   const { data: director } = await svc
   .from("users")
-  .select("email")
+  .select("email, full_name")
   .eq("id", programme.programme_director_id)
   .single();
 
@@ -190,7 +216,7 @@ export async function POST(
       await sendEmail(
         director.email,
         "Programme Approved",
-        `Dear Programme Director,\n\nWe are pleased to inform you that your programme "${updated.name}" has been approved.\n\nYou may now proceed with the next stages of programme management.\n\nRegards,\nUTM-SPMS`
+        `Dear ${director?.full_name ?? 'Programme Director'},\n\nWe are pleased to inform you that your programme "${updated.name}" has been approved.\n\nYou may now proceed with the next stages of programme management.\n\nRegards,\nUTM-SPMS`
       ).catch(() => {})
     }
   }

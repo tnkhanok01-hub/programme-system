@@ -78,7 +78,7 @@ export async function POST(
 
   const { data: director } = await makeServiceClient()
   .from("users")
-  .select("email")
+  .select("email, full_name")
   .eq("id", programme.programme_director_id)
   .single();
   
@@ -93,7 +93,7 @@ export async function POST(
       await sendEmail(
         director.email,
         "Programme Rejected",
-        `Dear Programme Director,\n\nYour programme "${updated.name}" has been rejected.\n\n${reason ? `Reason: ${reason}\n\n` : ""}Please revise and resubmit your programme.\n\nRegards,\nUTM-SPMS`
+        `Dear ${director?.full_name ?? 'Programme Director'},\n\nYour programme "${updated.name}" has been rejected.\n\n${reason ? `Reason: ${reason}\n\n` : ""}Please revise and resubmit your programme.\n\nRegards,\nUTM-SPMS`
       ).catch(() => {})
     }
   }

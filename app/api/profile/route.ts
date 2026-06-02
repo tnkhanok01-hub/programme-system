@@ -47,6 +47,32 @@ export async function GET(req: Request) {
   ? (data.roles[0] as any)?.name
   : (data.roles as any)?.name ?? "student";
 
+    // Backfill: ensure all approved programmes where user is director have a merit record
+    const { data: directorProgrammes } = await supabase
+      .from('programmes')
+      .select('id')
+      .eq('programme_director_id', user.id)
+      .eq('status', 'Approved')
+
+    if (directorProgrammes && directorProgrammes.length > 0) {
+      await supabase.from('merit').upsert(
+        directorProgrammes.map(p => ({
+          user_id:      user.id,
+          programme_id: p.id,
+          points:       5,
+          status:       'awarded',
+          updated_at:   new Date().toISOString(),
+        })),
+        { onConflict: 'user_id,programme_id', ignoreDuplicates: true }
+      )
+    }
+
+    const { data: meritData } = await supabase
+      .from('merit')
+      .select('points, status, updated_at, programmes(name)')
+      .eq('user_id', user.id)
+      .order('updated_at', { ascending: false })
+
     return NextResponse.json({
       id: user.id,
       email: user.email,
@@ -56,6 +82,7 @@ export async function GET(req: Request) {
       staff: data.staff_number,
       role,
       created_at: data.created_at,
+      merit: meritData ?? [],
     })
 
   } catch (err) {

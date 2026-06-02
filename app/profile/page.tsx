@@ -61,12 +61,9 @@ export default function ProfilePage() {
         setUser(profile)
         setEditForm({ name: data.name ?? '', phone: data.phone ?? '', matric: data.matric ?? '', staff: data.staff ?? '' })
 
-        const { data: meritData } = await supabase
-          .from('merit').select('points, updated_at, programmes(name)')
-          .eq('user_id', data.id).order('updated_at', { ascending: false })
-
-        setMeritPoints(meritData?.reduce((sum, item) => sum + (item.points || 0), 0) || 0)
-        setMeritRecords((meritData ?? []) as any[])
+        const meritData = data.merit ?? []
+        setMeritPoints(meritData.reduce((sum: number, item: any) => sum + (item.points || 0), 0))
+        setMeritRecords(meritData)
         setLoading(false)
       }
     }
@@ -339,39 +336,39 @@ export default function ProfilePage() {
                 <div onClick={() => setShowMeritBreakdown(false)}
                   style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 70, backdropFilter: 'blur(4px)', padding: '16px' }}>
                   <div onClick={e => e.stopPropagation()}
-                    style={{ background: t.bgCard, border: `1px solid ${t.accentBorder}`, borderRadius: '16px', width: '100%', maxWidth: '480px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                    <div style={{ padding: '18px 20px', borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(96,165,250,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <Award size={15} color="#60a5fa" />
+                    style={{ background: t.bgCard, border: `1px solid ${t.accentBorder}`, borderRadius: '20px', width: '100%', maxWidth: '600px', maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <div style={{ padding: '24px 28px', borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                        <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(96,165,250,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Award size={22} color="#60a5fa" />
                         </div>
                         <div>
-                          <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: t.text }}>Merit Breakdown</p>
-                          <p style={{ margin: 0, fontSize: '11px', color: t.textFaint }}>{meritRecords.length} programme{meritRecords.length !== 1 ? 's' : ''} · {meritPoints} pts total</p>
+                          <p style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: t.text }}>Merit Breakdown</p>
+                          <p style={{ margin: 0, fontSize: '13px', color: t.textFaint }}>{meritRecords.length} programme{meritRecords.length !== 1 ? 's' : ''} · {meritPoints} pts total</p>
                         </div>
                       </div>
                       <button onClick={() => setShowMeritBreakdown(false)}
-                        style={{ background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '7px', padding: '6px', cursor: 'pointer', color: t.textFaint }}>
-                        <X size={16} />
+                        style={{ background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '8px', padding: '8px', cursor: 'pointer', color: t.textFaint }}>
+                        <X size={18} />
                       </button>
                     </div>
-                    <div style={{ flex: 1, overflowY: 'auto', padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ flex: 1, overflowY: 'auto', padding: '16px 28px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       {meritRecords.length === 0 ? (
                         <div style={{ textAlign: 'center', padding: '40px', color: t.textFaint }}>
-                          <Award size={28} style={{ margin: '0 auto 10px', color: t.textFaintest }} />
-                          <p style={{ margin: 0, fontSize: '13px' }}>No merit records yet.</p>
+                          <Award size={32} style={{ margin: '0 auto 12px', color: t.textFaintest }} />
+                          <p style={{ margin: 0, fontSize: '15px' }}>No merit records yet.</p>
                         </div>
                       ) : meritRecords.map((r, i) => (
-                        <div key={i} style={{ background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '10px', padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                        <div key={i} style={{ background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '12px', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px' }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <p style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {(r.programmes as any)?.name || 'Unknown Programme'}
                             </p>
-                            <p style={{ margin: '2px 0 0', fontSize: '10px', color: t.textFaint }}>
+                            <p style={{ margin: '4px 0 0', fontSize: '12px', color: t.textFaint }}>
                               {r.updated_at ? new Date(r.updated_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
                             </p>
                           </div>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(96,165,250,0.12)', color: '#60a5fa', border: '1px solid rgba(96,165,250,0.2)', borderRadius: '6px', padding: '3px 8px', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(96,165,250,0.12)', color: '#60a5fa', border: '1px solid rgba(96,165,250,0.2)', borderRadius: '8px', padding: '6px 14px', fontSize: '14px', fontWeight: 700, flexShrink: 0 }}>
                             +{r.points} pt{r.points !== 1 ? 's' : ''}
                           </span>
                         </div>
