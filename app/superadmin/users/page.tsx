@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabaseClient'
 import { useTheme } from '@/app/provider/ThemeContext'
+import { BASE_MERIT_POINTS } from '@/lib/constants'
 import {
   LayoutDashboard, BookOpen, Users, Settings, LogOut, Bell,
   CirclePlus, ArrowRightLeft, Shield, Crown, Search, TrendingUp,
@@ -112,7 +113,7 @@ function MeritDrawer({ userId, userName, onClose }: {
     load()
   }, [userId])
 
-  const approvedPts  = records.filter(r => r.status === 'approved').reduce((s, r) => s + r.points, 0)
+  const approvedPts  = BASE_MERIT_POINTS + records.filter(r => r.status === 'approved').reduce((s, r) => s + r.points, 0)
   const pendingCount = records.filter(r => r.status === 'awarded' || r.status === 'pending').length
 
   const statusCfg = (s: string) => {
@@ -458,7 +459,7 @@ export default function SuperAdminUsersPage() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {filteredUsers.map(u => {
-                const pts = meritTotals[u.id] || 0
+                const pts = BASE_MERIT_POINTS + (meritTotals[u.id] || 0)
                 const isSelected = selectedUserId === u.id
                 return (
                   <div key={u.id} onClick={() => setSelectedUserId(isSelected ? null : u.id)}
@@ -637,7 +638,7 @@ export default function SuperAdminUsersPage() {
                 {filteredUsers.length === 0 ? (
                   <tr><td colSpan={6} style={{ padding: '48px', textAlign: 'center', color: t.textFaintest, fontSize: '13px' }}>No students found.</td></tr>
                 ) : filteredUsers.map((u, i) => {
-                  const pts = meritTotals[u.id] || 0
+                  const pts = BASE_MERIT_POINTS + (meritTotals[u.id] || 0)
                   const isSelected = selectedUserId === u.id
                   return (
                     <tr key={u.id} onClick={() => setSelectedUserId(isSelected ? null : u.id)}

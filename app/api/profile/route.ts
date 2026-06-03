@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { DIRECTOR_MERIT } from "@/lib/constants"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -59,7 +60,7 @@ export async function GET(req: Request) {
         directorProgrammes.map(p => ({
           user_id:      user.id,
           programme_id: p.id,
-          points:       5,
+          points:       DIRECTOR_MERIT,
           status:       'awarded',
           updated_at:   new Date().toISOString(),
         })),

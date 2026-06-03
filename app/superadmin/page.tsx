@@ -359,11 +359,12 @@ function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoadi
   prog: Programme | null; isMobile: boolean; rejectComment: string; actionLoading: boolean; rejectLoading: boolean
   preDocs: Array<{ id: string; phase: string; doc_type?: string; file_name?: string; file_path?: string }>; preDocsLoading: boolean
   getToken: () => Promise<string | null>; directorName: string; advisorName: string
-  onClose: () => void; onCommentChange: (v: string) => void; onApprove: (noRujukan: string) => void; onReject: () => void
+  onClose: () => void; onCommentChange: (v: string) => void; onApprove: (noRujukan: string, attendeeMeritPoints: number) => void; onReject: () => void
   onDocsChange: (docs: Array<{ id: string; phase: string; doc_type?: string; file_name?: string; file_path?: string }>) => void
   T: ReturnType<typeof getTheme>
 }) {
   const [noRujukanInput, setNoRujukanInput] = React.useState('')
+  const [meritPointsInput, setMeritPointsInput] = React.useState('1')
   const [updatedPaperworkFile, setUpdatedPaperworkFile] = useState<File | null>(null)
   const [updatedPaperworkDoc, setUpdatedPaperworkDoc] = useState<{ id: string; file_name: string; file_path: string } | null>(null)
   const [adminPaperworkDoc, setAdminPaperworkDoc] = useState<{ id: string; file_name: string; file_path: string } | null>(null)
@@ -593,19 +594,33 @@ function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoadi
               style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: T.inputBg, border: `1px solid ${rejectComment.trim() ? 'rgba(239,68,68,0.35)' : T.borderSoft}`, color: T.textBody, fontSize: '13px', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.6 }} />
           </div>
 
-          {/* No Rujukan — required before Approve */}
-          <div style={{ marginBottom: '12px' }}>
-            <label style={{ display: 'block', fontSize: '11px', color: T.textSecondary, fontWeight: 500, marginBottom: '6px', textTransform: 'uppercase' as const, letterSpacing: '0.04em' }}>
-              No. Rujukan Surat <span style={{ color: '#ef4444' }}>*</span>
-              <span style={{ color: T.textMuted, fontWeight: 400, textTransform: 'none' as const, letterSpacing: 0, marginLeft: '6px' }}>(required to approve)</span>
-            </label>
-            <input
-              type="text"
-              placeholder="Contoh: UTM.KSJ/100-1/1 Jld.2(15)"
-              value={noRujukanInput}
-              onChange={e => setNoRujukanInput(e.target.value)}
-              style={{ width: '100%', padding: '9px 12px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.textBody, fontSize: '13px', outline: 'none', boxSizing: 'border-box' as const, fontFamily: 'inherit' }}
-            />
+          {/* No Rujukan + Merit Points — required before Approve */}
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr auto', gap: '10px', marginBottom: '12px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', color: T.textSecondary, fontWeight: 500, marginBottom: '6px', textTransform: 'uppercase' as const, letterSpacing: '0.04em' }}>
+                No. Rujukan Surat <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <input
+                type="text"
+                placeholder="Contoh: UTM.KSJ/100-1/1 Jld.2(15)"
+                value={noRujukanInput}
+                onChange={e => setNoRujukanInput(e.target.value)}
+                style={{ width: '100%', padding: '9px 12px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.textBody, fontSize: '13px', outline: 'none', boxSizing: 'border-box' as const, fontFamily: 'inherit' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', color: T.textSecondary, fontWeight: 500, marginBottom: '6px', textTransform: 'uppercase' as const, letterSpacing: '0.04em' }}>
+                Merit (Attendees) <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <input
+                type="number"
+                min={1}
+                placeholder="1"
+                value={meritPointsInput}
+                onChange={e => setMeritPointsInput(e.target.value)}
+                style={{ width: isMobile ? '100%' : '90px', padding: '9px 12px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.textBody, fontSize: '13px', outline: 'none', boxSizing: 'border-box' as const, fontFamily: 'inherit' }}
+              />
+            </div>
           </div>
 
           <div style={{ display: 'flex', gap: '8px', flexDirection: isMobile ? 'column' : 'row' }}>
@@ -616,9 +631,9 @@ function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoadi
               style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: rejectComment.trim() ? 'rgba(239,68,68,0.85)' : 'rgba(239,68,68,0.2)', color: rejectComment.trim() ? 'white' : T.textMuted, fontSize: '13px', fontWeight: 500, cursor: rejectComment.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: rejectLoading ? 0.7 : 1 }}>
               <XCircle size={14} />{rejectLoading ? 'Rejecting...' : 'Reject'}
             </button>
-            <button onClick={() => onApprove(noRujukanInput.trim())} disabled={actionLoading || !updatedPaperworkDoc || !noRujukanInput.trim()}
-              title={!updatedPaperworkDoc ? 'Upload approval document first' : !noRujukanInput.trim() ? 'Enter No Rujukan first' : undefined}
-              style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: updatedPaperworkDoc && noRujukanInput.trim() ? T.gradientBtn : T.accentBg, color: updatedPaperworkDoc && noRujukanInput.trim() ? 'white' : T.textSecondary, fontSize: '13px', fontWeight: 500, cursor: updatedPaperworkDoc && noRujukanInput.trim() && !actionLoading ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: actionLoading ? 0.7 : 1 }}>
+            <button onClick={() => onApprove(noRujukanInput.trim(), parseInt(meritPointsInput) || 1)} disabled={actionLoading || !updatedPaperworkDoc || !noRujukanInput.trim() || !(parseInt(meritPointsInput) >= 1)}
+              title={!updatedPaperworkDoc ? 'Upload approval document first' : !noRujukanInput.trim() ? 'Enter No Rujukan first' : !(parseInt(meritPointsInput) >= 1) ? 'Enter valid merit points' : undefined}
+              style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: updatedPaperworkDoc && noRujukanInput.trim() && parseInt(meritPointsInput) >= 1 ? T.gradientBtn : T.accentBg, color: updatedPaperworkDoc && noRujukanInput.trim() && parseInt(meritPointsInput) >= 1 ? 'white' : T.textSecondary, fontSize: '13px', fontWeight: 500, cursor: updatedPaperworkDoc && noRujukanInput.trim() && parseInt(meritPointsInput) >= 1 && !actionLoading ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: actionLoading ? 0.7 : 1 }}>
               <CheckCircle size={14} />{actionLoading ? 'Approving...' : 'Approve'}
             </button>
           </div>
@@ -916,7 +931,7 @@ export default function SuperAdminDashboard() {
     setDeleteLoading(false)
   }
 
-  const handleApprove = async (noRujukan: string) => {
+  const handleApprove = async (noRujukan: string, attendeeMeritPoints: number) => {
     if (!reviewProg) return
     const token = await getToken()
     if (!token) return
@@ -924,7 +939,7 @@ export default function SuperAdminDashboard() {
     const res = await fetch(`/api/programmes/${reviewProg.id}/approve`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ no_rujukan: noRujukan }),
+      body: JSON.stringify({ no_rujukan: noRujukan, attendee_merit_points: attendeeMeritPoints }),
     })
     if (res.ok) { setProgrammes(prev => prev.map(p => p.id === reviewProg.id ? { ...p, status: 'Approved' } : p)); setReviewProg(null) }
     else { const d = await res.json(); alert(d.error ?? 'Failed to approve.') }

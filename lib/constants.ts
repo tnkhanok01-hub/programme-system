@@ -41,3 +41,19 @@ export const SINGLE_ROLE_LIMIT = [
   'Treasurer',
   'Vice Treasurer',
 ]
+
+export const HIGH_COMMITTEE_ROLES = [
+  'Vice Director - Management',
+  'Vice Director - Activity',
+  'Secretary',
+  'Vice Secretary',
+  'Treasurer',
+  'Vice Treasurer',
+]
+
+export const MEMBER_ROLES = ['Logistics', 'Publicity', 'Welfare', 'Member']
+
+export const BASE_MERIT_POINTS   = 100
+export const DIRECTOR_MERIT      = 25
+export const HIGH_COMMITTEE_MERIT = 15
+export const MEMBER_MERIT        = 10

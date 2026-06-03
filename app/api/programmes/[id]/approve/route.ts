@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { sendEmail } from "@/lib/sendEmail";
+import { DIRECTOR_MERIT, HIGH_COMMITTEE_MERIT, HIGH_COMMITTEE_ROLES, MEMBER_MERIT } from '@/lib/constants';
 
 
 function getToken(request: Request): string | null {
@@ -23,7 +24,7 @@ export async function POST(
   const token = getToken(request);
   if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  let body: { no_rujukan?: string } = {}
+  let body: { no_rujukan?: string; attendee_merit_points?: number } = {}
   try { body = await request.json() } catch { body = {} }
 
   const svc = makeServiceClient();
@@ -180,6 +181,11 @@ export async function POST(
     return NextResponse.json({ error: 'No Rujukan is required.' }, { status: 400 })
   }
 
+  const attendeeMeritPoints = Number(body.attendee_merit_points)
+  if (!Number.isInteger(attendeeMeritPoints) || attendeeMeritPoints < 1) {
+    return NextResponse.json({ error: 'Attendee merit points must be a whole number of at least 1.' }, { status: 400 })
+  }
+
   const { data: updated, error: updateError } = await svc
     .from('programmes')
     .update({
@@ -187,6 +193,7 @@ export async function POST(
       approved_by_superadmin_name: callerName,
       approved_at: new Date().toISOString(),
       no_rujukan: noRujukan,
+      attendee_merit_points: attendeeMeritPoints,
     })
     .eq('id', programmeId)
     .select()
@@ -194,18 +201,40 @@ export async function POST(
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
 
-  // Award 5 merit points to the programme director
+  // Award merit to director
   if (programme.programme_director_id) {
     await svc.from('merit').upsert(
       {
         user_id:      programme.programme_director_id,
         programme_id: programmeId,
-        points:       5,
+        points:       DIRECTOR_MERIT,
         status:       'awarded',
         updated_at:   new Date().toISOString(),
       },
       { onConflict: 'user_id,programme_id' }
     )
+  }
+
+  // Award merit to approved committee members
+  const { data: committeeMembers } = await svc
+    .from('programme_roles')
+    .select('user_id, role')
+    .eq('programme_id', programmeId)
+    .eq('status', 'approved')
+
+  if (committeeMembers && committeeMembers.length > 0) {
+    const meritInserts = committeeMembers
+      .filter((m: any) => m.user_id !== programme.programme_director_id)
+      .map((m: any) => ({
+        user_id:      m.user_id,
+        programme_id: programmeId,
+        points:       HIGH_COMMITTEE_ROLES.includes(m.role) ? HIGH_COMMITTEE_MERIT : MEMBER_MERIT,
+        status:       'awarded',
+        updated_at:   new Date().toISOString(),
+      }))
+    if (meritInserts.length > 0) {
+      await svc.from('merit').upsert(meritInserts, { onConflict: 'user_id,programme_id' })
+    }
   }
 
   const { data: director } = await svc

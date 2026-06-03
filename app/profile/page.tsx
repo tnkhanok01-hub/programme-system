@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { useTheme } from '@/app/provider/ThemeContext'
+import { BASE_MERIT_POINTS } from '@/lib/constants'
 import {
   ArrowLeft, User, Mail, Phone, Hash, Calendar,
   Shield, LogOut, Crown, Pencil, Check, X, Loader2,
@@ -62,7 +63,7 @@ export default function ProfilePage() {
         setEditForm({ name: data.name ?? '', phone: data.phone ?? '', matric: data.matric ?? '', staff: data.staff ?? '' })
 
         const meritData = data.merit ?? []
-        setMeritPoints(meritData.reduce((sum: number, item: any) => sum + (item.points || 0), 0))
+        setMeritPoints(BASE_MERIT_POINTS + meritData.reduce((sum: number, item: any) => sum + (item.points || 0), 0))
         setMeritRecords(meritData)
         setLoading(false)
       }

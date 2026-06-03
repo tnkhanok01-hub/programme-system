@@ -38,11 +38,18 @@ export async function POST(request: Request) {
       .maybeSingle()
 
     if (attRow?.qr_end && attRow?.post_survey) {
+      const { data: progRow } = await supabaseAdmin
+        .from('programmes')
+        .select('attendee_merit_points')
+        .eq('id', programme_id)
+        .single()
+      const meritPoints = Number(progRow?.attendee_merit_points) || 1
+
       const { error: meritError } = await supabaseAdmin.from('merit').upsert(
         {
           user_id:      user.id,
           programme_id,
-          points:       1,
+          points:       meritPoints,
           status:       'awarded',
           updated_at:   new Date().toISOString(),
         },
