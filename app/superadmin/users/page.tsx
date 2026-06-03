@@ -23,9 +23,10 @@ interface UserData {
 
 interface MeritRecord {
   id: string
-  programme_id: string
+  programme_id: string | null
   points: number
   status: string
+  reason?: string
   updated_at: string
   programmes?: { name: string }
 }
@@ -117,8 +118,9 @@ function MeritDrawer({ userId, userName, onClose }: {
   const pendingCount = records.filter(r => r.status === 'awarded' || r.status === 'pending').length
 
   const statusCfg = (s: string) => {
-    if (s === 'approved') return { color: t.success, bg: t.successBg,  border: t.successBorder,  Icon: CheckCircle }
-    if (s === 'rejected') return { color: t.danger,  bg: t.dangerBg,   border: t.dangerBorder,   Icon: XCircle }
+    if (s === 'approved') return { color: t.success,    bg: t.successBg, border: t.successBorder, Icon: CheckCircle }
+    if (s === 'rejected') return { color: t.danger,     bg: t.dangerBg,  border: t.dangerBorder,  Icon: XCircle }
+    if (s === 'demerit')  return { color: t.danger,     bg: t.dangerBg,  border: t.dangerBorder,  Icon: AlertCircle }
     return                       { color: SA.accentText, bg: SA.accentBg, border: SA.accentBorder, Icon: Clock }
   }
 
@@ -167,14 +169,18 @@ function MeritDrawer({ userId, userName, onClose }: {
               <p style={{ margin: 0, fontSize: '13px' }}>No merit records yet.</p>
             </div>
           ) : records.map(r => {
+            const isDemerit = r.status === 'demerit'
             const cfg = statusCfg(r.status)
             return (
-              <div key={r.id} style={{ background: t.bgCardAlt, border: `1px solid ${t.border}`, borderRadius: '10px', padding: '12px 14px' }}>
+              <div key={r.id} style={{ background: isDemerit ? t.dangerBg : t.bgCardAlt, border: `1px solid ${isDemerit ? t.dangerBorder : t.border}`, borderRadius: '10px', padding: '12px 14px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {(r.programmes as any)?.name || 'Unknown Programme'}
+                    <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: isDemerit ? t.danger : t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {isDemerit ? 'Demerit' : ((r.programmes as any)?.name || 'Unknown Programme')}
                     </p>
+                    {isDemerit && (r as any).reason && (
+                      <p style={{ margin: '3px 0 0', fontSize: '11px', color: t.textMuted, fontStyle: 'italic' }}>{(r as any).reason}</p>
+                    )}
                     <p style={{ margin: '2px 0 0', fontSize: '10px', color: t.textFaint }}>
                       {new Date(r.updated_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </p>
@@ -189,6 +195,77 @@ function MeritDrawer({ userId, userName, onClose }: {
               </div>
             )
           })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ─── DEMERIT MODAL ──────────────────────────────────────────────────────── */
+function DemeritModal({ user, onClose, onDone }: { user: UserData | null; onClose: () => void; onDone: () => void }) {
+  const { t } = useTheme()
+  const [points, setPoints] = useState('')
+  const [reason, setReason] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  if (!user) return null
+
+  const handleSubmit = async () => {
+    setError('')
+    const pts = parseInt(points)
+    if (!pts || pts <= 0) { setError('Enter a valid number of points.'); return }
+    if (!reason.trim()) { setError('Please provide a reason.'); return }
+    setLoading(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) { setError('Session expired.'); setLoading(false); return }
+    const res = await fetch('/api/merit/demerit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ user_id: user.id, points: pts, reason: reason.trim() }),
+    })
+    const data = await res.json()
+    if (!res.ok) { setError(data.error || 'Failed to apply demerit.'); setLoading(false); return }
+    setLoading(false)
+    onDone()
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 80, backdropFilter: 'blur(4px)', padding: '16px' }}>
+      <div style={{ background: t.bgCard, border: `1px solid ${t.dangerBorder}`, borderRadius: '14px', padding: '24px', width: '100%', maxWidth: '400px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: t.text }}>Give Demerit Points</h2>
+            <p style={{ margin: '4px 0 0', fontSize: '12px', color: t.textFaint }}>{user.full_name}</p>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: t.textFaint, cursor: 'pointer' }}><X size={18} /></button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: t.textFaint, display: 'block', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Demerit Points</label>
+            <input type="number" min="1" placeholder="e.g. 2" value={points} onChange={e => setPoints(e.target.value)}
+              style={{ width: '100%', boxSizing: 'border-box', background: t.bgInput, border: `1px solid ${t.dangerBorder}`, borderRadius: '8px', padding: '10px 12px', color: t.text, fontSize: '14px', outline: 'none' }} />
+          </div>
+          <div>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: t.textFaint, display: 'block', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Reason</label>
+            <textarea rows={3} placeholder="State the reason for this demerit..." value={reason} onChange={e => setReason(e.target.value)}
+              style={{ width: '100%', boxSizing: 'border-box', background: t.bgInput, border: `1px solid ${t.borderInput}`, borderRadius: '8px', padding: '10px 12px', color: t.text, fontSize: '13px', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }} />
+          </div>
+        </div>
+
+        {error && (
+          <p style={{ color: t.danger, fontSize: '12px', margin: '12px 0 0', display: 'flex', alignItems: 'center', gap: '5px', background: t.dangerBg, padding: '8px 12px', borderRadius: '7px' }}>
+            <AlertCircle size={13} />{error}
+          </p>
+        )}
+
+        <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+          <button onClick={onClose} style={{ flex: 1, padding: '10px', background: 'transparent', border: `1px solid ${t.borderInput}`, color: t.textMuted, borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>Cancel</button>
+          <button onClick={handleSubmit} disabled={loading}
+            style={{ flex: 1, padding: '10px', background: t.danger, border: 'none', color: 'white', borderRadius: '8px', cursor: loading ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600, opacity: loading ? 0.7 : 1, fontFamily: 'inherit' }}>
+            {loading ? 'Applying…' : `Apply −${points || '0'} pts`}
+          </button>
         </div>
       </div>
     </div>
@@ -280,6 +357,7 @@ export default function SuperAdminUsersPage() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [userToDelete, setUserToDelete] = useState<UserData | null>(null)
   const [meritDrawerUser, setMeritDrawerUser] = useState<UserData | null>(null)
+  const [demeritUser, setDemeritUser] = useState<UserData | null>(null)
   const [form, setForm] = useState({ fullName: '', matricNumber: '', email: '', phone: '', password: '', confirmPassword: '' })
   const [formLoading, setFormLoading] = useState(false)
   const [formError, setFormError] = useState('')
@@ -358,11 +436,25 @@ export default function SuperAdminUsersPage() {
     </div>
   )
 
+  const handleDemeritDone = async () => {
+    setDemeritUser(null)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    const res = await fetch('/api/merit/all', { headers: { Authorization: `Bearer ${session.access_token}` } })
+    if (res.ok) {
+      const { merit } = await res.json()
+      const totals: Record<string, number> = {}
+      merit.forEach((m: any) => { totals[m.user_id] = (totals[m.user_id] || 0) + m.points })
+      setMeritTotals(totals)
+    }
+  }
+
   const sharedModals = (
     <>
       <AddStudentModal show={showAddModal} form={form as any} formLoading={formLoading} formError={formError} onChange={f => setForm(f as any)} onSubmit={handleAddUser} onClose={() => setShowAddModal(false)} />
       <DeleteModal user={userToDelete} onConfirm={handleDeleteConfirm} onClose={() => setUserToDelete(null)} />
       {meritDrawerUser && <MeritDrawer userId={meritDrawerUser.id} userName={meritDrawerUser.full_name} onClose={() => setMeritDrawerUser(null)} />}
+      <DemeritModal user={demeritUser} onClose={() => setDemeritUser(null)} onDone={handleDemeritDone} />
     </>
   )
 
@@ -480,6 +572,10 @@ export default function SuperAdminUsersPage() {
                         <button onClick={e => { e.stopPropagation(); setMeritDrawerUser(u) }}
                           style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', background: SA.accentBg, color: SA.accentText, border: `1px solid ${SA.accentBorder}`, padding: '7px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                           <Star size={11} />Merit
+                        </button>
+                        <button onClick={e => { e.stopPropagation(); setDemeritUser(u) }}
+                          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', background: t.dangerBg, color: t.danger, border: `1px solid ${t.dangerBorder}`, padding: '7px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                          <AlertCircle size={11} />Demerit
                         </button>
                         <button onClick={e => { e.stopPropagation(); setUserToDelete(u) }}
                           style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', background: t.dangerBg, color: t.danger, border: `1px solid ${t.dangerBorder}`, padding: '7px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -659,6 +755,10 @@ export default function SuperAdminUsersPage() {
                           <button onClick={e => { e.stopPropagation(); setMeritDrawerUser(u) }}
                             style={{ display: 'flex', alignItems: 'center', gap: '4px', background: SA.accentBg, color: SA.accentText, border: `1px solid ${SA.accentBorder}`, padding: '5px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
                             <Star size={11} />Merit
+                          </button>
+                          <button onClick={e => { e.stopPropagation(); setDemeritUser(u) }}
+                            style={{ display: 'flex', alignItems: 'center', gap: '4px', background: t.dangerBg, color: t.danger, border: `1px solid ${t.dangerBorder}`, padding: '5px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
+                            <AlertCircle size={11} />Demerit
                           </button>
                           <button onClick={e => { e.stopPropagation(); setUserToDelete(u) }}
                             style={{ display: 'flex', alignItems: 'center', gap: '4px', background: t.dangerBg, color: t.danger, border: `1px solid ${t.dangerBorder}`, padding: '5px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontFamily: 'inherit' }}>

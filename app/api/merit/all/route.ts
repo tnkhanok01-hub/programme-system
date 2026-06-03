@@ -48,7 +48,7 @@ export async function GET(req: Request) {
   // Return all merit records
   const { data: meritData, error } = await svc
     .from('merit')
-    .select('id, user_id, programme_id, points, status, updated_at, programmes(name)')
+    .select('id, user_id, programme_id, points, status, reason, updated_at, programmes(name)')
     .order('updated_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
