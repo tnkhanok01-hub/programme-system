@@ -143,6 +143,7 @@ interface DirectorData {
 export async function generateApprovalLetter(
   programme: ProgrammeData,
   directorInfo: DirectorData | null,
+  noRujukan: string,
 ): Promise<void> {
   const bg = await loadImageDataUrl('/approvalTemplate/UTM_letterhead_bg.jpeg')
 
@@ -225,6 +226,7 @@ export async function generateApprovalLetter(
   setStyle(10)
   doc.text('Ruj. Kami', refLabelX, y)
   doc.text(':', refColonX, y)
+  doc.text(noRujukan, refValueX, y)
   y += LH
   doc.text('Tarikh', refLabelX, y)
   doc.text(':', refColonX, y)

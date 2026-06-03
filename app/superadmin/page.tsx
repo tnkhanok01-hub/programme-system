@@ -13,6 +13,8 @@ import {
 } from 'lucide-react'
 import { PRE_CHECKLIST } from '../../lib/constants'
 import NotificationBell from '../../components/notifications/NotificationBell'
+import OverduePanel from '../../components/programmes/OverduePanel'
+import type { OverdueItem } from '../../lib/types'
 
 /* ─── TYPES ──────────────────────────────────────────────────────────────── */
 interface Programme {
@@ -357,10 +359,11 @@ function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoadi
   prog: Programme | null; isMobile: boolean; rejectComment: string; actionLoading: boolean; rejectLoading: boolean
   preDocs: Array<{ id: string; phase: string; doc_type?: string; file_name?: string; file_path?: string }>; preDocsLoading: boolean
   getToken: () => Promise<string | null>; directorName: string; advisorName: string
-  onClose: () => void; onCommentChange: (v: string) => void; onApprove: () => void; onReject: () => void
+  onClose: () => void; onCommentChange: (v: string) => void; onApprove: (noRujukan: string) => void; onReject: () => void
   onDocsChange: (docs: Array<{ id: string; phase: string; doc_type?: string; file_name?: string; file_path?: string }>) => void
   T: ReturnType<typeof getTheme>
 }) {
+  const [noRujukanInput, setNoRujukanInput] = React.useState('')
   const [updatedPaperworkFile, setUpdatedPaperworkFile] = useState<File | null>(null)
   const [updatedPaperworkDoc, setUpdatedPaperworkDoc] = useState<{ id: string; file_name: string; file_path: string } | null>(null)
   const [adminPaperworkDoc, setAdminPaperworkDoc] = useState<{ id: string; file_name: string; file_path: string } | null>(null)
@@ -590,6 +593,21 @@ function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoadi
               style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: T.inputBg, border: `1px solid ${rejectComment.trim() ? 'rgba(239,68,68,0.35)' : T.borderSoft}`, color: T.textBody, fontSize: '13px', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.6 }} />
           </div>
 
+          {/* No Rujukan — required before Approve */}
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', fontSize: '11px', color: T.textSecondary, fontWeight: 500, marginBottom: '6px', textTransform: 'uppercase' as const, letterSpacing: '0.04em' }}>
+              No. Rujukan Surat <span style={{ color: '#ef4444' }}>*</span>
+              <span style={{ color: T.textMuted, fontWeight: 400, textTransform: 'none' as const, letterSpacing: 0, marginLeft: '6px' }}>(required to approve)</span>
+            </label>
+            <input
+              type="text"
+              placeholder="Contoh: UTM.KSJ/100-1/1 Jld.2(15)"
+              value={noRujukanInput}
+              onChange={e => setNoRujukanInput(e.target.value)}
+              style={{ width: '100%', padding: '9px 12px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.textBody, fontSize: '13px', outline: 'none', boxSizing: 'border-box' as const, fontFamily: 'inherit' }}
+            />
+          </div>
+
           <div style={{ display: 'flex', gap: '8px', flexDirection: isMobile ? 'column' : 'row' }}>
             <button onClick={onClose} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: `1px solid ${T.borderSoft}`, background: 'transparent', color: T.textSecondary, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
               <CircleX size={14} />Cancel
@@ -598,9 +616,9 @@ function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoadi
               style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: rejectComment.trim() ? 'rgba(239,68,68,0.85)' : 'rgba(239,68,68,0.2)', color: rejectComment.trim() ? 'white' : T.textMuted, fontSize: '13px', fontWeight: 500, cursor: rejectComment.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: rejectLoading ? 0.7 : 1 }}>
               <XCircle size={14} />{rejectLoading ? 'Rejecting...' : 'Reject'}
             </button>
-            <button onClick={onApprove} disabled={actionLoading || !updatedPaperworkDoc}
-              title={!updatedPaperworkDoc ? 'Upload approval document first' : undefined}
-              style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: updatedPaperworkDoc ? T.gradientBtn : T.accentBg, color: updatedPaperworkDoc ? 'white' : T.textSecondary, fontSize: '13px', fontWeight: 500, cursor: updatedPaperworkDoc && !actionLoading ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: actionLoading ? 0.7 : 1 }}>
+            <button onClick={() => onApprove(noRujukanInput.trim())} disabled={actionLoading || !updatedPaperworkDoc || !noRujukanInput.trim()}
+              title={!updatedPaperworkDoc ? 'Upload approval document first' : !noRujukanInput.trim() ? 'Enter No Rujukan first' : undefined}
+              style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: updatedPaperworkDoc && noRujukanInput.trim() ? T.gradientBtn : T.accentBg, color: updatedPaperworkDoc && noRujukanInput.trim() ? 'white' : T.textSecondary, fontSize: '13px', fontWeight: 500, cursor: updatedPaperworkDoc && noRujukanInput.trim() && !actionLoading ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: actionLoading ? 0.7 : 1 }}>
               <CheckCircle size={14} />{actionLoading ? 'Approving...' : 'Approve'}
             </button>
           </div>
@@ -777,6 +795,7 @@ export default function SuperAdminDashboard() {
   const [reviewAdvisorName, setReviewAdvisorName] = useState('')
   const [isMobile, setIsMobile] = useState<boolean | null>(null)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const [overdueItems, setOverdueItems] = useState<{ during: OverdueItem[]; post: OverdueItem[] }>({ during: [], post: [] })
 
   // ── THEME ──────────────────────────────────────────────────────────────
   const { mode: theme, setMode } = useTheme()
@@ -816,15 +835,22 @@ export default function SuperAdminDashboard() {
         { data: programmeData },
         { count: totalUsers },
         { count: totalAdmins },
+        overdueRes,
       ] = await Promise.all([
         supabase.from('programmes').select('*').neq('status', 'Pending').order('created_at', { ascending: false }),
         supabase.from('users').select('*', { count: 'exact', head: true }),
         supabase.from('users').select('*, roles!inner(name)', { count: 'exact', head: true }).eq('roles.name', 'admin'),
+        fetch('/api/overdue/check', { headers: { Authorization: `Bearer ${session.access_token}` } })
+          .catch(() => new Response(null, { status: 503 })),
       ])
 
       if (programmeData) setProgrammes(programmeData)
       setUserCount(totalUsers ?? 0)
       setAdminCount(totalAdmins ?? 0)
+      if (overdueRes.ok) {
+        const overdueData = await overdueRes.json()
+        setOverdueItems(overdueData)
+      }
       setLoading(false)
     }
     init()
@@ -890,12 +916,16 @@ export default function SuperAdminDashboard() {
     setDeleteLoading(false)
   }
 
-  const handleApprove = async () => {
+  const handleApprove = async (noRujukan: string) => {
     if (!reviewProg) return
     const token = await getToken()
     if (!token) return
     setActionLoading(true)
-    const res = await fetch(`/api/programmes/${reviewProg.id}/approve`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
+    const res = await fetch(`/api/programmes/${reviewProg.id}/approve`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ no_rujukan: noRujukan }),
+    })
     if (res.ok) { setProgrammes(prev => prev.map(p => p.id === reviewProg.id ? { ...p, status: 'Approved' } : p)); setReviewProg(null) }
     else { const d = await res.json(); alert(d.error ?? 'Failed to approve.') }
     setActionLoading(false)
@@ -1063,6 +1093,7 @@ export default function SuperAdminDashboard() {
 
           <StatCards stats={stats} userCount={userCount} adminCount={adminCount} isMobile={true} T={T} />
           <BudgetBanner stats={stats} isMobile={true} T={T} />
+          <OverduePanel duringOverdue={overdueItems.during} postOverdue={overdueItems.post} isMobile={true} />
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
             {[
@@ -1222,6 +1253,7 @@ export default function SuperAdminDashboard() {
 
         <StatCards stats={stats} userCount={userCount} adminCount={adminCount} isMobile={false} T={T} />
         <BudgetBanner stats={stats} isMobile={false} T={T} />
+        <OverduePanel duringOverdue={overdueItems.during} postOverdue={overdueItems.post} isMobile={false} />
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '24px' }}>
           {[

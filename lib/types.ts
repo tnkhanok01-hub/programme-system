@@ -21,3 +21,11 @@ export type CommitteeMember = {
 }
 
 export type Phase = 'pre' | 'during' | 'post'
+
+export type OverdueItem = {
+  id: string
+  name: string
+  organiser: string
+  end_date: string
+  days_overdue: number
+}

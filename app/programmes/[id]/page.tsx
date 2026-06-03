@@ -28,6 +28,7 @@ interface Programme {
   approved_by_admin_name?: string | null
   approved_by_superadmin_name?: string | null
   approved_at?: string | null
+  no_rujukan?: string | null
   advisor_id?: string | null
 }
 
@@ -120,7 +121,6 @@ export default function ProgrammeDetailPage() {
   const [approvalPreviewDoc, setApprovalPreviewDoc] = useState<PhaseDoc | null>(null)
   const [directorInfo, setDirectorInfo] = useState<{ full_name: string; matric_number: string } | null>(null)
   const [advisorInfo, setAdvisorInfo] = useState<{ full_name: string; email?: string } | null>(null)
-
   useEffect(() => {
     if (!id) return
     const init = async () => {
@@ -267,7 +267,7 @@ export default function ProgrammeDetailPage() {
 
   const handleGenerateApprovalLetter = async () => {
     if (!programme) return
-    await generateApprovalLetter(programme, directorInfo)
+    await generateApprovalLetter(programme, directorInfo, programme.no_rujukan ?? '')
   }
 
   const canUpload          = isAdmin || isOwner || isElevatedMember
@@ -371,7 +371,7 @@ export default function ProgrammeDetailPage() {
                     )}
                   </div>
                   {/* Row 2: approval letter full width */}
-                  {programme.status === 'Approved' && isOwner && (
+                  {programme.status === 'Approved' && (isOwner || isAdmin) && !!programme.no_rujukan && (
                     <button
                       onClick={handleGenerateApprovalLetter}
                       style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px', padding: '9px 12px', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.1)', color: '#10b981', fontSize: '13px', fontWeight: 500, cursor: 'pointer', width: '100%' }}
@@ -389,7 +389,7 @@ export default function ProgrammeDetailPage() {
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`, borderRadius: '8px', padding: '6px 12px', fontSize: '12px', fontWeight: 600 }}>
                       <StatusIcon size={13} />{programme.status}
                     </span>
-                    {programme.status === 'Approved' && isOwner && (
+                    {programme.status === 'Approved' && (isOwner || isAdmin) && !!programme.no_rujukan && (
                       <button
                         onClick={handleGenerateApprovalLetter}
                         style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.1)', color: '#10b981', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
@@ -710,6 +710,7 @@ export default function ProgrammeDetailPage() {
           </div>
         </div>
       )}
+
     </>
   )
 }

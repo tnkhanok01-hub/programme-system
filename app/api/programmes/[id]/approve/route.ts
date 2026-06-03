@@ -23,6 +23,9 @@ export async function POST(
   const token = getToken(request);
   if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  let body: { no_rujukan?: string } = {}
+  try { body = await request.json() } catch { body = {} }
+
   const svc = makeServiceClient();
 
   const { data: { user }, error: authError } = await svc.auth.getUser(token);
@@ -172,12 +175,18 @@ export async function POST(
       .insert({ programme_id: programmeId, phase: 'pre', doc_type: 'paperwork', file_path: approvalDoc.file_path, file_name: approvalDoc.file_name });
   }
 
+  const noRujukan = (body.no_rujukan ?? '').trim()
+  if (!noRujukan) {
+    return NextResponse.json({ error: 'No Rujukan is required.' }, { status: 400 })
+  }
+
   const { data: updated, error: updateError } = await svc
     .from('programmes')
     .update({
       status: 'Approved',
       approved_by_superadmin_name: callerName,
       approved_at: new Date().toISOString(),
+      no_rujukan: noRujukan,
     })
     .eq('id', programmeId)
     .select()
