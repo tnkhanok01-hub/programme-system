@@ -1,1 +1,0 @@
-ALTER TABLE programmes ADD COLUMN IF NOT EXISTS no_rujukan TEXT;

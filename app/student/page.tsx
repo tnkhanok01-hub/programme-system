@@ -21,7 +21,8 @@ import {
   FileText,
   Settings,
   Plus,
-  QrCode
+  QrCode,
+  WalletCards
 } from 'lucide-react'
 
 interface Programme {
@@ -167,6 +168,7 @@ export default function StudentHomepage() {
   const [currentTime, setCurrentTime] = useState(new Date())
   const [userId, setUserId] = useState<string | null>(null)
   const [isMobile, setIsMobile] = useState<boolean | null>(null)
+  const [hasTreasurerFinanceAccess, setHasTreasurerFinanceAccess] = useState(false)
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -205,6 +207,15 @@ export default function StudentHomepage() {
         .from('programme_roles').select('*', { count: 'exact', head: true }).eq('user_id', session.user.id)
 
       setEnrolledCount(count ?? 0)
+
+      const { count: financeRoleCount } = await supabase
+        .from('programme_roles')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', session.user.id)
+        .eq('status', 'approved')
+        .in('role', ['Treasurer', 'Vice Treasurer'])
+
+      setHasTreasurerFinanceAccess((financeRoleCount ?? 0) > 0)
       setLoading(false)
     }
     init()
@@ -248,12 +259,14 @@ export default function StudentHomepage() {
     { id: 'dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
     { id: 'schedule',   icon: Calendar,         label: 'Schedule' },
     { id: 'attendance', icon: QrCode,           label: 'Attendance' },
+    ...(hasTreasurerFinanceAccess ? [{ id: 'finance', icon: WalletCards, label: 'Finance' }] : []),
   ]
 
   const mobileNavItems = [
     { id: 'dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
     { id: 'schedule',   icon: Calendar,         label: 'Schedule' },
     { id: 'attendance', icon: QrCode,           label: 'Attendance' },
+    ...(hasTreasurerFinanceAccess ? [{ id: 'finance', icon: WalletCards, label: 'Finance' }] : []),
     { id: 'profile',    icon: User,             label: 'Profile' },
     { id: 'settings',   icon: Settings,         label: 'Settings' },
   ]
@@ -263,6 +276,7 @@ export default function StudentHomepage() {
     if (id === 'dashboard')  router.push('/student')
     if (id === 'schedule')   router.push('/student/schedule')
     if (id === 'attendance') router.push('/student/attendance')
+    if (id === 'finance')    router.push('/treasurer/finance')
     if (id === 'profile')    router.push('/profile')
     if (id === 'settings')   router.push('/settings')
   }

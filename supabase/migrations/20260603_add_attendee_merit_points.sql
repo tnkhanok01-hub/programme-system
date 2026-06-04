@@ -1,1 +1,0 @@
-ALTER TABLE programmes ADD COLUMN IF NOT EXISTS attendee_merit_points INTEGER NOT NULL DEFAULT 1;

@@ -384,11 +384,6 @@ export async function generateApprovalLetter(
   gap(LH * 2)
 
   line('Saya yang menjalankan amanah,', ML)
-  gap(LH * 5)  // space for signature
-
-  // ── Signatory block ───────────────────────────────────────────────────────────
-
-  guard(LH * 7)
   line('(DR. MOHAMED AZLAN BIN SUHOT)', ML, 10, true)
   line('Pengetua Kolej Siswa Jaya', ML)
   line('Pejabat Timbalan Naib Canselor (Hal Ehwal Pelajar dan Alumni)', ML)
@@ -406,6 +401,10 @@ export async function generateApprovalLetter(
   const advisorName = programme.approved_by_admin_name ?? 'Felo/Penasihat Program'
   doc.text(`-  ${advisorName}`, ML + 8, y);  y += LH
   doc.text('Felo/Penasihat Program', ML + 11, y)
+
+  gap(LH * 2)
+
+  line('(Surat ini adalah cetakan komputer, tandatangan tidak diperlukan.)', ML)
 
   // ── Save ──────────────────────────────────────────────────────────────────────
 
