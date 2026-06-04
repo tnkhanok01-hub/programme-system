@@ -11,7 +11,6 @@ export default function ForgotPassword() {
   const [message, setMessage]   = useState<{ type: 'error' | 'success'; text: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
-
   const router = useRouter();
 
   useEffect(() => {
