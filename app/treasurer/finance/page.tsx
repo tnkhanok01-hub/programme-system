@@ -136,6 +136,14 @@ export default function TreasurerFinancePage() {
   const [profile, setProfile] = useState<{ name: string; role: string } | null>(null)
   const [programmes, setProgrammes] = useState<ProgrammeOption[]>([])
   const [selectedProgrammeId, setSelectedProgrammeId] = useState('')
+  const [lockedProgrammeId] = useState(() => {
+    if (typeof window === 'undefined') return ''
+    return new URLSearchParams(window.location.search).get('programmeId') ?? ''
+  })
+  const [embedded] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return new URLSearchParams(window.location.search).get('embedded') === '1'
+  })
   const [selectedProgramme, setSelectedProgramme] = useState<ProgrammeOption | null>(null)
   const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([])
   const [transactions, setTransactions] = useState<FinanceTransaction[]>([])
@@ -194,10 +202,10 @@ export default function TreasurerFinancePage() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      loadFinance()
+      loadFinance(lockedProgrammeId)
     }, 0)
     return () => window.clearTimeout(timer)
-  }, [loadFinance])
+  }, [loadFinance, lockedProgrammeId])
 
   const budgetTotals = useMemo(() => ({
     income: budgetItems.filter(item => item.type === 'income').length,
@@ -377,7 +385,7 @@ export default function TreasurerFinancePage() {
         }
       `}</style>
 
-      <header className="finance-no-print" style={{ background: t.bgCardAlt, borderBottom: `1px solid ${t.border}`, position: 'sticky', top: 0, zIndex: 20 }}>
+      {!embedded && <header className="finance-no-print" style={{ background: t.bgCardAlt, borderBottom: `1px solid ${t.border}`, position: 'sticky', top: 0, zIndex: 20 }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: isMobile ? '13px 16px' : '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
             <button onClick={goBack} title="Back" style={{ width: '34px', height: '34px', borderRadius: '8px', border: `1px solid ${t.border}`, background: t.bgInput, color: t.textFaint, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -402,9 +410,9 @@ export default function TreasurerFinancePage() {
             </div>
           </div>
         </div>
-      </header>
+      </header>}
 
-      <main className="finance-print-page" style={{ maxWidth: '1180px', margin: '0 auto', padding: isMobile ? '16px' : '24px' }}>
+      <main className="finance-print-page" style={{ maxWidth: '1180px', margin: '0 auto', padding: embedded ? '0' : isMobile ? '16px' : '24px' }}>
         {error && (
           <div style={{ ...panelStyle, borderColor: t.dangerBorder, background: t.dangerBg, padding: '12px 14px', marginBottom: '14px', color: t.danger, fontSize: '13px' }}>
             {error}
@@ -424,15 +432,17 @@ export default function TreasurerFinancePage() {
           </div>
         ) : (
           <>
-            <section className="finance-no-print" style={{ ...panelStyle, padding: isMobile ? '14px' : '16px 18px', marginBottom: '16px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(260px, 1.2fr) repeat(3, 1fr)', gap: '12px', alignItems: 'end' }}>
-              <div>
-                <label style={labelStyle}>Programme</label>
-                <select value={selectedProgrammeId} onChange={event => handleProgrammeChange(event.target.value)} style={inputStyle}>
-                  {programmes.map(programme => (
-                    <option key={programme.id} value={programme.id}>{programme.name}</option>
-                  ))}
-                </select>
-              </div>
+            <section className="finance-no-print" style={{ ...panelStyle, padding: isMobile ? '14px' : '16px 18px', marginBottom: '16px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : `${lockedProgrammeId ? '' : 'minmax(260px, 1.2fr) '}repeat(3, 1fr)`, gap: '12px', alignItems: 'end' }}>
+              {!lockedProgrammeId && (
+                <div>
+                  <label style={labelStyle}>Programme</label>
+                  <select value={selectedProgrammeId} onChange={event => handleProgrammeChange(event.target.value)} style={inputStyle}>
+                    {programmes.map(programme => (
+                      <option key={programme.id} value={programme.id}>{programme.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <SummaryMini label="Budget Balance" value={summary.plannedBalance} tone={summary.plannedBalance >= 0 ? 'good' : 'bad'} />
               <SummaryMini label="Actual Balance" value={summary.actualBalance} tone={summary.actualBalance >= 0 ? 'good' : 'bad'} />
               <SummaryMini label="Variance" value={summary.balanceVariance} tone={summary.balanceVariance >= 0 ? 'good' : 'bad'} />

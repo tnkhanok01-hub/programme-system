@@ -21,7 +21,7 @@ interface Programme {
   programme_director_id?: string
 }
 interface Profile { id: string; full_name: string; email: string; roles: { name: string } | null }
-type NavItem = 'dashboard' | 'programmes' | 'users' | 'attendance' | 'finance' | 'settings' | 'profile'
+type NavItem = 'dashboard' | 'programmes' | 'users' | 'attendance' | 'settings' | 'profile'
 
 /* ─── HELPERS ────────────────────────────────────────────────────────────── */
 function getStatusConfig(status: string) {
@@ -912,7 +912,6 @@ export default function AdminHomepage() {
     { id: 'dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
     { id: 'programmes', icon: BookOpen,         label: 'Add Programmes' },
     { id: 'attendance', icon: QrCode,           label: 'Attendance' },
-    { id: 'finance',    icon: DollarSign,       label: 'Finance' },
     { id: 'users',      icon: Users,            label: 'Users' },
     { id: 'profile',    icon: UserCircle,       label: 'Profile' },
     { id: 'settings',   icon: Settings,         label: 'Settings' },
@@ -925,7 +924,6 @@ export default function AdminHomepage() {
     if (id === 'users')      router.push('/admin/users')
     if (id === 'settings')   router.push('/settings')
     if (id === 'attendance') router.push('/admin/attendance')
-    if (id === 'finance')    router.push('/treasurer/finance')
     if (id === 'profile')   router.push('/profile')
   }
 

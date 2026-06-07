@@ -23,7 +23,7 @@ interface Programme {
   programme_director_id?: string; advisor_id?: string
 }
 interface Profile { id: string; full_name: string; email: string; roles: { name: string } | null }
-type NavItem = 'dashboard' | 'programmes' | 'createAdmin' | 'exchangeAdmin' | 'settings' | 'attendance' | 'finance' | 'users' | 'profile' | 'schedule'
+type NavItem = 'dashboard' | 'programmes' | 'createAdmin' | 'exchangeAdmin' | 'settings' | 'attendance' | 'users' | 'profile' | 'schedule'
 type Theme = 'dark' | 'light'
 
 /* ─── THEME TOKENS ───────────────────────────────────────────────────────── */
@@ -980,7 +980,6 @@ export default function SuperAdminDashboard() {
     { id: 'programmes',    icon: BookOpen,         label: 'Add Programmes', path: '/create-programme-form' },
     { id: 'attendance',    icon: QrCode,           label: 'Attendance',     path: '/superadmin/attendance' },
     { id: 'schedule',      icon: CalendarCheck,    label: 'Schedule',       path: '/superadmin/schedule' },
-    { id: 'finance',       icon: DollarSign,       label: 'Finance',        path: '/treasurer/finance' },
     { id: 'users',         icon: Users,            label: 'Users',          path: '/superadmin/users' },
     { id: 'createAdmin',   icon: CirclePlus,       label: 'Create Admin',   path: '/superadmin/create-admin' },
     { id: 'exchangeAdmin', icon: ArrowRightLeft,   label: 'Exchange Admin', path: '/superadmin/exchange-admin' },
@@ -1199,7 +1198,7 @@ export default function SuperAdminDashboard() {
 
         <nav style={{ padding: '14px 10px', flex: 1, overflowY: 'auto' }}>
           <p style={{ fontSize: '9px', fontWeight: 600, color: T.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0 10px', marginBottom: '6px' }}>Navigation</p>
-          {navItems.slice(0, 5).map(item => {
+          {navItems.slice(0, 4).map(item => {
             const Icon = item.icon; const isActive = activeNav === item.id
             return (
               <button key={item.id} onClick={() => handleNavClick(item)}
@@ -1211,7 +1210,7 @@ export default function SuperAdminDashboard() {
           })}
           <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: `1px solid ${T.accentBorderSub}` }}>
             <p style={{ fontSize: '9px', fontWeight: 600, color: T.accent, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0 10px', marginBottom: '6px', opacity: 0.7 }}>Superadmin Only</p>
-            {navItems.slice(5, 10).map(item => {
+            {navItems.slice(4, 9).map(item => {
               const Icon = item.icon; const isActive = activeNav === item.id
               return (
                 <button key={item.id} onClick={() => handleNavClick(item)}
