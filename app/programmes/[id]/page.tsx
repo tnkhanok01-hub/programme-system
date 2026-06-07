@@ -8,7 +8,7 @@ import {
   ArrowLeft, CheckCircle, XCircle, AlertCircle, Clock,
   Calendar, MapPin, DollarSign, BookOpen, RefreshCw,
   Upload, FileText, Download, Eye, X, Trash2,
-  Users, UserPlus, UserX, Hash, UserCheck, WalletCards,
+  Users, UserPlus, UserX, Hash, UserCheck,
 } from 'lucide-react'
 
 import { generateApprovalLetter } from '@/lib/generateApprovalLetter'
@@ -19,7 +19,6 @@ import DuringPhaseTab from '@/components/programmes/DuringPhaseTab'
 import DocRow from '@/components/programmes/DocRow'
 import SurveyReportTab from '@/components/programmes/SurveyReportTab'
 import { PHASES, PRE_CHECKLIST, POST_CHECKLIST, SINGLE_ROLE_LIMIT, APPROVAL_CHECKLIST } from '@/lib/constants'
-import { canUseProgrammeFinance } from '@/lib/financeAccess.js'
 
 interface Programme {
   id: string; name: string; description: string; category: string
@@ -41,7 +40,7 @@ interface CommitteeMember {
   users: { id: string; full_name: string; matric_number: string; phone?: string }
 }
 
-type Phase = 'pre' | 'during' | 'post' | 'survey' | 'finance'
+type Phase = 'pre' | 'during' | 'post' | 'survey'
 
 const statusConfig: Record<string, { color: string; bg: string; border: string; icon: React.ElementType }> = {
   Pending:        { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  border: 'rgba(245,158,11,0.2)',  icon: AlertCircle },
@@ -115,7 +114,6 @@ export default function ProgrammeDetailPage() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [isOwner, setIsOwner] = useState(false)
   const [isElevatedMember, setIsElevatedMember] = useState(false)
-  const [programmeFinanceRole, setProgrammeFinanceRole] = useState('')
   const [userRole, setUserRole] = useState('student')
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -155,7 +153,6 @@ export default function ProgrammeDetailPage() {
         setIsElevatedMember(
           committeeEntry != null && SINGLE_ROLE_LIMIT.includes(committeeEntry.role)
         )
-        setProgrammeFinanceRole(committeeEntry?.role ?? '')
       }
       setProgramme(prog)
       const { data: dirData } = await supabase
@@ -275,7 +272,6 @@ export default function ProgrammeDetailPage() {
 
   const canUpload          = isAdmin || isOwner || isElevatedMember
   const canManageCommittee = isAdmin || isOwner
-  const canManageFinance   = canUseProgrammeFinance({ appRole: userRole, programmeRole: programmeFinanceRole })
 
   const tabDocCount = (phase: Phase) => {
     if (phase === 'pre')  return PRE_CHECKLIST.filter(item => phaseDocs.some(d => d.phase === 'pre'  && d.doc_type === item.key)).length
@@ -508,24 +504,12 @@ export default function ProgrammeDetailPage() {
                     <Users size={13} />Surveys
                   </button>
                 )}
-                {canManageFinance && (
-                  <button onClick={() => setActiveTab('finance')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: isMobile ? '12px 6px' : '14px 10px', border: 'none', borderBottom: activeTab === 'finance' ? '2px solid #14b8a6' : '2px solid transparent', background: activeTab === 'finance' ? 'rgba(20,184,166,0.12)' : 'transparent', color: activeTab === 'finance' ? '#14b8a6' : '#6b7280', fontSize: '13px', fontWeight: activeTab === 'finance' ? 600 : 400, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
-                    <WalletCards size={13} />Finance
-                  </button>
-                )}
               </div>
               <div style={{ padding: isMobile ? '14px' : '20px' }}>
                 {activeTab === 'pre'    && <ChecklistPhaseTab key="pre"    phase="pre"  checklist={PRE_CHECKLIST}  programmeId={programme.id} docs={phaseDocs} onDocsChange={(u) => setPhaseDocs(u)} canUpload={canUpload} />}
                 {activeTab === 'during' && <DuringPhaseTab    key="during"              programmeId={programme.id} docs={phaseDocs} onDocsChange={setPhaseDocs} canUpload={canUpload} />}
                 {activeTab === 'post'   && <ChecklistPhaseTab key="post"   phase="post" checklist={POST_CHECKLIST} programmeId={programme.id} docs={phaseDocs} onDocsChange={(u) => setPhaseDocs(u)} canUpload={canUpload} />}
                 {activeTab === 'survey' && (isAdmin || isOwner) && <SurveyReportTab key="survey" programmeId={programme.id} programmeName={programme.name} />}
-                {activeTab === 'finance' && canManageFinance && (
-                  <iframe
-                    title="Programme finance"
-                    src={`/treasurer/finance?programmeId=${programme.id}&embedded=1`}
-                    style={{ width: '100%', minHeight: isMobile ? '1120px' : '980px', border: 'none', borderRadius: '10px', background: '#070e1a' }}
-                  />
-                )}
               </div>
             </div>
 

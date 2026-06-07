@@ -5,10 +5,9 @@ import {
   PAYMENT_METHODS,
   calculateFinanceSummary,
 } from '@/lib/financeMath.js'
-import {
-  PROGRAMME_FINANCE_ROLES,
-  isAppFinanceRole,
-} from '@/lib/financeAccess.js'
+
+const APP_FINANCE_ROLES = ['admin', 'superadmin', 'treasurer']
+const PROGRAMME_FINANCE_ROLES = ['Treasurer', 'Vice Treasurer']
 
 type RoleRelation = { name?: string } | { name?: string }[] | null
 type ProgrammeRow = {
@@ -59,6 +58,10 @@ async function getAuthContext(req: Request, supabase: ReturnType<typeof makeServ
     profileName: profile?.full_name ?? '',
     appRole: (roleName ?? 'student').toLowerCase(),
   }
+}
+
+function isAppFinanceRole(appRole: string) {
+  return APP_FINANCE_ROLES.includes(appRole)
 }
 
 async function getAccessibleProgrammes(
