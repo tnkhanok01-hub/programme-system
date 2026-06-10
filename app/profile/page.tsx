@@ -27,6 +27,7 @@ type MeritSummaryTransaction = {
   points: number | string | null
   transaction_type: string | null
   source_type: string | null
+  status?: string | null
   role: string | null
   activity_pillar: string | null
   programme_level: string | null
@@ -428,11 +429,13 @@ export default function ProfilePage() {
                           <Award size={32} style={{ margin: '0 auto 12px', color: t.textFaintest }} />
                           <p style={{ margin: 0, fontSize: '15px' }}>No merit records yet.</p>
                         </div>
-                      ) : detailedMeritRecords.map((r, i) => (
+                      ) : detailedMeritRecords.map((r, i) => {
+                        const isDemerit = r.transaction_type === 'demerit' || r.source_type === 'demerit' || r.status === 'demerit'
+                        return (
                         <div key={i} style={{ background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '12px', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px' }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <p style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {r.programmes?.name || 'Unknown Programme'}
+                              {r.programmes?.name || (isDemerit && r.reason ? r.reason : 'Unknown Programme')}
                             </p>
                             <p style={{ margin: '4px 0 0', fontSize: '12px', color: t.textFaint }}>
                               {r.role ?? r.source_type ?? r.transaction_type ?? 'Merit'} · {formatMeritRecordDate(r)}
@@ -442,7 +445,8 @@ export default function ProfilePage() {
                             {Number(r.points) > 0 ? '+' : ''}{r.points} pt{Number(r.points) !== 1 ? 's' : ''}
                           </span>
                         </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   </div>
                 </div>

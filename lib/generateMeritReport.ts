@@ -11,6 +11,8 @@ export type MeritReportActivity = {
   points: number | string | null
   role: string | null
   source_type: string | null
+  transaction_type?: string | null
+  status?: string | null
   activity_pillar: string | null
   programme_level: string | null
   reason: string | null
@@ -149,7 +151,8 @@ export async function generateMeritReportPdf({
   }
 
   activities.forEach((activity, index) => {
-    const programmeName = activity.programmes?.name ?? 'Unknown Programme'
+    const isDemerit = activity.transaction_type === 'demerit' || activity.source_type === 'demerit' || activity.status === 'demerit'
+    const programmeName = activity.programmes?.name ?? (isDemerit ? activity.reason ?? 'Demerit' : 'Unknown Programme')
     const position = activity.role ?? activity.source_type ?? 'Participant'
     const date = formatDate(activity.created_at ?? activity.updated_at)
     const points = Number(activity.points || 0)

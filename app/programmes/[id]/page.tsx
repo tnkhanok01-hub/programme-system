@@ -11,6 +11,7 @@ import {
   Users, UserCheck, WalletCards,
 } from 'lucide-react'
 
+import { useTheme } from '@/app/provider/ThemeContext'
 import { generateApprovalLetter } from '@/lib/generateApprovalLetter'
 import {getDocuments} from '@/services/documentService'
 import CommitteeSection from '@/components/programmes/CommitteeSection'
@@ -95,6 +96,7 @@ export default function ProgrammeDetailPage() {
   const router = useRouter()
   const params = useParams()
   const id = params?.id as string
+  const { mode, t } = useTheme()
 
   const [programme, setProgramme] = useState<Programme | null>(null)
   const [loading, setLoading] = useState(true)
@@ -326,17 +328,17 @@ export default function ProgrammeDetailPage() {
   }
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', background: '#070e1a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: '3px solid rgba(99,102,241,0.2)', borderTopColor: '#6366f1', animation: 'spin 0.8s linear infinite' }} />
-      <p style={{ color: '#475569', fontSize: '13px', fontFamily: "'DM Sans', sans-serif" }}>Loading programme...</p>
+    <div style={{ minHeight: '100vh', background: t.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '16px' }}>
+      <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: `3px solid ${t.accentBg}`, borderTopColor: t.accent, animation: 'spin 0.8s linear infinite' }} />
+      <p style={{ color: t.textFaint, fontSize: '13px', fontFamily: "'DM Sans', sans-serif" }}>Loading programme...</p>
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
   )
 
   if (error || !programme) return (
-    <div style={{ minHeight: '100vh', background: '#070e1a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '16px' }}>
+    <div style={{ minHeight: '100vh', background: t.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '16px' }}>
       <p style={{ color: '#f87171', fontSize: '14px' }}>{error || 'Programme not found.'}</p>
-      <button onClick={() => router.back()} style={{ color: '#818cf8', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}><ArrowLeft size={14} />Go back</button>
+      <button onClick={() => router.back()} style={{ color: t.accentText, background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}><ArrowLeft size={14} />Go back</button>
     </div>
   )
 
@@ -357,18 +359,18 @@ export default function ProgrammeDetailPage() {
         @keyframes spin { to { transform: rotate(360deg) } }
       `}</style>
 
-      <div style={{ minHeight: '100vh', background: '#070e1a', fontFamily: "'DM Sans', sans-serif", color: '#e2e8f0', padding: isMobile ? '0' : '28px 20px' }}>
+      <div style={{ minHeight: '100vh', background: t.bg, fontFamily: "'DM Sans', sans-serif", color: t.text, padding: isMobile ? '0' : '28px 20px' }}>
         <div style={{ maxWidth: '720px', margin: '0 auto' }}>
 
           {isMobile && (
-            <div style={{ background: '#0a1220', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '13px 16px', display: 'flex', alignItems: 'center', gap: '10px', position: 'sticky', top: 0, zIndex: 20 }}>
-              <button onClick={() => router.back()} style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}><ArrowLeft size={20} /></button>
-              <h1 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{programme.name}</h1>
+            <div style={{ background: t.bgCardAlt, borderBottom: `1px solid ${t.border}`, padding: '13px 16px', display: 'flex', alignItems: 'center', gap: '10px', position: 'sticky', top: 0, zIndex: 20 }}>
+              <button onClick={() => router.back()} style={{ background: 'none', border: 'none', color: t.textFaint, cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}><ArrowLeft size={20} /></button>
+              <h1 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{programme.name}</h1>
             </div>
           )}
 
           {!isMobile && (
-            <button onClick={() => router.back()} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', fontSize: '13px', marginBottom: '24px', padding: 0 }}>
+            <button onClick={() => router.back()} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', color: t.textFaint, cursor: 'pointer', fontSize: '13px', marginBottom: '24px', padding: 0 }}>
               <ArrowLeft size={14} />Back to Programmes
             </button>
           )}
@@ -380,8 +382,8 @@ export default function ProgrammeDetailPage() {
               {/* Title — hidden on mobile since it's in the sticky nav */}
               {!isMobile && (
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 700, color: '#f1f5f9', letterSpacing: '-0.02em' }}>{programme.name}</h1>
-                  <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#4b5563' }}>
+                  <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 700, color: t.text, letterSpacing: '-0.02em' }}>{programme.name}</h1>
+                  <p style={{ margin: '4px 0 0', fontSize: '12px', color: t.textFaintest }}>
                     Submitted {new Date(programme.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </p>
                 </div>
@@ -390,7 +392,7 @@ export default function ProgrammeDetailPage() {
               {/* Mobile: submitted date + badges stacked full width */}
               {isMobile && (
                 <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <p style={{ margin: 0, fontSize: '12px', color: '#4b5563' }}>
+                  <p style={{ margin: 0, fontSize: '12px', color: t.textFaintest }}>
                     Submitted {new Date(programme.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </p>
                   {/* Row 1: status + delete */}
@@ -458,8 +460,8 @@ export default function ProgrammeDetailPage() {
             )}
 
             {/* Details card */}
-            <div style={{ background: '#0c1526', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '14px', padding: isMobile ? '16px' : '24px', marginBottom: '20px' }}>
-              <h2 style={{ margin: '0 0 16px', fontSize: '13px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Programme Details</h2>
+            <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: '14px', padding: isMobile ? '16px' : '24px', marginBottom: '20px' }}>
+              <h2 style={{ margin: '0 0 16px', fontSize: '13px', fontWeight: 600, color: t.textFaint, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Programme Details</h2>
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '14px' }}>
                 {[
                   { label: 'Category',   value: programme.category  || '—', icon: BookOpen },
@@ -472,38 +474,38 @@ export default function ProgrammeDetailPage() {
                   const Icon = f.icon
                   return (
                     <div key={f.label} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                      <div style={{ width: '30px', height: '30px', borderRadius: '7px', background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon size={13} color="#818cf8" /></div>
+                      <div style={{ width: '30px', height: '30px', borderRadius: '7px', background: t.accentBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon size={13} color={t.accentText} /></div>
                       <div>
-                        <p style={{ margin: 0, fontSize: '10px', color: '#4b5563', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{f.label}</p>
-                        <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#e2e8f0' }}>{f.value}</p>
+                        <p style={{ margin: 0, fontSize: '10px', color: t.textFaintest, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{f.label}</p>
+                        <p style={{ margin: '2px 0 0', fontSize: '13px', color: t.text }}>{f.value}</p>
                       </div>
                     </div>
                   )
                 })}
               </div>
               {programme.description && (
-                <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                  <p style={{ margin: '0 0 6px', fontSize: '10px', color: '#4b5563', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Description</p>
-                  <p style={{ margin: 0, fontSize: '13px', color: '#94a3b8', lineHeight: 1.7 }}>{programme.description}</p>
+                <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: `1px solid ${t.border}` }}>
+                  <p style={{ margin: '0 0 6px', fontSize: '10px', color: t.textFaintest, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Description</p>
+                  <p style={{ margin: 0, fontSize: '13px', color: t.textMuted, lineHeight: 1.7 }}>{programme.description}</p>
                 </div>
               )}
             </div>
 
             {/* ── ADVISOR ───────────────────────────────────────────── */}
-            <div style={{ background: '#0c1526', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '14px', padding: isMobile ? '16px' : '24px', marginBottom: '20px' }}>
-              <h2 style={{ margin: '0 0 14px', fontSize: '13px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Advisor</h2>
+            <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: '14px', padding: isMobile ? '16px' : '24px', marginBottom: '20px' }}>
+              <h2 style={{ margin: '0 0 14px', fontSize: '13px', fontWeight: 600, color: t.textFaint, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Advisor</h2>
               {advisorInfo ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #4f46e5, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <UserCheck size={18} color="white" />
                   </div>
                   <div>
-                    <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#f1f5f9' }}>{advisorInfo.full_name}</p>
-                    {advisorInfo.email && <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#6b7280' }}>{advisorInfo.email}</p>}
+                    <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: t.text }}>{advisorInfo.full_name}</p>
+                    {advisorInfo.email && <p style={{ margin: '2px 0 0', fontSize: '12px', color: t.textFaint }}>{advisorInfo.email}</p>}
                   </div>
                 </div>
               ) : (
-                <p style={{ margin: 0, fontSize: '13px', color: '#4b5563' }}>No advisor assigned.</p>
+                <p style={{ margin: 0, fontSize: '13px', color: t.textFaintest }}>No advisor assigned.</p>
               )}
             </div>
 
@@ -519,18 +521,18 @@ export default function ProgrammeDetailPage() {
             )}
 
             {/* LIFECYCLE TABS */}
-            <div style={{ background: '#0c1526', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '14px', overflow: 'hidden', marginBottom: '24px' }}>
-              <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)', overflowX: 'auto' }}>
+            <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: '14px', overflow: 'hidden', marginBottom: '24px' }}>
+              <div style={{ display: 'flex', borderBottom: `1px solid ${t.border}`, overflowX: 'auto' }}>
                 {PHASES.map(phase => {
                   const isActive   = activeTab === phase.id
                   const count      = tabDocCount(phase.id)
                   const total      = checklistTotal(phase.id)
                   const isComplete = total !== null && count === total
                   return (
-                    <button key={phase.id} onClick={() => setActiveTab(phase.id)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: isMobile ? '12px 6px' : '14px 10px', border: 'none', borderBottom: isActive ? `2px solid ${phase.color}` : '2px solid transparent', background: isActive ? phase.activeBg : 'transparent', color: isActive ? phase.color : '#6b7280', fontSize: '13px', fontWeight: isActive ? 600 : 400, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
+                    <button key={phase.id} onClick={() => setActiveTab(phase.id)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: isMobile ? '12px 6px' : '14px 10px', border: 'none', borderBottom: isActive ? `2px solid ${phase.color}` : '2px solid transparent', background: isActive ? phase.activeBg : 'transparent', color: isActive ? phase.color : t.textFaint, fontSize: '13px', fontWeight: isActive ? 600 : 400, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
                       <Clock size={13} />{phase.label}
                       {count > 0 && (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '18px', height: '18px', padding: '0 5px', borderRadius: '9px', fontSize: '10px', fontWeight: 700, background: isComplete ? 'rgba(16,185,129,0.2)' : isActive ? phase.color : 'rgba(255,255,255,0.08)', color: isComplete ? '#10b981' : isActive ? '#070e1a' : '#94a3b8' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '18px', height: '18px', padding: '0 5px', borderRadius: '9px', fontSize: '10px', fontWeight: 700, background: isComplete ? 'rgba(16,185,129,0.2)' : isActive ? phase.color : t.bgInput, color: isComplete ? '#10b981' : isActive ? '#070e1a' : t.textMuted }}>
                           {total !== null ? `${count}/${total}` : count}
                         </span>
                       )}
@@ -538,12 +540,12 @@ export default function ProgrammeDetailPage() {
                   )
                 })}
                 {(isAdmin || isOwner) && (
-                  <button onClick={() => setActiveTab('survey')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: isMobile ? '12px 6px' : '14px 10px', border: 'none', borderBottom: activeTab === 'survey' ? '2px solid #f59e0b' : '2px solid transparent', background: activeTab === 'survey' ? 'rgba(245,158,11,0.12)' : 'transparent', color: activeTab === 'survey' ? '#f59e0b' : '#6b7280', fontSize: '13px', fontWeight: activeTab === 'survey' ? 600 : 400, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
+                  <button onClick={() => setActiveTab('survey')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: isMobile ? '12px 6px' : '14px 10px', border: 'none', borderBottom: activeTab === 'survey' ? '2px solid #f59e0b' : '2px solid transparent', background: activeTab === 'survey' ? 'rgba(245,158,11,0.12)' : 'transparent', color: activeTab === 'survey' ? '#f59e0b' : t.textFaint, fontSize: '13px', fontWeight: activeTab === 'survey' ? 600 : 400, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
                     <Users size={13} />Surveys
                   </button>
                 )}
                 {canManageFinance && (
-                  <button onClick={() => setActiveTab('finance')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: isMobile ? '12px 6px' : '14px 10px', border: 'none', borderBottom: activeTab === 'finance' ? '2px solid #14b8a6' : '2px solid transparent', background: activeTab === 'finance' ? 'rgba(20,184,166,0.12)' : 'transparent', color: activeTab === 'finance' ? '#14b8a6' : '#6b7280', fontSize: '13px', fontWeight: activeTab === 'finance' ? 600 : 400, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
+                  <button onClick={() => setActiveTab('finance')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: isMobile ? '12px 6px' : '14px 10px', border: 'none', borderBottom: activeTab === 'finance' ? '2px solid #14b8a6' : '2px solid transparent', background: activeTab === 'finance' ? 'rgba(20,184,166,0.12)' : 'transparent', color: activeTab === 'finance' ? '#14b8a6' : t.textFaint, fontSize: '13px', fontWeight: activeTab === 'finance' ? 600 : 400, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
                     <WalletCards size={13} />Finance
                   </button>
                 )}
@@ -559,7 +561,7 @@ export default function ProgrammeDetailPage() {
                           <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: postChecklistComplete ? '#22c55e' : '#f59e0b' }}>
                             Complete Programme
                           </p>
-                          <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#94a3b8', lineHeight: 1.5 }}>
+                          <p style={{ margin: '3px 0 0', fontSize: '12px', color: t.textMuted, lineHeight: 1.5 }}>
                             {postChecklistComplete
                               ? 'Finalise this programme and award committee merit.'
                               : 'Upload all post-programme documents before completion.'}
@@ -568,7 +570,7 @@ export default function ProgrammeDetailPage() {
                         <button
                           onClick={handleCompleteProgramme}
                           disabled={!postChecklistComplete || completionLoading}
-                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '7px', padding: '9px 14px', borderRadius: '8px', border: postChecklistComplete ? '1px solid rgba(34,197,94,0.28)' : '1px solid rgba(148,163,184,0.12)', background: postChecklistComplete ? 'rgba(34,197,94,0.12)' : 'rgba(148,163,184,0.08)', color: postChecklistComplete ? '#22c55e' : '#64748b', fontSize: '12px', fontWeight: 700, cursor: !postChecklistComplete || completionLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '7px', padding: '9px 14px', borderRadius: '8px', border: postChecklistComplete ? '1px solid rgba(34,197,94,0.28)' : '1px solid rgba(148,163,184,0.12)', background: postChecklistComplete ? 'rgba(34,197,94,0.12)' : 'rgba(148,163,184,0.08)', color: postChecklistComplete ? '#22c55e' : t.textFaint, fontSize: '12px', fontWeight: 700, cursor: !postChecklistComplete || completionLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
                         >
                           {completionLoading ? <RefreshCw size={13} style={{ animation: 'spin 0.8s linear infinite' }} /> : <CheckCircle size={13} />}
                           {completionLoading ? 'Completing...' : 'Complete & Award'}
@@ -595,7 +597,7 @@ export default function ProgrammeDetailPage() {
                   <iframe
                     title="Programme finance"
                     src={`/treasurer/finance?programmeId=${programme.id}&embedded=1`}
-                    style={{ width: '100%', minHeight: isMobile ? '1120px' : '980px', border: 'none', borderRadius: '10px', background: '#070e1a' }}
+                    style={{ width: '100%', minHeight: isMobile ? '1120px' : '980px', border: 'none', borderRadius: '10px', background: t.bg }}
                   />
                 )}
               </div>
@@ -603,27 +605,27 @@ export default function ProgrammeDetailPage() {
 
             {/* APPROVAL DOCUMENTS */}
             {(isAdmin || isOwner) && phaseDocs.some(d => d.phase === 'approval') && (
-              <div style={{ background: '#0c1526', border: '1px solid rgba(167,139,250,0.15)', borderRadius: '14px', overflow: 'hidden', marginBottom: '24px' }}>
-                <div style={{ padding: isMobile ? '14px 14px 10px' : '18px 20px 12px', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              <div style={{ background: t.bgCard, border: '1px solid rgba(167,139,250,0.15)', borderRadius: '14px', overflow: 'hidden', marginBottom: '24px' }}>
+                <div style={{ padding: isMobile ? '14px 14px 10px' : '18px 20px 12px', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: `1px solid ${t.border}` }}>
                   <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'rgba(167,139,250,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <FileText size={13} color="#a78bfa" />
                   </div>
                   <div>
-                    <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#f1f5f9' }}>Approval Documentation</p>
-                    <p style={{ margin: '1px 0 0', fontSize: '11px', color: '#4b5563' }}>Documents issued upon programme approval</p>
+                    <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: t.text }}>Approval Documentation</p>
+                    <p style={{ margin: '1px 0 0', fontSize: '11px', color: t.textFaintest }}>Documents issued upon programme approval</p>
                   </div>
                 </div>
                 <div style={{ padding: isMobile ? '12px 14px' : '14px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {APPROVAL_CHECKLIST.map(item => {
                     const doc = phaseDocs.find(d => d.phase === 'approval' && d.doc_type === item.key)
                     return (
-                      <div key={item.key} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 13px', background: doc ? 'rgba(167,139,250,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${doc ? 'rgba(167,139,250,0.2)' : 'rgba(255,255,255,0.06)'}`, borderRadius: '9px' }}>
+                      <div key={item.key} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 13px', background: doc ? 'rgba(167,139,250,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${doc ? 'rgba(167,139,250,0.2)' : t.border}`, borderRadius: '9px' }}>
                         {doc
                           ? <CheckCircle size={14} color="#10b981" style={{ flexShrink: 0 }} />
-                          : <FileText size={14} color="#374151" style={{ flexShrink: 0 }} />}
+                          : <FileText size={14} color={t.textFaintest} style={{ flexShrink: 0 }} />}
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: doc ? '#e2e8f0' : '#4b5563' }}>{item.label}</p>
-                          <p style={{ margin: '1px 0 0', fontSize: '11px', color: doc ? '#a78bfa' : '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: doc ? t.text : t.textFaintest }}>{item.label}</p>
+                          <p style={{ margin: '1px 0 0', fontSize: '11px', color: doc ? '#a78bfa' : t.textFaintest, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {doc ? (doc.file_name || 'Uploaded') : 'Not yet available'}
                           </p>
                         </div>
@@ -661,52 +663,52 @@ export default function ProgrammeDetailPage() {
 
             {/* RESUBMIT FORM */}
             {canResubmit && (
-              <div style={{ background: '#0c1526', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '14px', padding: isMobile ? '16px' : '24px' }}>
-                <h2 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: 600, color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: '8px' }}><RefreshCw size={15} color="#818cf8" />Revise & Resubmit</h2>
-                <p style={{ margin: '0 0 20px', fontSize: '12px', color: '#4b5563' }}>Address the rejection comment above, update the fields below, then resubmit for review.</p>
+              <div style={{ background: t.bgCard, border: `1px solid ${t.accentBorder}`, borderRadius: '14px', padding: isMobile ? '16px' : '24px' }}>
+                <h2 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: 600, color: t.text, display: 'flex', alignItems: 'center', gap: '8px' }}><RefreshCw size={15} color={t.accentText} />Revise & Resubmit</h2>
+                <p style={{ margin: '0 0 20px', fontSize: '12px', color: t.textFaintest }}>Address the rejection comment above, update the fields below, then resubmit for review.</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Programme Name</label>
-                    <input type="text" value={form.name} onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))} style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                    <label style={{ display: 'block', fontSize: '11px', color: t.textFaint, marginBottom: '5px', fontWeight: 500 }}>Programme Name</label>
+                    <input type="text" value={form.name} onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))} style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: t.bgInput, border: `1px solid ${t.borderInput}`, color: t.text, fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Organiser</label>
-                    <input type="text" value={form.organiser} onChange={e => setForm(prev => ({ ...prev, organiser: e.target.value }))} style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                    <label style={{ display: 'block', fontSize: '11px', color: t.textFaint, marginBottom: '5px', fontWeight: 500 }}>Organiser</label>
+                    <input type="text" value={form.organiser} onChange={e => setForm(prev => ({ ...prev, organiser: e.target.value }))} style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: t.bgInput, border: `1px solid ${t.borderInput}`, color: t.text, fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Venue</label>
-                    <input type="text" value={form.venue} onChange={e => setForm(prev => ({ ...prev, venue: e.target.value }))} style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                    <label style={{ display: 'block', fontSize: '11px', color: t.textFaint, marginBottom: '5px', fontWeight: 500 }}>Venue</label>
+                    <input type="text" value={form.venue} onChange={e => setForm(prev => ({ ...prev, venue: e.target.value }))} style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: t.bgInput, border: `1px solid ${t.borderInput}`, color: t.text, fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px' }}>
                     <div>
-                      <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Start Date</label>
-                      <input type="date" style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${resubmitDateError ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.08)'}`, color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box', colorScheme: 'dark' }} value={form.start_date} onChange={e => { setForm(prev => ({ ...prev, start_date: e.target.value })); validateResubmitDates(e.target.value, form.end_date) }} />
+                      <label style={{ display: 'block', fontSize: '11px', color: t.textFaint, marginBottom: '5px', fontWeight: 500 }}>Start Date</label>
+                      <input type="date" style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: t.bgInput, border: `1px solid ${resubmitDateError ? 'rgba(239,68,68,0.5)' : t.borderInput}`, color: t.text, fontSize: '13px', outline: 'none', boxSizing: 'border-box', colorScheme: mode === 'dark' ? 'dark' : 'light' }} value={form.start_date} onChange={e => { setForm(prev => ({ ...prev, start_date: e.target.value })); validateResubmitDates(e.target.value, form.end_date) }} />
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>End Date</label>
-                      <input type="date" style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${resubmitDateError ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.08)'}`, color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box', colorScheme: 'dark' }} value={form.end_date} onChange={e => { setForm(prev => ({ ...prev, end_date: e.target.value })); validateResubmitDates(form.start_date, e.target.value) }} />
+                      <label style={{ display: 'block', fontSize: '11px', color: t.textFaint, marginBottom: '5px', fontWeight: 500 }}>End Date</label>
+                      <input type="date" style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: t.bgInput, border: `1px solid ${resubmitDateError ? 'rgba(239,68,68,0.5)' : t.borderInput}`, color: t.text, fontSize: '13px', outline: 'none', boxSizing: 'border-box', colorScheme: mode === 'dark' ? 'dark' : 'light' }} value={form.end_date} onChange={e => { setForm(prev => ({ ...prev, end_date: e.target.value })); validateResubmitDates(form.start_date, e.target.value) }} />
                     </div>
                   </div>
                   {resubmitDateError && <ErrorBox msg={resubmitDateError} />}
                   <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px' }}>
                     <div>
-                      <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Budget (RM)</label>
-                      <input type="text" inputMode="numeric" style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${resubmitBudgetError ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.08)'}`, color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }} value={centsToDisplay(resubmitBudgetCents)}
+                      <label style={{ display: 'block', fontSize: '11px', color: t.textFaint, marginBottom: '5px', fontWeight: 500 }}>Budget (RM)</label>
+                      <input type="text" inputMode="numeric" style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: t.bgInput, border: `1px solid ${resubmitBudgetError ? 'rgba(239,68,68,0.5)' : t.borderInput}`, color: t.text, fontSize: '13px', outline: 'none', boxSizing: 'border-box', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }} value={centsToDisplay(resubmitBudgetCents)}
                         onChange={() => {}}
                         onKeyDown={handleResubmitBudgetKeyDown}
                         onBlur={handleResubmitBudgetBlur} />
                       {resubmitBudgetError && <ErrorBox msg={resubmitBudgetError} />}
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Category</label>
-                      <select value={form.category} onChange={e => setForm(prev => ({ ...prev, category: e.target.value }))} style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: '#0a1628', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none' }}>
+                      <label style={{ display: 'block', fontSize: '11px', color: t.textFaint, marginBottom: '5px', fontWeight: 500 }}>Category</label>
+                      <select value={form.category} onChange={e => setForm(prev => ({ ...prev, category: e.target.value }))} style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: t.bgCardAlt, border: `1px solid ${t.borderInput}`, color: t.text, fontSize: '13px', outline: 'none' }}>
                         {['Academic', 'Sports', 'Community Service', 'Others'].map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Description</label>
-                    <textarea value={form.description} onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))} rows={3} style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0', fontSize: '13px', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.6 }} />
+                    <label style={{ display: 'block', fontSize: '11px', color: t.textFaint, marginBottom: '5px', fontWeight: 500 }}>Description</label>
+                    <textarea value={form.description} onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))} rows={3} style={{ width: '100%', padding: '9px 11px', borderRadius: '7px', background: t.bgInput, border: `1px solid ${t.borderInput}`, color: t.text, fontSize: '13px', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.6 }} />
                   </div>
                 </div>
                 {resubmitApiError && (
@@ -744,17 +746,17 @@ export default function ProgrammeDetailPage() {
       {/* Approval document preview modal */}
       {approvalPreviewDoc && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 80, backdropFilter: 'blur(6px)', padding: '16px' }}>
-          <div style={{ background: '#0c1526', border: '1px solid rgba(255,255,255,0.08)', width: '100%', maxWidth: '960px', height: '90vh', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ background: t.bgCard, border: `1px solid ${t.borderInput}`, width: '100%', maxWidth: '960px', height: '90vh', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                 <div style={{ width: '32px', height: '32px', borderRadius: '7px', background: 'rgba(167,139,250,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <FileText size={15} color="#a78bfa" />
                 </div>
-                <span style={{ color: '#e2e8f0', fontSize: '14px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ color: t.text, fontSize: '14px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {approvalPreviewDoc.file_name}
                 </span>
               </div>
-              <button onClick={() => setApprovalPreviewDoc(null)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '7px', padding: '6px', color: '#64748b', cursor: 'pointer', flexShrink: 0, marginLeft: '12px' }}>
+              <button onClick={() => setApprovalPreviewDoc(null)} style={{ background: t.bgInput, border: `1px solid ${t.borderInput}`, borderRadius: '7px', padding: '6px', color: t.textFaint, cursor: 'pointer', flexShrink: 0, marginLeft: '12px' }}>
                 <X size={16} />
               </button>
             </div>
@@ -770,15 +772,15 @@ export default function ProgrammeDetailPage() {
       {showDeleteModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
           <div onClick={() => { if (!isDeleting) setShowDeleteModal(false) }} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
-          <div style={{ position: 'relative', background: '#0c1526', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '16px', padding: '28px 28px 24px', maxWidth: '420px', width: '100%', boxShadow: '0 24px 48px rgba(0,0,0,0.5)' }}>
+          <div style={{ position: 'relative', background: t.bgCard, border: '1px solid rgba(239,68,68,0.25)', borderRadius: '16px', padding: '28px 28px 24px', maxWidth: '420px', width: '100%', boxShadow: '0 24px 48px rgba(0,0,0,0.5)' }}>
             <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
               <Trash2 size={20} color="#ef4444" />
             </div>
-            <h2 style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: 700, color: '#f1f5f9' }}>Delete Programme</h2>
-            <p style={{ margin: '0 0 6px', fontSize: '13px', color: '#94a3b8', lineHeight: 1.6 }}>
-              You are about to permanently delete <strong style={{ color: '#f1f5f9' }}>{programme.name}</strong>.
+            <h2 style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: 700, color: t.text }}>Delete Programme</h2>
+            <p style={{ margin: '0 0 6px', fontSize: '13px', color: t.textMuted, lineHeight: 1.6 }}>
+              You are about to permanently delete <strong style={{ color: t.text }}>{programme.name}</strong>.
             </p>
-            <p style={{ margin: '0 0 24px', fontSize: '13px', color: '#94a3b8', lineHeight: 1.6 }}>
+            <p style={{ margin: '0 0 24px', fontSize: '13px', color: t.textMuted, lineHeight: 1.6 }}>
               This will remove all associated documents and committee records. This action cannot be undone.
             </p>
             {deleteError && (
@@ -788,7 +790,7 @@ export default function ProgrammeDetailPage() {
               </div>
             )}
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-              <button onClick={() => { setShowDeleteModal(false); setDeleteError('') }} disabled={isDeleting} style={{ padding: '9px 18px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#94a3b8', fontSize: '13px', fontWeight: 500, cursor: isDeleting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+              <button onClick={() => { setShowDeleteModal(false); setDeleteError('') }} disabled={isDeleting} style={{ padding: '9px 18px', borderRadius: '8px', background: t.bgInput, border: `1px solid ${t.borderInput}`, color: t.textMuted, fontSize: '13px', fontWeight: 500, cursor: isDeleting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
                 Cancel
               </button>
               <button onClick={handleDelete} disabled={isDeleting} style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '9px 18px', borderRadius: '8px', background: isDeleting ? 'rgba(239,68,68,0.35)' : '#ef4444', border: 'none', color: 'white', fontSize: '13px', fontWeight: 600, cursor: isDeleting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>

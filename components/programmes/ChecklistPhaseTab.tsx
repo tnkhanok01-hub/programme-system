@@ -11,6 +11,7 @@ import {
 import { uploadDocument, getDocuments, deleteDocument } from '@/services/documentService'
 import { PHASES } from '@/lib/constants'
 import DocRow from '@/components/programmes/DocRow'
+import { useTheme } from '@/app/provider/ThemeContext'
 
 
 /* ─── ChecklistPhaseTab ─────────────────────────────────────────────────── */
@@ -18,6 +19,7 @@ export default function ChecklistPhaseTab({ phase, checklist, programmeId, docs,
   phase: 'pre' | 'during' | 'post'; checklist: { key: string; label: string; hint: string }[]
   programmeId: string; docs: PhaseDoc[]; onDocsChange: (u: PhaseDoc[]) => void; canUpload: boolean
 }) {
+  const { t } = useTheme()
   const phaseInfo = PHASES.find(p => p.id === phase)!
   const phaseDocs = docs.filter(d => d.phase === phase)
   const [uploadingKey, setUploadingKey] = useState<string | null>(null)
@@ -90,13 +92,13 @@ export default function ChecklistPhaseTab({ phase, checklist, programmeId, docs,
     <div>
       <div style={{ marginBottom: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-          <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Checklist Progress</p>
+          <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: t.textFaint, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Checklist Progress</p>
           <span style={{ fontSize: '11px', fontWeight: 600, color: completedCount === checklist.length ? '#10b981' : phaseInfo.color }}>
             {completedCount} / {checklist.length} completed
           </span>
         </div>
 
-        <div style={{ height: '5px', background: 'rgba(255,255,255,0.06)', borderRadius: '99px', overflow: 'hidden' }}>
+        <div style={{ height: '5px', background: t.bgInput, borderRadius: '99px', overflow: 'hidden' }}>
           <div
             style={{
               height: '100%',
@@ -121,10 +123,10 @@ export default function ChecklistPhaseTab({ phase, checklist, programmeId, docs,
             <div
               key={item.key}
               style={{
-                border: `1px solid ${isDone ? 'rgba(16,185,129,0.25)' : 'rgba(255,255,255,0.07)'}`,
+                border: `1px solid ${isDone ? 'rgba(16,185,129,0.25)' : t.border}`,
                 borderRadius: '11px',
                 overflow: 'hidden',
-                background: isDone ? 'rgba(16,185,129,0.03)' : 'rgba(255,255,255,0.02)'
+                background: isDone ? 'rgba(16,185,129,0.03)' : t.bgInput
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px' }}>
@@ -141,7 +143,7 @@ export default function ChecklistPhaseTab({ phase, checklist, programmeId, docs,
                 </div>
 
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: isDone ? '#f1f5f9' : '#94a3b8' }}>
+                  <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: isDone ? t.text : t.textMuted }}>
                     {item.label}
                     {isDone && (
                       <span style={{ marginLeft: '8px', fontSize: '10px', fontWeight: 500, color: '#10b981', background: 'rgba(16,185,129,0.12)', padding: '2px 7px', borderRadius: '4px' }}>
@@ -149,7 +151,7 @@ export default function ChecklistPhaseTab({ phase, checklist, programmeId, docs,
                       </span>
                     )}
                   </p>
-                  <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#475569' }}>
+                  <p style={{ margin: '2px 0 0', fontSize: '11px', color: t.textFaint }}>
                     {item.hint}
                   </p>
                 </div>
@@ -217,18 +219,18 @@ export default function ChecklistPhaseTab({ phase, checklist, programmeId, docs,
 
       {previewDoc && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 80, backdropFilter: 'blur(6px)', padding: '16px' }}>
-          <div style={{ background: '#0c1526', border: '1px solid rgba(255,255,255,0.08)', width: '100%', maxWidth: '960px', height: '90vh', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ background: t.bgCard, border: `1px solid ${t.borderInput}`, width: '100%', maxWidth: '960px', height: '90vh', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                 <div style={{ width: '32px', height: '32px', borderRadius: '7px', background: phaseInfo.activeBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <FileText size={15} color={phaseInfo.color} />
                 </div>
-                <span style={{ color: '#e2e8f0', fontSize: '14px', fontWeight: 500 }}>
+                <span style={{ color: t.text, fontSize: '14px', fontWeight: 500 }}>
                   {previewDoc.file_name}
                 </span>
               </div>
 
-              <button onClick={() => setPreviewDoc(null)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '7px', padding: '6px', color: '#64748b', cursor: 'pointer' }}>
+              <button onClick={() => setPreviewDoc(null)} style={{ background: t.bgInput, border: `1px solid ${t.borderInput}`, borderRadius: '7px', padding: '6px', color: t.textFaint, cursor: 'pointer' }}>
                 <X size={16} />
               </button>
             </div>

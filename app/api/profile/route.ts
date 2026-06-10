@@ -70,7 +70,7 @@ export async function GET(req: Request) {
 
     const { data: meritData } = await supabase
       .from('merit')
-      .select('points, status, updated_at, programmes(name)')
+      .select('points, status, reason, updated_at, programmes(name)')
       .eq('user_id', user.id)
       .order('updated_at', { ascending: false })
 

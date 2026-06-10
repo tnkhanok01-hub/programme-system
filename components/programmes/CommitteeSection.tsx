@@ -11,6 +11,7 @@ import {
   addCommitteeMembers,
 } from '@/services/committeeService'
 import { COMMITTEE_ROLES } from '@/lib/constants'
+import { useTheme } from '@/app/provider/ThemeContext'
 
 interface CommitteeMember {
   id: string
@@ -41,6 +42,7 @@ export default function CommitteeSection({
   currentUserId: string
   programmeStatus: string
 }) {
+  const { t } = useTheme()
   const [members, setMembers] = useState<CommitteeMember[]>([])
   const [loading, setLoading] = useState(true)
   const [joining, setJoining] = useState(false)
@@ -238,8 +240,8 @@ export default function CommitteeSection({
 
   return (
     <div style={{
-      background: '#0c1526',
-      border: '1px solid rgba(255,255,255,0.06)',
+      background: t.bgCard,
+      border: `1px solid ${t.border}`,
       borderRadius: '14px',
       overflow: 'hidden',
       marginBottom: '24px',
@@ -251,7 +253,7 @@ export default function CommitteeSection({
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: isMobile ? '12px 14px' : '16px 20px',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        borderBottom: `1px solid ${t.border}`,
         gap: '10px',
         flexWrap: 'wrap',
       }}>
@@ -261,13 +263,13 @@ export default function CommitteeSection({
             background: 'rgba(99,102,241,0.12)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
           }}>
-            <Users size={15} color="#818cf8" />
+            <Users size={15} color={t.accentText} />
           </div>
           <div>
-            <h2 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#f1f5f9' }}>
+            <h2 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: t.text }}>
               Committee Members
             </h2>
-            <p style={{ margin: 0, fontSize: '11px', color: '#475569' }}>
+            <p style={{ margin: 0, fontSize: '11px', color: t.textFaint }}>
               {members.length} member{members.length !== 1 ? 's' : ''}
             </p>
           </div>
@@ -288,8 +290,8 @@ export default function CommitteeSection({
                 </button>
                 <button onClick={() => setConfirmLeave(false)} disabled={!!removingId} style={{
                   padding: '5px 10px', borderRadius: '6px',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  background: 'transparent', color: '#94a3b8',
+                  border: `1px solid ${t.borderInput}`,
+                  background: 'transparent', color: t.textMuted,
                   fontSize: '12px', cursor: 'pointer',
                 }}>
                   Cancel
@@ -315,7 +317,7 @@ export default function CommitteeSection({
               display: 'flex', alignItems: 'center', gap: '5px',
               background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)',
               borderRadius: '7px', padding: '6px 12px',
-              color: '#818cf8', fontSize: '12px', fontWeight: 500,
+              color: t.accentText, fontSize: '12px', fontWeight: 500,
               cursor: 'pointer', flexShrink: 0,
             }}>
               <UserPlus size={13} />Join
@@ -330,7 +332,7 @@ export default function CommitteeSection({
               background: showAddPanel ? 'rgba(99,102,241,0.2)' : 'rgba(99,102,241,0.1)',
               border: '1px solid rgba(99,102,241,0.3)',
               borderRadius: '7px', padding: '6px 12px',
-              color: '#818cf8', fontSize: '12px', fontWeight: 500,
+              color: t.accentText, fontSize: '12px', fontWeight: 500,
               cursor: 'pointer', flexShrink: 0,
             }}>
             <UserPlus size={13} />Add Member
@@ -342,10 +344,10 @@ export default function CommitteeSection({
       {canManage && showAddPanel && (
         <div style={{
           padding: isMobile ? '12px 14px' : '16px 20px',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          borderBottom: `1px solid ${t.border}`,
           background: 'rgba(99,102,241,0.04)',
         }}>
-          <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>
+          <label style={{ display: 'block', fontSize: '11px', color: t.textFaint, marginBottom: '5px', fontWeight: 500 }}>
             Search Student
           </label>
           <div style={{ position: 'relative' }}>
@@ -357,24 +359,24 @@ export default function CommitteeSection({
               placeholder="Search by name or matric no."
               style={{
                 width: '100%', padding: '9px 11px 9px 34px', borderRadius: '7px',
-                background: '#0a1628', border: '1px solid rgba(255,255,255,0.08)',
-                color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box',
+                background: t.bgCardAlt, border: `1px solid ${t.borderInput}`,
+                color: t.text, fontSize: '13px', outline: 'none', boxSizing: 'border-box',
               }}
             />
             <div style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
               {searchLoading
-                ? <RefreshCw size={14} color="#6b7280" style={{ animation: 'spin 0.8s linear infinite' }} />
-                : <Search size={14} color="#6b7280" />}
+                ? <RefreshCw size={14} color={t.textFaint} style={{ animation: 'spin 0.8s linear infinite' }} />
+                : <Search size={14} color={t.textFaint} />}
             </div>
             {showDropdown && (
               <div style={{
                 position: 'absolute', top: '100%', left: 0, right: 0,
-                background: '#0d1c35', border: '1px solid rgba(255,255,255,0.1)',
+                background: t.bgCardAlt, border: `1px solid ${t.borderInput}`,
                 borderRadius: '8px', marginTop: '4px', zIndex: 50,
                 overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
               }}>
                 {searchResults.length === 0 ? (
-                  <p style={{ margin: 0, padding: '12px 14px', fontSize: '12px', color: '#475569', textAlign: 'center' }}>
+                  <p style={{ margin: 0, padding: '12px 14px', fontSize: '12px', color: t.textFaint, textAlign: 'center' }}>
                     {searchQuery.length < 2 ? 'Type at least 2 characters…' : 'No students found'}
                   </p>
                 ) : searchResults.map((u, i) => (
@@ -388,7 +390,7 @@ export default function CommitteeSection({
                     style={{
                       width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
                       padding: '9px 12px', background: 'transparent', border: 'none',
-                      borderBottom: i < searchResults.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                      borderBottom: i < searchResults.length - 1 ? `1px solid ${t.border}` : 'none',
                       cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
                     }}>
                     <div style={{
@@ -400,8 +402,8 @@ export default function CommitteeSection({
                       {getInitials(u.full_name)}
                     </div>
                     <div>
-                      <p style={{ margin: 0, fontSize: '13px', color: '#f1f5f9', fontWeight: 500 }}>{u.full_name}</p>
-                      <p style={{ margin: 0, fontSize: '11px', color: '#4b5563' }}>{u.matric_number}</p>
+                      <p style={{ margin: 0, fontSize: '13px', color: t.text, fontWeight: 500 }}>{u.full_name}</p>
+                      <p style={{ margin: 0, fontSize: '11px', color: t.textFaintest }}>{u.matric_number}</p>
                     </div>
                   </button>
                 ))}
@@ -416,7 +418,7 @@ export default function CommitteeSection({
                 <div key={p.user.id} style={{
                   display: 'flex', alignItems: 'center', gap: '8px',
                   padding: '8px 10px',
-                  background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)',
+                  background: t.bgInput, border: `1px solid ${t.border}`,
                   borderRadius: '8px', flexWrap: 'wrap',
                 }}>
                   <div style={{
@@ -428,22 +430,22 @@ export default function CommitteeSection({
                     {getInitials(p.user.full_name)}
                   </div>
                   <div style={{ flex: 1, minWidth: '100px' }}>
-                    <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.user.full_name}</p>
-                    <p style={{ margin: 0, fontSize: '11px', color: '#475569' }}>{p.user.matric_number}</p>
+                    <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.user.full_name}</p>
+                    <p style={{ margin: 0, fontSize: '11px', color: t.textFaint }}>{p.user.matric_number}</p>
                   </div>
                   <select
                     value={p.role}
                     onChange={e => setPendingMembers(prev => prev.map((x, j) => j === i ? { ...x, role: e.target.value } : x))}
                     style={{
                       padding: '5px 8px', borderRadius: '6px',
-                      background: '#0a1628', border: '1px solid rgba(255,255,255,0.08)',
-                      color: '#e2e8f0', fontSize: '12px', outline: 'none', flexShrink: 0,
+                      background: t.bgCardAlt, border: `1px solid ${t.borderInput}`,
+                      color: t.text, fontSize: '12px', outline: 'none', flexShrink: 0,
                       maxWidth: isMobile ? '130px' : 'unset',
                     }}>
                     {COMMITTEE_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
                   <button onClick={() => setPendingMembers(prev => prev.filter((_, j) => j !== i))}
-                    style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                    style={{ background: 'none', border: 'none', color: t.textFaint, cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                     <X size={14} />
                   </button>
                 </div>
@@ -484,7 +486,7 @@ export default function CommitteeSection({
                     animation: 'fadeOutResult 4s ease forwards',
                   }}>
                     <Icon size={13} color={color} style={{ flexShrink: 0 }} />
-                    <span style={{ fontSize: '12px', color: '#94a3b8', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: '80px' }}>{r.identifier}</span>
+                    <span style={{ fontSize: '12px', color: t.textMuted, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: '80px' }}>{r.identifier}</span>
                     <span style={{ fontSize: '11px', color, fontWeight: 500, flexShrink: 0 }}>
                       {isOk ? `Added as ${r.role}` : r.reason ?? r.status}
                     </span>
@@ -500,20 +502,20 @@ export default function CommitteeSection({
       {isApproved && !canManage && !isMember && (
         <div id={'join-panel-' + programmeId} style={{
           padding: isMobile ? '12px 14px' : '14px 20px',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          borderBottom: `1px solid ${t.border}`,
           background: 'rgba(99,102,241,0.04)',
         }}>
-          <p style={{ margin: '0 0 10px', fontSize: '12px', color: '#818cf8', fontWeight: 500 }}>
+          <p style={{ margin: '0 0 10px', fontSize: '12px', color: t.accentText, fontWeight: 500 }}>
             Select your role and join this committee:
           </p>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: '140px' }}>
-              <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '5px', fontWeight: 500 }}>Your Role</label>
+              <label style={{ display: 'block', fontSize: '11px', color: t.textFaint, marginBottom: '5px', fontWeight: 500 }}>Your Role</label>
               <select value={joinRole} onChange={e => setJoinRole(e.target.value)}
                 style={{
                   width: '100%', padding: '9px 11px', borderRadius: '7px',
-                  background: '#0a1628', border: '1px solid rgba(255,255,255,0.08)',
-                  color: '#e2e8f0', fontSize: '13px', outline: 'none',
+                  background: t.bgCardAlt, border: `1px solid ${t.borderInput}`,
+                  color: t.text, fontSize: '13px', outline: 'none',
                 }}>
                 {COMMITTEE_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
@@ -549,7 +551,7 @@ export default function CommitteeSection({
       {!isApproved && !canManage && (
         <div style={{
           padding: isMobile ? '10px 14px' : '12px 20px',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          borderBottom: `1px solid ${t.border}`,
           background: 'rgba(245,158,11,0.04)',
         }}>
           <p style={{ margin: 0, fontSize: '12px', color: '#d97706', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -570,7 +572,7 @@ export default function CommitteeSection({
             <span style={{ fontSize: '12px', color: '#f87171' }}>{removeError || actionError}</span>
           </div>
           <button onClick={() => { setRemoveError(''); setActionError('') }} style={{
-            background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', padding: '2px', display: 'flex',
+            background: 'none', border: 'none', color: t.textFaint, cursor: 'pointer', padding: '2px', display: 'flex',
           }}>
             <X size={13} />
           </button>
@@ -580,9 +582,9 @@ export default function CommitteeSection({
       {/* ── Members list ── */}
       <div style={{ padding: isMobile ? '10px 14px' : '12px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {loading ? (
-          <p style={{ margin: 0, fontSize: '13px', color: '#475569', textAlign: 'center', padding: '16px' }}>Loading...</p>
+          <p style={{ margin: 0, fontSize: '13px', color: t.textFaint, textAlign: 'center', padding: '16px' }}>Loading...</p>
         ) : members.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '28px', color: '#374151' }}>
+          <div style={{ textAlign: 'center', padding: '28px', color: t.textFaintest }}>
             <Users size={24} style={{ margin: '0 auto 8px', display: 'block', opacity: 0.4 }} />
             <p style={{ margin: 0, fontSize: '13px' }}>No committee members yet.</p>
           </div>
@@ -591,14 +593,14 @@ export default function CommitteeSection({
             {/* ── Programme Director view ── */}
             {approved.length > 0 && (
               <>
-                <p style={{ margin: '0 0 4px', fontSize: '11px', fontWeight: 500, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Approved</p>
+                <p style={{ margin: '0 0 4px', fontSize: '11px', fontWeight: 500, color: t.textFaint, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Approved</p>
                 {approved.map((m) => {
                   const rc = roleColor(m.role)
                   return (
                     <div key={m.id} style={{
                       display: 'flex', alignItems: 'center', gap: '10px',
                       padding: '10px 12px',
-                      background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)',
+                      background: t.bgInput, border: `1px solid ${t.border}`,
                       borderRadius: '10px', flexWrap: 'wrap',
                     }}>
                       <div style={{
@@ -610,8 +612,8 @@ export default function CommitteeSection({
                         {getInitials(m.users?.full_name ?? '')}
                       </div>
                       <div style={{ flex: 1, minWidth: '100px' }}>
-                        <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.users?.full_name ?? '—'}</p>
-                        <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#475569' }}>{m.users?.matric_number ?? '—'}</p>
+                        <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.users?.full_name ?? '—'}</p>
+                        <p style={{ margin: '2px 0 0', fontSize: '11px', color: t.textFaint }}>{m.users?.matric_number ?? '—'}</p>
                       </div>
                       <span style={{ fontSize: '11px', fontWeight: 500, background: rc.bg, color: rc.color, padding: '3px 9px', borderRadius: '5px', flexShrink: 0 }}>{m.role}</span>
                       {confirmRemoveId === m.id ? (
@@ -628,8 +630,8 @@ export default function CommitteeSection({
                           </button>
                           <button onClick={() => setConfirmRemoveId(null)} disabled={removingId === m.id} style={{
                             padding: '4px 10px', borderRadius: '6px',
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            background: 'transparent', color: '#94a3b8',
+                            border: `1px solid ${t.borderInput}`,
+                            background: 'transparent', color: t.textMuted,
                             fontSize: '12px', cursor: 'pointer',
                           }}>
                             Cancel
@@ -654,8 +656,8 @@ export default function CommitteeSection({
 
             {pending.length > 0 && (
               <>
-                <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', margin: '4px 0' }} />
-                <p style={{ margin: '4px 0', fontSize: '11px', fontWeight: 500, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Pending Approval</p>
+                <div style={{ borderTop: `1px solid ${t.border}`, margin: '4px 0' }} />
+                <p style={{ margin: '4px 0', fontSize: '11px', fontWeight: 500, color: t.textFaint, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Pending Approval</p>
                 {pending.map((m) => {
                   const rc = roleColor(m.role)
                   return (
@@ -674,8 +676,8 @@ export default function CommitteeSection({
                         {getInitials(m.users?.full_name ?? '')}
                       </div>
                       <div style={{ flex: 1, minWidth: '100px' }}>
-                        <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.users?.full_name ?? '—'}</p>
-                        <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#475569' }}>{m.users?.matric_number ?? '—'}</p>
+                        <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.users?.full_name ?? '—'}</p>
+                        <p style={{ margin: '2px 0 0', fontSize: '11px', color: t.textFaint }}>{m.users?.matric_number ?? '—'}</p>
                       </div>
                       <span style={{ fontSize: '11px', fontWeight: 500, background: rc.bg, color: rc.color, padding: '3px 9px', borderRadius: '5px', flexShrink: 0 }}>{m.role}</span>
                       <div style={{ display: 'flex', gap: '6px', flexShrink: 0, flexWrap: 'wrap' }}>
@@ -737,8 +739,8 @@ export default function CommitteeSection({
                 <div key={m.id} style={{
                   display: 'flex', alignItems: 'center', gap: '10px',
                   padding: '10px 12px',
-                  background: isMe ? 'rgba(99,102,241,0.06)' : 'rgba(255,255,255,0.02)',
-                  border: `1px solid ${isMe ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.05)'}`,
+                  background: isMe ? t.accentBg : t.bgInput,
+                  border: `1px solid ${isMe ? t.accentBorder : t.border}`,
                   borderRadius: '10px', flexWrap: 'wrap',
                 }}>
                   <div style={{
@@ -750,11 +752,11 @@ export default function CommitteeSection({
                     {getInitials(m.users?.full_name ?? '')}
                   </div>
                   <div style={{ flex: 1, minWidth: '100px' }}>
-                    <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {m.users?.full_name ?? '—'}
-                      {isMe && <span style={{ marginLeft: '6px', fontSize: '11px', color: '#818cf8', fontWeight: 400 }}>(you)</span>}
+                      {isMe && <span style={{ marginLeft: '6px', fontSize: '11px', color: t.accentText, fontWeight: 400 }}>(you)</span>}
                     </p>
-                    <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#475569' }}>{m.users?.matric_number ?? '—'}</p>
+                    <p style={{ margin: '2px 0 0', fontSize: '11px', color: t.textFaint }}>{m.users?.matric_number ?? '—'}</p>
                   </div>
                   <span style={{ fontSize: '11px', fontWeight: 500, background: rc.bg, color: rc.color, padding: '3px 9px', borderRadius: '5px', flexShrink: 0 }}>{m.role}</span>
                 </div>
