@@ -67,6 +67,26 @@ export async function awardMerit(input: AwardMeritInput) {
     sourceRef: effectiveSourceRef,
   })
 
+  const meritPayload = {
+    user_id: userId,
+    programme_id: programmeId,
+    points,
+    status: transactionType === 'demerit' ? 'demerit' : 'awarded',
+    reason,
+    updated_at: new Date().toISOString(),
+  }
+
+  const { error: meritError } = programmeId
+    ? await supabase.from('merit').upsert(meritPayload, { onConflict: 'user_id,programme_id' })
+    : await supabase.from('merit').insert(meritPayload)
+
+  if (meritError) {
+    throw supabaseOperationError('Writing merit compatibility row', transactionKey, meritError)
+  }
+
+  // merit_transactions / student_activity_records are an audit-trail layer on top of the
+  // `merit` table above. Their absence (e.g. migration not yet applied) must not block the
+  // core merit/demerit update, so failures here are logged rather than thrown.
   const { data: tx, error: txError } = await supabase
     .from('merit_transactions')
     .upsert(
@@ -91,33 +111,11 @@ export async function awardMerit(input: AwardMeritInput) {
     .single()
 
   if (txError) {
-    throw supabaseOperationError('Upserting merit_transactions', transactionKey, txError)
+    console.error(supabaseOperationError('Upserting merit_transactions', transactionKey, txError))
+    return { transactionId: null, transactionKey }
   }
 
-  if (!tx) {
-    throw new Error(
-      `Upserting merit_transactions returned no transaction row for merit transaction ${transactionKey}.`
-    )
-  }
-
-  const meritPayload = {
-    user_id: userId,
-    programme_id: programmeId,
-    points,
-    status: transactionType === 'demerit' ? 'demerit' : 'awarded',
-    reason,
-    updated_at: new Date().toISOString(),
-  }
-
-  const { error: meritError } = programmeId
-    ? await supabase.from('merit').upsert(meritPayload, { onConflict: 'user_id,programme_id' })
-    : await supabase.from('merit').insert(meritPayload)
-
-  if (meritError) {
-    throw supabaseOperationError('Writing merit compatibility row', transactionKey, meritError)
-  }
-
-  if (programmeId && programmeName) {
+  if (programmeId && programmeName && tx) {
     const { error: activityError } = await supabase
       .from('student_activity_records')
       .upsert(
@@ -136,9 +134,9 @@ export async function awardMerit(input: AwardMeritInput) {
       )
 
     if (activityError) {
-      throw supabaseOperationError('Upserting student_activity_records', transactionKey, activityError)
+      console.error(supabaseOperationError('Upserting student_activity_records', transactionKey, activityError))
     }
   }
 
-  return { transactionId: tx.id, transactionKey }
+  return { transactionId: tx?.id ?? null, transactionKey }
 }

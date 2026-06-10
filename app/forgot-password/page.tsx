@@ -76,9 +76,9 @@ export default function ForgotPassword() {
     width: '100%',
     padding: '11px 13px',
     borderRadius: '9px',
-    background: '#f8fafc',
-    border: '1px solid rgba(15,23,42,0.14)',
-    color: '#0f172a',
+    background: 'rgba(255,255,255,0.05)',
+    border: '1px solid rgba(255,255,255,0.09)',
+    color: '#e2e8f0',
     fontSize: '14px',
     outline: 'none',
     boxSizing: 'border-box',
@@ -92,7 +92,7 @@ export default function ForgotPassword() {
     gap: '5px',
     fontSize: '11px',
     fontWeight: 600,
-    color: '#475569',
+    color: '#94a3b8',
     marginBottom: '6px',
     textTransform: 'uppercase',
     letterSpacing: '0.06em',
@@ -106,11 +106,11 @@ export default function ForgotPassword() {
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         @keyframes spin { to { transform: rotate(360deg) } }
         input:focus { border-color: rgba(99,102,241,0.5) !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.08); }
-        input::placeholder { color: #94a3b8; }
+        input::placeholder { color: #475569; }
         @media (max-width: 640px) { input { font-size: 16px !important; } }
       `}</style>
 
-      <div style={{ minHeight: '100vh', background: '#f1f5f9', fontFamily: "'Inter', sans-serif", color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px' }}>
+      <div style={{ minHeight: '100vh', background: '#070e1a', fontFamily: "'Inter', sans-serif", color: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px' }}>
         <div style={{ width: '100%', maxWidth: '400px' }}>
 
           {/* Header */}
@@ -118,12 +118,12 @@ export default function ForgotPassword() {
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(135deg, #4f46e5, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
               <Mail size={20} color="white" />
             </div>
-            <h1 style={{ margin: '0 0 4px', fontSize: '22px', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.02em' }}>Reset Password</h1>
-            <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Enter your UTM email and we&apos;ll send you a reset link</p>
+            <h1 style={{ margin: '0 0 4px', fontSize: '22px', fontWeight: 700, color: '#e2e8f0', letterSpacing: '-0.02em' }}>Reset Password</h1>
+            <p style={{ margin: 0, fontSize: '13px', color: '#94a3b8' }}>Enter your UTM email and we&apos;ll send you a reset link</p>
           </div>
 
           {/* Card */}
-          <div style={{ background: '#ffffff', border: '1px solid rgba(15,23,42,0.08)', borderRadius: '16px', padding: '28px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 16px 40px rgba(15,23,42,0.08)' }}>
+          <div style={{ background: '#0c1526', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '28px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 16px 40px rgba(0,0,0,0.4)' }}>
 
             <form onSubmit={handleResetPassword} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
@@ -201,7 +201,7 @@ export default function ForgotPassword() {
           </div>
 
           {/* Back to login */}
-          <p style={{ textAlign: 'center', fontSize: '13px', color: '#4b5563', marginTop: '20px' }}>
+          <p style={{ textAlign: 'center', fontSize: '13px', color: '#94a3b8', marginTop: '20px' }}>
             <Link href="/login" style={{ color: '#818cf8', textDecoration: 'none', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
               <ArrowLeft size={13} />Back to Login
             </Link>

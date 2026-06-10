@@ -17,7 +17,7 @@ type StudentRow = {
   roles?: RoleJoin
 }
 
-function getRoleName(roles: RoleJoin) {
+function getRoleName(roles?: RoleJoin) {
   return (Array.isArray(roles) ? roles[0]?.name : roles?.name) ?? 'student'
 }
 

@@ -309,7 +309,7 @@ export default function AdminUsersPage() {
   }, [sessionToken, page, searchQuery])
 
   const handleLogout = async () => { await supabase.auth.signOut(); router.replace('/login') }
-  const getInitials = (name: string) => name?.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'AD'
+  const getInitials = (name?: string | null) => name?.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'AD'
 
   const handleAddUser = async () => {
     setFormError('')

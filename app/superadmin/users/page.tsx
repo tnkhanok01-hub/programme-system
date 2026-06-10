@@ -100,9 +100,9 @@ function MeritBadge({ points }: { points: number }) {
       background: points > 0 ? SA.accentBg : t.bgInput,
       color: points > 0 ? SA.accentText : t.textMuted,
       border: `1px solid ${points > 0 ? SA.accentBorder : t.border}`,
-      borderRadius: '6px', padding: '3px 8px', fontSize: '11px', fontWeight: 700,
+      borderRadius: '6px', padding: '4px 10px', fontSize: '13px', fontWeight: 700,
     }}>
-      <Star size={10} fill={points > 0 ? 'currentColor' : 'none'} />
+      <Star size={12} fill={points > 0 ? 'currentColor' : 'none'} />
       {points} pt{points !== 1 ? 's' : ''}
     </span>
   )
@@ -116,21 +116,36 @@ function MeritDrawer({ userId, userName, onClose }: {
   const [records, setRecords] = useState<MeritRecord[]>([])
   const [displayTotal, setDisplayTotal] = useState(100)
   const [loading, setLoading] = useState(true)
+  const [undoingId, setUndoingId] = useState<string | null>(null)
+
+  const load = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) { setLoading(false); return }
+    const res = await fetch(`/api/merit/user/${userId}`, { headers: { Authorization: `Bearer ${session.access_token}` } })
+    if (res.ok) {
+      const { merit, displayTotal } = await res.json()
+      setRecords(merit as MeritRecord[])
+      setDisplayTotal(Number(displayTotal || 100))
+    }
+    setLoading(false)
+  }
 
   useEffect(() => {
-    const load = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { setLoading(false); return }
-      const res = await fetch(`/api/merit/user/${userId}`, { headers: { Authorization: `Bearer ${session.access_token}` } })
-      if (res.ok) {
-        const { merit, displayTotal } = await res.json()
-        setRecords(merit as MeritRecord[])
-        setDisplayTotal(Number(displayTotal || 100))
-      }
-      setLoading(false)
-    }
     load()
   }, [userId])
+
+  const handleUndo = async (meritId: string) => {
+    setUndoingId(meritId)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) { setUndoingId(null); return }
+    const res = await fetch('/api/merit/demerit', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ merit_id: meritId }),
+    })
+    if (res.ok) await load()
+    setUndoingId(null)
+  }
 
   const earnedPts = records.reduce((s, r) => s + r.points, 0)
   const pendingCount = records.filter(r => r.status === 'awarded' || r.status === 'pending').length
@@ -154,8 +169,8 @@ function MeritDrawer({ userId, userName, onClose }: {
               <Star size={16} color={SA.accentText} fill={SA.accentText} />
             </div>
             <div>
-              <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: t.text }}>Merit Points</p>
-              <p style={{ margin: 0, fontSize: '11px', color: t.textFaint }}>{userName}</p>
+              <p style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: t.text }}>Merit Points</p>
+              <p style={{ margin: 0, fontSize: '13px', color: t.textFaint }}>{userName}</p>
             </div>
           </div>
           <button onClick={onClose} style={{ background: SA.accentSoft, border: `1px solid ${SA.accentBorder}`, borderRadius: '7px', padding: '6px', cursor: 'pointer', color: SA.accentText }}><X size={16} /></button>
@@ -169,8 +184,8 @@ function MeritDrawer({ userId, userName, onClose }: {
             { label: 'Pending',      value: pendingCount,  color: SA.accentText },
           ].map(s => (
             <div key={s.label} style={{ flex: 1, background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '8px', padding: '10px', textAlign: 'center' }}>
-              <p style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: s.color, letterSpacing: '-0.03em' }}>{s.value}</p>
-              <p style={{ margin: '2px 0 0', fontSize: '10px', color: t.textFaint }}>{s.label}</p>
+              <p style={{ margin: 0, fontSize: '24px', fontWeight: 700, color: s.color, letterSpacing: '-0.03em' }}>{s.value}</p>
+              <p style={{ margin: '2px 0 0', fontSize: '12px', color: t.textFaint }}>{s.label}</p>
             </div>
           ))}
         </div>
@@ -190,24 +205,30 @@ function MeritDrawer({ userId, userName, onClose }: {
             const isDemerit = r.status === 'demerit'
             const cfg = statusCfg(r.status)
             return (
-              <div key={r.id} style={{ background: isDemerit ? t.dangerBg : t.bgCardAlt, border: `1px solid ${isDemerit ? t.dangerBorder : t.border}`, borderRadius: '10px', padding: '12px 14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: isDemerit ? t.danger : t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div key={r.id} style={{ background: isDemerit ? t.dangerBg : t.bgCardAlt, border: `1px solid ${isDemerit ? t.dangerBorder : t.border}`, borderRadius: '10px', padding: '14px 16px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                  <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: isDemerit ? t.danger : t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {isDemerit ? 'Demerit' : programmeName(r.programmes)}
                     </p>
                     {isDemerit && r.reason && (
-                      <p style={{ margin: '3px 0 0', fontSize: '11px', color: t.textMuted, fontStyle: 'italic' }}>{r.reason}</p>
+                      <p style={{ margin: '4px 0 0', fontSize: '13px', color: t.textMuted, fontStyle: 'italic' }}>{r.reason}</p>
                     )}
-                    <p style={{ margin: '2px 0 0', fontSize: '10px', color: t.textFaint }}>
+                    <p style={{ margin: '3px 0 0', fontSize: '12px', color: t.textFaint }}>
                       {new Date(r.updated_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </p>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                     <MeritBadge points={r.points} />
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, padding: '3px 8px', borderRadius: '5px', fontSize: '10px', fontWeight: 500 }}>
-                      <cfg.Icon size={10} />{r.status}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, padding: '4px 10px', borderRadius: '5px', fontSize: '12px', fontWeight: 500 }}>
+                      <cfg.Icon size={12} />{r.status}
                     </span>
+                    {isDemerit && (
+                      <button onClick={() => handleUndo(r.id)} disabled={undoingId === r.id}
+                        style={{ background: 'transparent', border: `1px solid ${t.borderInput}`, color: t.textMuted, borderRadius: '5px', padding: '4px 10px', fontSize: '12px', fontWeight: 600, cursor: undoingId === r.id ? 'not-allowed' : 'pointer', opacity: undoingId === r.id ? 0.6 : 1, fontFamily: 'inherit' }}>
+                        {undoingId === r.id ? '…' : 'Undo'}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
