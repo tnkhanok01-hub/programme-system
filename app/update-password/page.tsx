@@ -87,9 +87,9 @@ export default function UpdatePassword() {
     width: '100%',
     padding: '11px 13px',
     borderRadius: '9px',
-    background: 'rgba(255,255,255,0.05)',
-    border: '1px solid rgba(255,255,255,0.09)',
-    color: '#e2e8f0',
+    background: '#f8fafc',
+    border: '1px solid rgba(15,23,42,0.14)',
+    color: '#0f172a',
     fontSize: '14px',
     outline: 'none',
     boxSizing: 'border-box',
@@ -103,7 +103,7 @@ export default function UpdatePassword() {
     gap: '5px',
     fontSize: '11px',
     fontWeight: 600,
-    color: '#6b7280',
+    color: '#475569',
     marginBottom: '6px',
     textTransform: 'uppercase',
     letterSpacing: '0.06em',
@@ -115,11 +115,11 @@ export default function UpdatePassword() {
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         @keyframes spin { to { transform: rotate(360deg) } }
         input:focus { border-color: rgba(99,102,241,0.5) !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.08); }
-        input::placeholder { color: #374151; }
+        input::placeholder { color: #94a3b8; }
         @media (max-width: 640px) { input { font-size: 16px !important; } }
       `}</style>
 
-      <div style={{ minHeight: '100vh', background: '#070e1a', fontFamily: "'Inter', sans-serif", color: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px' }}>
+      <div style={{ minHeight: '100vh', background: '#f1f5f9', fontFamily: "'Inter', sans-serif", color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px' }}>
         <div style={{ width: '100%', maxWidth: '400px' }}>
 
           {/* Header */}
@@ -127,18 +127,18 @@ export default function UpdatePassword() {
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(135deg, #4f46e5, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
               <KeyRound size={20} color="white" />
             </div>
-            <h1 style={{ margin: '0 0 4px', fontSize: '22px', fontWeight: 700, color: '#f1f5f9', letterSpacing: '-0.02em' }}>Update Password</h1>
-            <p style={{ margin: 0, fontSize: '13px', color: '#4b5563' }}>Enter your new password below</p>
+            <h1 style={{ margin: '0 0 4px', fontSize: '22px', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.02em' }}>Update Password</h1>
+            <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Enter your new password below</p>
           </div>
 
           {/* Card */}
-          <div style={{ background: '#0c1526', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ background: '#ffffff', border: '1px solid rgba(15,23,42,0.08)', borderRadius: '16px', padding: '28px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 16px 40px rgba(15,23,42,0.08)' }}>
 
             {/* Validating state */}
             {!ready && !message && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '16px 0' }}>
                 <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: '2px solid rgba(99,102,241,0.3)', borderTopColor: '#6366f1', animation: 'spin 0.8s linear infinite' }} />
-                <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>Validating reset link...</p>
+                <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Validating reset link...</p>
               </div>
             )}
 
@@ -174,7 +174,7 @@ export default function UpdatePassword() {
                       disabled={isLoading}
                     />
                     <button type="button" onClick={() => setShowPassword(p => !p)}
-                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', padding: '2px', display: 'flex' }}>
+                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: '2px', display: 'flex' }}>
                       {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
                   </div>
@@ -193,7 +193,7 @@ export default function UpdatePassword() {
                       disabled={isLoading}
                     />
                     <button type="button" onClick={() => setShowConfirm(p => !p)}
-                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', padding: '2px', display: 'flex' }}>
+                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: '2px', display: 'flex' }}>
                       {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
                   </div>
@@ -247,7 +247,7 @@ export default function UpdatePassword() {
           </div>
 
           {/* Back to login */}
-          <p style={{ textAlign: 'center', fontSize: '13px', color: '#4b5563', marginTop: '20px' }}>
+          <p style={{ textAlign: 'center', fontSize: '13px', color: '#64748b', marginTop: '20px' }}>
             Remember your password?{' '}
             <a href="/login" style={{ color: '#818cf8', textDecoration: 'none', fontWeight: 500 }}>
               Back to Login

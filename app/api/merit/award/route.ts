@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { awardMerit } from '@/lib/meritEngine'
 
 function makeServiceClient() {
   return createClient(
@@ -40,29 +41,43 @@ export async function POST(request: Request) {
     if (attRow?.qr_end && attRow?.post_survey) {
       const { data: progRow } = await supabaseAdmin
         .from('programmes')
-        .select('attendee_merit_points')
+        .select('name, attendee_merit_points, category')
         .eq('id', programme_id)
         .single()
-      const meritPoints = Number(progRow?.attendee_merit_points) || 1
 
-      const { error: meritError } = await supabaseAdmin.from('merit').upsert(
-        {
-          user_id:      user.id,
-          programme_id,
-          points:       meritPoints,
-          status:       'awarded',
-          updated_at:   new Date().toISOString(),
-        },
-        { onConflict: 'user_id,programme_id' }
-      )
-      if (meritError) {
-        return NextResponse.json({ error: meritError.message }, { status: 500 })
-      }
+      const { data: meritMeta } = await supabaseAdmin
+        .from('programme_merit_metadata')
+        .select('activity_pillar, programme_level, participant_merit_points')
+        .eq('programme_id', programme_id)
+        .maybeSingle()
+
+      const meritPoints =
+        Number(meritMeta?.participant_merit_points) ||
+        Number(progRow?.attendee_merit_points) ||
+        1
+
+      await awardMerit({
+        supabase: supabaseAdmin,
+        userId: user.id,
+        programmeId: programme_id,
+        points: meritPoints,
+        transactionType: 'award',
+        sourceType: 'participation',
+        sourceRef: 'attendance_post_survey',
+        role: 'Participant',
+        actorId: user.id,
+        programmeName: progRow?.name ?? 'Programme',
+        activityPillar: meritMeta?.activity_pillar ?? progRow?.category ?? 'general',
+        programmeLevel: meritMeta?.programme_level ?? 'college',
+        metadata: { awarded_from: 'qr_end_and_post_survey' },
+      })
+
       return NextResponse.json({ merit_awarded: true })
     }
 
     return NextResponse.json({ merit_awarded: false, reason: 'attendance incomplete' })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Failed to award merit'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

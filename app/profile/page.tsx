@@ -1,10 +1,11 @@
 'use client'
-import { Award } from 'lucide-react'
+import { Award, Download } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { useTheme } from '@/app/provider/ThemeContext'
 import { BASE_MERIT_POINTS } from '@/lib/constants'
+import { generateMeritReportPdf } from '@/lib/generateMeritReport'
 import {
   ArrowLeft, User, Mail, Phone, Hash, Calendar,
   Shield, LogOut, Crown, Pencil, Check, X, Loader2,
@@ -21,12 +22,34 @@ type UserProfile = {
   phone: string | null
 }
 
+type MeritSummaryTransaction = {
+  id?: string
+  points: number | string | null
+  transaction_type: string | null
+  source_type: string | null
+  role: string | null
+  activity_pillar: string | null
+  programme_level: string | null
+  reason: string | null
+  created_at?: string | null
+  updated_at?: string | null
+  programmes?: { name: string | null } | null
+}
+
+type MeritSummary = {
+  total: number
+  byPillar: Record<string, number>
+  transactions: MeritSummaryTransaction[]
+}
+
 export default function ProfilePage() {
   const { t } = useTheme()
   const [user, setUser] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [meritPoints, setMeritPoints] = useState(0)
-  const [meritRecords, setMeritRecords] = useState<any[]>([])
+  const [meritRecords, setMeritRecords] = useState<MeritSummaryTransaction[]>([])
+  const [meritSummary, setMeritSummary] = useState<MeritSummary | null>(null)
+  const [meritLoading, setMeritLoading] = useState(false)
   const [showMeritBreakdown, setShowMeritBreakdown] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const router = useRouter()
@@ -41,6 +64,24 @@ export default function ProfilePage() {
     const check = () => setIsMobile(window.innerWidth < 640)
     check(); window.addEventListener('resize', check); return () => window.removeEventListener('resize', check)
   }, [])
+
+  const loadMeritSummary = async (token: string): Promise<MeritSummary | null> => {
+    setMeritLoading(true)
+    try {
+      const res = await fetch('/api/merit/summary', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) return null
+
+      const summary: MeritSummary = await res.json()
+      setMeritSummary(summary)
+      setMeritPoints(BASE_MERIT_POINTS + Number(summary.total || 0))
+      setMeritRecords(summary.transactions ?? [])
+      return summary
+    } finally {
+      setMeritLoading(false)
+    }
+  }
 
   useEffect(() => {
     let isMounted = true
@@ -62,10 +103,11 @@ export default function ProfilePage() {
         setUser(profile)
         setEditForm({ name: data.name ?? '', phone: data.phone ?? '', matric: data.matric ?? '', staff: data.staff ?? '' })
 
-        const meritData = data.merit ?? []
-        setMeritPoints(BASE_MERIT_POINTS + meritData.reduce((sum: number, item: any) => sum + (item.points || 0), 0))
+        const meritData = (data.merit ?? []) as MeritSummaryTransaction[]
+        setMeritPoints(BASE_MERIT_POINTS + meritData.reduce((sum, item) => sum + Number(item.points || 0), 0))
         setMeritRecords(meritData)
         setLoading(false)
+        void loadMeritSummary(session.access_token)
       }
     }
     getUser()
@@ -86,6 +128,26 @@ export default function ProfilePage() {
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.replace('/login')
+  }
+
+  const handleExportMerit = async () => {
+    if (!user) return
+
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) { router.replace('/login'); return }
+
+    const summary = meritSummary ?? await loadMeritSummary(session.access_token)
+    const activities = summary?.transactions ?? meritRecords
+
+    await generateMeritReportPdf({
+      student: {
+        name: user.name,
+        email: user.email,
+        matric: user.matric,
+      },
+      activities,
+      totalMerit: meritPoints,
+    })
   }
 
   const handleStartEdit = () => { setSaveError(''); setSaveSuccess(false); setEditing(true) }
@@ -132,6 +194,11 @@ export default function ProfilePage() {
     return                            { label: 'Student',     color: '#60a5fa', bg: 'rgba(96,165,250,0.12)',  icon: User }
   }
 
+  const formatMeritRecordDate = (record: MeritSummaryTransaction) => {
+    const date = record.created_at ?? record.updated_at
+    return date ? new Date(date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }) : ''
+  }
+
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
 
   const inputStyle: React.CSSProperties = {
@@ -167,6 +234,8 @@ export default function ProfilePage() {
 
   const roleConfig = getRoleConfig(user?.role ?? 'student')
   const RoleIcon = roleConfig.icon
+  const detailedMeritRecords = meritSummary?.transactions ?? meritRecords
+  const pillarEntries = Object.entries(meritSummary?.byPillar ?? {})
 
   return (
     <>
@@ -345,7 +414,7 @@ export default function ProfilePage() {
                         </div>
                         <div>
                           <p style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: t.text }}>Merit Breakdown</p>
-                          <p style={{ margin: 0, fontSize: '13px', color: t.textFaint }}>{meritRecords.length} programme{meritRecords.length !== 1 ? 's' : ''} · {meritPoints} pts total</p>
+                          <p style={{ margin: 0, fontSize: '13px', color: t.textFaint }}>{detailedMeritRecords.length} record{detailedMeritRecords.length !== 1 ? 's' : ''} · {meritPoints} pts total</p>
                         </div>
                       </div>
                       <button onClick={() => setShowMeritBreakdown(false)}
@@ -354,23 +423,23 @@ export default function ProfilePage() {
                       </button>
                     </div>
                     <div style={{ flex: 1, overflowY: 'auto', padding: '16px 28px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {meritRecords.length === 0 ? (
+                      {detailedMeritRecords.length === 0 ? (
                         <div style={{ textAlign: 'center', padding: '40px', color: t.textFaint }}>
                           <Award size={32} style={{ margin: '0 auto 12px', color: t.textFaintest }} />
                           <p style={{ margin: 0, fontSize: '15px' }}>No merit records yet.</p>
                         </div>
-                      ) : meritRecords.map((r, i) => (
+                      ) : detailedMeritRecords.map((r, i) => (
                         <div key={i} style={{ background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '12px', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px' }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <p style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {(r.programmes as any)?.name || 'Unknown Programme'}
+                              {r.programmes?.name || 'Unknown Programme'}
                             </p>
                             <p style={{ margin: '4px 0 0', fontSize: '12px', color: t.textFaint }}>
-                              {r.updated_at ? new Date(r.updated_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
+                              {r.role ?? r.source_type ?? r.transaction_type ?? 'Merit'} · {formatMeritRecordDate(r)}
                             </p>
                           </div>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(96,165,250,0.12)', color: '#60a5fa', border: '1px solid rgba(96,165,250,0.2)', borderRadius: '8px', padding: '6px 14px', fontSize: '14px', fontWeight: 700, flexShrink: 0 }}>
-                            +{r.points} pt{r.points !== 1 ? 's' : ''}
+                            {Number(r.points) > 0 ? '+' : ''}{r.points} pt{Number(r.points) !== 1 ? 's' : ''}
                           </span>
                         </div>
                       ))}
@@ -390,6 +459,15 @@ export default function ProfilePage() {
                       <h1 style={{ color: t.text, fontSize: '36px', fontWeight: 700, margin: 0, lineHeight: 1 }}>{meritPoints}</h1>
                       <span style={{ color: t.textFaint, fontSize: '14px' }}>points</span>
                     </div>
+                    {pillarEntries.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '14px' }}>
+                        {pillarEntries.slice(0, 4).map(([pillar, points]) => (
+                          <span key={pillar} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '8px', padding: '6px 9px', color: t.textFaint, fontSize: '12px', fontWeight: 600 }}>
+                            {pillar}: {points}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                     <div style={{ width: '64px', height: '64px', borderRadius: '18px', background: 'rgba(59,130,246,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(59,130,246,0.12)' }}>
@@ -398,6 +476,10 @@ export default function ProfilePage() {
                     <button onClick={() => setShowMeritBreakdown(true)}
                       style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.2)', borderRadius: '7px', padding: '5px 10px', color: '#60a5fa', fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
                       View Details
+                    </button>
+                    <button onClick={handleExportMerit} disabled={meritLoading || detailedMeritRecords.length === 0}
+                      style={{ display: 'flex', alignItems: 'center', gap: '4px', background: meritLoading || detailedMeritRecords.length === 0 ? t.bgInput : 'rgba(34,197,94,0.1)', border: meritLoading || detailedMeritRecords.length === 0 ? `1px solid ${t.border}` : '1px solid rgba(34,197,94,0.22)', borderRadius: '7px', padding: '5px 10px', color: meritLoading || detailedMeritRecords.length === 0 ? t.textFaintest : '#22c55e', fontSize: '11px', fontWeight: 500, cursor: meritLoading || detailedMeritRecords.length === 0 ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                      <Download size={12} />Export PDF
                     </button>
                   </div>
                 </div>

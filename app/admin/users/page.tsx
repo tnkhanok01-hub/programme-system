@@ -17,6 +17,8 @@ interface UserData {
   role: string
   matric_number: string
   phone?: string
+  earned_merit_points: number
+  merit_points: number
 }
 
 interface MeritRecord {
@@ -25,10 +27,28 @@ interface MeritRecord {
   points: number
   status: string
   updated_at: string
-  programmes?: { name: string }
+  programmes?: { name: string | null } | { name: string | null }[] | null
 }
 
 type NavItem = 'dashboard' | 'programmes' | 'users' | 'settings' | 'attendance' | 'profile'
+type RoleJoin = { name?: string | null } | { name?: string | null }[] | null
+type AdminProfile = { full_name?: string | null; roles?: RoleJoin }
+type StudentForm = {
+  fullName: string
+  matricNumber: string
+  email: string
+  phone: string
+  password: string
+  confirmPassword: string
+}
+
+function getRoleName(roles: RoleJoin) {
+  return (Array.isArray(roles) ? roles[0]?.name : roles?.name)?.toLowerCase()
+}
+
+function programmeName(programmes: MeritRecord['programmes']) {
+  return (Array.isArray(programmes) ? programmes[0]?.name : programmes?.name) ?? 'Unknown Programme'
+}
 
 function HighlightMatch({ text = '', query = '' }) {
   if (!query.trim() || !text) return <>{text}</>
@@ -65,24 +85,25 @@ function MeritBadge({ points }: { points: number }) {
 function MeritDrawer({ userId, onClose }: { userId: string; onClose: () => void }) {
   const { t } = useTheme()
   const [records, setRecords] = useState<MeritRecord[]>([])
+  const [displayTotal, setDisplayTotal] = useState(100)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const load = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { setLoading(false); return }
-      const res = await fetch('/api/merit/all', { headers: { Authorization: `Bearer ${session.access_token}` } })
+      const res = await fetch(`/api/merit/user/${userId}`, { headers: { Authorization: `Bearer ${session.access_token}` } })
       if (res.ok) {
-        const { merit } = await res.json()
-        const userRecords = merit.filter((m: any) => m.user_id === userId)
-        setRecords(userRecords as unknown as MeritRecord[])
+        const { merit, displayTotal } = await res.json()
+        setRecords(merit as MeritRecord[])
+        setDisplayTotal(Number(displayTotal || 100))
       }
       setLoading(false)
     }
     load()
   }, [userId])
 
-  const totalPts = records.reduce((s, r) => s + r.points, 0)
+  const earnedPts = records.reduce((s, r) => s + r.points, 0)
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 70, backdropFilter: 'blur(4px)', padding: '16px' }}
@@ -96,7 +117,7 @@ function MeritDrawer({ userId, onClose }: { userId: string; onClose: () => void 
             </div>
             <div>
               <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: t.text }}>Merit Points</p>
-              <p style={{ margin: 0, fontSize: '11px', color: t.textFaint }}>{records.length} programme{records.length !== 1 ? 's' : ''} · {totalPts} pts total</p>
+              <p style={{ margin: 0, fontSize: '11px', color: t.textFaint }}>{records.length} record{records.length !== 1 ? 's' : ''} · {displayTotal} pts total</p>
             </div>
           </div>
           <button onClick={onClose} style={{ background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '7px', padding: '6px', cursor: 'pointer', color: t.textFaint }}><X size={16} /></button>
@@ -104,7 +125,8 @@ function MeritDrawer({ userId, onClose }: { userId: string; onClose: () => void 
 
         <div style={{ padding: '14px 20px', borderBottom: `1px solid ${t.border}`, display: 'flex', gap: '12px', flexShrink: 0 }}>
           {[
-            { label: 'Total Points', value: totalPts,        color: '#a78bfa' },
+            { label: 'Total Points', value: displayTotal,    color: '#a78bfa' },
+            { label: 'Earned',       value: earnedPts,       color: '#38bdf8' },
             { label: 'Programmes',   value: records.length,  color: '#38bdf8' },
           ].map(s => (
             <div key={s.label} style={{ flex: 1, background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '8px', padding: '10px', textAlign: 'center' }}>
@@ -129,7 +151,7 @@ function MeritDrawer({ userId, onClose }: { userId: string; onClose: () => void 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {(r.programmes as any)?.name || 'Unknown Programme'}
+                    {programmeName(r.programmes)}
                   </p>
                   <p style={{ margin: '2px 0 0', fontSize: '10px', color: t.textFaint }}>
                     {new Date(r.updated_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -147,10 +169,18 @@ function MeritDrawer({ userId, onClose }: { userId: string; onClose: () => void 
 
 /* ─── ADD STUDENT MODAL ──────────────────────────────────────────────────── */
 function AddStudentModal({ show, form, formLoading, formError, onChange, onSubmit, onClose }: {
-  show: boolean; form: Record<string, string>; formLoading: boolean; formError: string
-  onChange: (f: Record<string, string>) => void; onSubmit: () => void; onClose: () => void
+  show: boolean; form: StudentForm; formLoading: boolean; formError: string
+  onChange: (f: StudentForm) => void; onSubmit: () => void; onClose: () => void
 }) {
   const { t } = useTheme()
+  const fields: { label: string; key: keyof StudentForm; type: string }[] = [
+    { label: 'Full Name *',        key: 'fullName',        type: 'text' },
+    { label: 'Matric Number *',    key: 'matricNumber',    type: 'text' },
+    { label: 'UTM Email *',        key: 'email',           type: 'email' },
+    { label: 'Phone Number',       key: 'phone',           type: 'tel' },
+    { label: 'Password *',         key: 'password',        type: 'password' },
+    { label: 'Confirm Password *', key: 'confirmPassword', type: 'password' },
+  ]
   if (!show) return null
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '16px' }}>
@@ -162,14 +192,7 @@ function AddStudentModal({ show, form, formLoading, formError, onChange, onSubmi
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: t.textFaint, cursor: 'pointer' }}><X size={18} /></button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {[
-            { label: 'Full Name *',        key: 'fullName',        type: 'text' },
-            { label: 'Matric Number *',    key: 'matricNumber',    type: 'text' },
-            { label: 'UTM Email *',        key: 'email',           type: 'email' },
-            { label: 'Phone Number',       key: 'phone',           type: 'tel' },
-            { label: 'Password *',         key: 'password',        type: 'password' },
-            { label: 'Confirm Password *', key: 'confirmPassword', type: 'password' },
-          ].map(f => (
+          {fields.map(f => (
             <div key={f.key}>
               <label style={{ fontSize: '11px', color: t.textFaint, display: 'block', marginBottom: '5px', fontWeight: 500 }}>{f.label}</label>
               <input type={f.type} value={form[f.key] || ''} onChange={e => onChange({ ...form, [f.key]: e.target.value })}
@@ -220,12 +243,16 @@ function DeleteModal({ user, onConfirm, onClose }: { user: UserData | null; onCo
 export default function AdminUsersPage() {
   const router = useRouter()
   const { t, mode, setMode } = useTheme()
-  const [profile, setProfile] = useState<any>(null)
+  const [profile, setProfile] = useState<AdminProfile | null>(null)
   const [users, setUsers] = useState<UserData[]>([])
-  const [meritTotals, setMeritTotals] = useState<Record<string, number>>({})
+  const [totalUsers, setTotalUsers] = useState(0)
+  const [sessionToken, setSessionToken] = useState('')
   const [loading, setLoading] = useState(true)
+  const [usersLoading, setUsersLoading] = useState(false)
   const [activeNav] = useState<NavItem>('users')
   const [searchQuery, setSearchQuery] = useState('')
+  const [page, setPage] = useState(1)
+  const pageSize = 25
   const [showAddModal, setShowAddModal] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [userToDelete, setUserToDelete] = useState<UserData | null>(null)
@@ -241,32 +268,45 @@ export default function AdminUsersPage() {
     return () => window.removeEventListener('resize', check)
   }, [])
 
+  const loadStudents = async (token: string, nextPage: number, query: string) => {
+    setUsersLoading(true)
+    const params = new URLSearchParams({
+      page: String(nextPage),
+      pageSize: String(pageSize),
+      q: query,
+    })
+    const res = await fetch(`/api/users/students?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) {
+      const data = await res.json()
+      setUsers(data.users ?? [])
+      setTotalUsers(data.total ?? 0)
+    }
+    setUsersLoading(false)
+  }
+
   useEffect(() => {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.replace('/login'); return }
+      setSessionToken(session.access_token)
       const { data: profileData } = await supabase.from('users').select('*, roles(name)').eq('id', session.user.id).single()
-      const currentRole = profileData?.roles?.name?.toLowerCase()
+      const currentRole = getRoleName(profileData?.roles as RoleJoin)
       if (currentRole !== 'admin' && currentRole !== 'superadmin') { router.replace('/login'); return }
       setProfile(profileData)
-
-      const { data: usersData } = await supabase.from('users').select('id, email, full_name, phone, matric_number, roles!inner(name)').eq('roles.name', 'student')
-      if (usersData) {
-        setUsers(usersData.map((u: any) => ({ ...u, role: u.roles?.name || 'student', matric_number: u.matric_number || 'N/A', email: u.email || 'N/A' })))
-      }
-
-      const meritRes = await fetch('/api/merit/all', { headers: { Authorization: `Bearer ${session.access_token}` } })
-      if (meritRes.ok) {
-        const { merit } = await meritRes.json()
-        const totals: Record<string, number> = {}
-        merit.forEach((m: any) => { totals[m.user_id] = (totals[m.user_id] || 0) + m.points })
-        setMeritTotals(totals)
-      }
-
       setLoading(false)
     }
     init()
   }, [router])
+
+  useEffect(() => {
+    if (!sessionToken) return
+    const timer = setTimeout(() => {
+      void loadStudents(sessionToken, page, searchQuery)
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [sessionToken, page, searchQuery])
 
   const handleLogout = async () => { await supabase.auth.signOut(); router.replace('/login') }
   const getInitials = (name: string) => name?.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'AD'
@@ -291,10 +331,8 @@ export default function AdminUsersPage() {
     setUserToDelete(null); setSelectedUserId(null)
   }
 
-  const filteredUsers = users.filter(u => {
-    const q = searchQuery.toLowerCase()
-    return u.full_name?.toLowerCase().includes(q) || u.matric_number?.toLowerCase().includes(q)
-  })
+  const filteredUsers = users
+  const totalPages = Math.max(Math.ceil(totalUsers / pageSize), 1)
 
   const navItems: { id: NavItem; icon: React.ElementType; label: string; path: string }[] = [
     { id: 'dashboard',  icon: LayoutDashboard, label: 'Dashboard',      path: '/admin' },
@@ -307,7 +345,7 @@ export default function AdminUsersPage() {
 
   const sharedModals = (
     <>
-      <AddStudentModal show={showAddModal} form={form as any} formLoading={formLoading} formError={formError} onChange={f => setForm(f as any)} onSubmit={handleAddUser} onClose={() => setShowAddModal(false)} />
+      <AddStudentModal show={showAddModal} form={form} formLoading={formLoading} formError={formError} onChange={setForm} onSubmit={handleAddUser} onClose={() => setShowAddModal(false)} />
       <DeleteModal user={userToDelete} onConfirm={handleDeleteConfirm} onClose={() => setUserToDelete(null)} />
       {meritDrawerUserId && <MeritDrawer userId={meritDrawerUserId} onClose={() => setMeritDrawerUserId(null)} />}
     </>
@@ -347,7 +385,7 @@ export default function AdminUsersPage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
             <div>
               <h1 style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: t.text }}>Student Users</h1>
-              <p style={{ margin: '2px 0 0', fontSize: '11px', color: t.textFaintest }}>{filteredUsers.length} student{filteredUsers.length !== 1 ? 's' : ''}</p>
+              <p style={{ margin: '2px 0 0', fontSize: '11px', color: t.textFaintest }}>{totalUsers} student{totalUsers !== 1 ? 's' : ''}</p>
             </div>
             <button onClick={() => setShowAddModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'linear-gradient(135deg,#6d28d9,#7c3aed)', border: 'none', borderRadius: '7px', padding: '7px 12px', color: 'white', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}>
               <UserPlus size={12} />Add Student
@@ -356,7 +394,7 @@ export default function AdminUsersPage() {
 
           <div style={{ position: 'relative', marginBottom: '14px' }}>
             <Search size={12} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: t.textFaint }} />
-            <input type="text" placeholder="Search by name or matric..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+            <input type="text" placeholder="Search by name or matric..." value={searchQuery} onChange={e => { setPage(1); setSearchQuery(e.target.value) }}
               style={{ width: '100%', boxSizing: 'border-box', background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '8px', padding: '8px 12px 8px 28px', color: t.text, fontSize: '12px', outline: 'none' }} />
           </div>
 
@@ -365,7 +403,7 @@ export default function AdminUsersPage() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {filteredUsers.map(u => {
-                const pts = meritTotals[u.id] || 0
+                const pts = u.merit_points
                 const isSelected = selectedUserId === u.id
                 return (
                   <div key={u.id} onClick={() => setSelectedUserId(isSelected ? null : u.id)}
@@ -396,6 +434,23 @@ export default function AdminUsersPage() {
               })}
             </div>
           )}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '14px', gap: '10px' }}>
+            <button
+              onClick={() => setPage(p => Math.max(p - 1, 1))}
+              disabled={page <= 1 || usersLoading}
+              style={{ flex: 1, padding: '8px 10px', borderRadius: '7px', border: `1px solid ${t.border}`, background: t.bgCard, color: page <= 1 ? t.textFaintest : t.textFaint, fontSize: '12px', cursor: page <= 1 || usersLoading ? 'not-allowed' : 'pointer' }}>
+              Previous
+            </button>
+            <span style={{ fontSize: '11px', color: t.textFaint, whiteSpace: 'nowrap' }}>
+              Page {page} / {totalPages}
+            </span>
+            <button
+              onClick={() => setPage(p => Math.min(p + 1, totalPages))}
+              disabled={page >= totalPages || usersLoading}
+              style={{ flex: 1, padding: '8px 10px', borderRadius: '7px', border: `1px solid ${t.border}`, background: t.bgCard, color: page >= totalPages ? t.textFaintest : t.textFaint, fontSize: '12px', cursor: page >= totalPages || usersLoading ? 'not-allowed' : 'pointer' }}>
+              Next
+            </button>
+          </div>
         </div>
 
         <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: t.bgCard, borderTop: `1px solid ${t.border}`, display: 'flex', zIndex: 20 }}>
@@ -463,7 +518,7 @@ export default function AdminUsersPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
           <div>
             <h1 style={{ fontSize: '20px', fontWeight: 700, margin: '0 0 3px', color: t.text }}>Student Users</h1>
-            <p style={{ margin: 0, fontSize: '13px', color: t.textFaintest }}>{filteredUsers.length} of {users.length} students</p>
+            <p style={{ margin: 0, fontSize: '13px', color: t.textFaintest }}>Page {page} of {totalPages} · {totalUsers} students</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button
@@ -473,7 +528,7 @@ export default function AdminUsersPage() {
             </button>
             <div style={{ position: 'relative' }}>
               <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: t.textFaint }} />
-              <input type="text" placeholder="Search by Name or Matric Number..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+              <input type="text" placeholder="Search by Name or Matric Number..." value={searchQuery} onChange={e => { setPage(1); setSearchQuery(e.target.value) }}
                 style={{ width: '280px', boxSizing: 'border-box', background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '9px', padding: '10px 14px 10px 36px', color: t.text, fontSize: '13px', outline: 'none' }} />
             </div>
             <button onClick={() => setShowAddModal(true)}
@@ -496,7 +551,7 @@ export default function AdminUsersPage() {
               {filteredUsers.length === 0 ? (
                 <tr><td colSpan={5} style={{ padding: '30px', textAlign: 'center', color: t.textFaint }}>No students found.</td></tr>
               ) : filteredUsers.map((u) => {
-                const pts = meritTotals[u.id] || 0
+                const pts = u.merit_points
                 const isSelected = selectedUserId === u.id
                 return (
                   <tr key={u.id} onClick={() => setSelectedUserId(isSelected ? null : u.id)}
@@ -528,6 +583,23 @@ export default function AdminUsersPage() {
               })}
             </tbody>
           </table>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px', marginTop: '14px' }}>
+          <button
+            onClick={() => setPage(p => Math.max(p - 1, 1))}
+            disabled={page <= 1 || usersLoading}
+            style={{ padding: '8px 14px', borderRadius: '8px', border: `1px solid ${t.border}`, background: t.bgCard, color: page <= 1 ? t.textFaintest : t.textFaint, fontSize: '12px', cursor: page <= 1 || usersLoading ? 'not-allowed' : 'pointer' }}>
+            Previous
+          </button>
+          <span style={{ fontSize: '12px', color: t.textFaint }}>
+            Page {page} of {totalPages}
+          </span>
+          <button
+            onClick={() => setPage(p => Math.min(p + 1, totalPages))}
+            disabled={page >= totalPages || usersLoading}
+            style={{ padding: '8px 14px', borderRadius: '8px', border: `1px solid ${t.border}`, background: t.bgCard, color: page >= totalPages ? t.textFaintest : t.textFaint, fontSize: '12px', cursor: page >= totalPages || usersLoading ? 'not-allowed' : 'pointer' }}>
+            Next
+          </button>
         </div>
       </main>
       {sharedModals}

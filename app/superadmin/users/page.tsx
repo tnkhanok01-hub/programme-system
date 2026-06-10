@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabaseClient'
 import { useTheme } from '@/app/provider/ThemeContext'
-import { BASE_MERIT_POINTS } from '@/lib/constants'
 import {
   LayoutDashboard, BookOpen, Users, Settings, LogOut, Bell,
   CirclePlus, ArrowRightLeft, Shield, Crown, Search, TrendingUp,
@@ -19,6 +18,8 @@ interface UserData {
   role: string
   matric_number: string
   phone?: string
+  earned_merit_points: number
+  merit_points: number
 }
 
 interface MeritRecord {
@@ -28,7 +29,7 @@ interface MeritRecord {
   status: string
   reason?: string
   updated_at: string
-  programmes?: { name: string }
+  programmes?: { name: string | null } | { name: string | null }[] | null
 }
 
 const SA = {
@@ -42,6 +43,24 @@ const SA = {
 }
 
 type NavItem = 'dashboard' | 'programmes' | 'attendance' | 'users' | 'createAdmin' | 'exchangeAdmin' | 'settings' | 'profile' | 'schedule'
+type RoleJoin = { name?: string | null } | { name?: string | null }[] | null
+type SuperadminProfile = { full_name?: string | null; roles?: RoleJoin }
+type StudentForm = {
+  fullName: string
+  matricNumber: string
+  email: string
+  phone: string
+  password: string
+  confirmPassword: string
+}
+
+function getRoleName(roles: RoleJoin) {
+  return (Array.isArray(roles) ? roles[0]?.name : roles?.name)?.toLowerCase()
+}
+
+function programmeName(programmes: MeritRecord['programmes']) {
+  return (Array.isArray(programmes) ? programmes[0]?.name : programmes?.name) ?? 'Unknown Programme'
+}
 
 const navItems: { id: NavItem; icon: React.ElementType; label: string; path: string }[] = [
   { id: 'dashboard',     icon: LayoutDashboard, label: 'Dashboard',      path: '/superadmin' },
@@ -95,26 +114,25 @@ function MeritDrawer({ userId, userName, onClose }: {
 }) {
   const { t } = useTheme()
   const [records, setRecords] = useState<MeritRecord[]>([])
+  const [displayTotal, setDisplayTotal] = useState(100)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const load = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { setLoading(false); return }
-      const res = await fetch('/api/merit/all', { headers: { Authorization: `Bearer ${session.access_token}` } })
+      const res = await fetch(`/api/merit/user/${userId}`, { headers: { Authorization: `Bearer ${session.access_token}` } })
       if (res.ok) {
-        const { merit } = await res.json()
-        const userRecords = merit
-          .filter((m: any) => m.user_id === userId)
-          .sort((a: any, b: any) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-        setRecords(userRecords as unknown as MeritRecord[])
+        const { merit, displayTotal } = await res.json()
+        setRecords(merit as MeritRecord[])
+        setDisplayTotal(Number(displayTotal || 100))
       }
       setLoading(false)
     }
     load()
   }, [userId])
 
-  const approvedPts  = BASE_MERIT_POINTS + records.filter(r => r.status === 'approved').reduce((s, r) => s + r.points, 0)
+  const earnedPts = records.reduce((s, r) => s + r.points, 0)
   const pendingCount = records.filter(r => r.status === 'awarded' || r.status === 'pending').length
 
   const statusCfg = (s: string) => {
@@ -146,9 +164,9 @@ function MeritDrawer({ userId, userName, onClose }: {
         {/* Summary */}
         <div style={{ padding: '14px 20px', borderBottom: `1px solid ${t.border}`, display: 'flex', gap: '12px', flexShrink: 0 }}>
           {[
-            { label: 'Approved pts', value: approvedPts,   color: t.success },
+            { label: 'Total pts',    value: displayTotal,  color: t.success },
+            { label: 'Earned',       value: earnedPts,     color: '#38bdf8' },
             { label: 'Pending',      value: pendingCount,  color: SA.accentText },
-            { label: 'Total',        value: records.length, color: '#38bdf8' },
           ].map(s => (
             <div key={s.label} style={{ flex: 1, background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '8px', padding: '10px', textAlign: 'center' }}>
               <p style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: s.color, letterSpacing: '-0.03em' }}>{s.value}</p>
@@ -176,10 +194,10 @@ function MeritDrawer({ userId, userName, onClose }: {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: isDemerit ? t.danger : t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {isDemerit ? 'Demerit' : ((r.programmes as any)?.name || 'Unknown Programme')}
+                      {isDemerit ? 'Demerit' : programmeName(r.programmes)}
                     </p>
-                    {isDemerit && (r as any).reason && (
-                      <p style={{ margin: '3px 0 0', fontSize: '11px', color: t.textMuted, fontStyle: 'italic' }}>{(r as any).reason}</p>
+                    {isDemerit && r.reason && (
+                      <p style={{ margin: '3px 0 0', fontSize: '11px', color: t.textMuted, fontStyle: 'italic' }}>{r.reason}</p>
                     )}
                     <p style={{ margin: '2px 0 0', fontSize: '10px', color: t.textFaint }}>
                       {new Date(r.updated_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -274,8 +292,8 @@ function DemeritModal({ user, onClose, onDone }: { user: UserData | null; onClos
 
 /* ─── ADD STUDENT MODAL ──────────────────────────────────────────────────── */
 function AddStudentModal({ show, form, formLoading, formError, onChange, onSubmit, onClose }: {
-  show: boolean; form: Record<string, string>; formLoading: boolean; formError: string
-  onChange: (f: Record<string, string>) => void; onSubmit: () => void; onClose: () => void
+  show: boolean; form: StudentForm; formLoading: boolean; formError: string
+  onChange: (f: StudentForm) => void; onSubmit: () => void; onClose: () => void
 }) {
   const { t } = useTheme()
   if (!show) return null
@@ -289,14 +307,14 @@ function AddStudentModal({ show, form, formLoading, formError, onChange, onSubmi
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: t.textFaint, cursor: 'pointer' }}><X size={18} /></button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {[
-            { label: 'Full Name *',        key: 'fullName',        type: 'text' },
-            { label: 'Matric Number *',    key: 'matricNumber',    type: 'text' },
-            { label: 'UTM Email *',        key: 'email',           type: 'email' },
-            { label: 'Phone Number',       key: 'phone',           type: 'tel' },
-            { label: 'Password *',         key: 'password',        type: 'password' },
+          {([
+            { label: 'Full Name *', key: 'fullName', type: 'text' },
+            { label: 'Matric Number *', key: 'matricNumber', type: 'text' },
+            { label: 'UTM Email *', key: 'email', type: 'email' },
+            { label: 'Phone Number', key: 'phone', type: 'tel' },
+            { label: 'Password *', key: 'password', type: 'password' },
             { label: 'Confirm Password *', key: 'confirmPassword', type: 'password' },
-          ].map(f => (
+          ] satisfies { label: string; key: keyof StudentForm; type: string }[]).map(f => (
             <div key={f.key}>
               <label style={{ fontSize: '11px', color: t.textFaint, display: 'block', marginBottom: '5px', fontWeight: 500 }}>{f.label}</label>
               <input type={f.type} value={form[f.key] || ''} onChange={e => onChange({ ...form, [f.key]: e.target.value })}
@@ -347,12 +365,16 @@ function DeleteModal({ user, onConfirm, onClose }: { user: UserData | null; onCo
 export default function SuperAdminUsersPage() {
   const router = useRouter()
   const { t, mode } = useTheme()
-  const [profile, setProfile] = useState<any>(null)
+  const [profile, setProfile] = useState<SuperadminProfile | null>(null)
   const [users, setUsers] = useState<UserData[]>([])
-  const [meritTotals, setMeritTotals] = useState<Record<string, number>>({})
+  const [totalUsers, setTotalUsers] = useState(0)
+  const [sessionToken, setSessionToken] = useState('')
   const [loading, setLoading] = useState(true)
+  const [usersLoading, setUsersLoading] = useState(false)
   const [activeNav] = useState<NavItem>('users')
   const [searchQuery, setSearchQuery] = useState('')
+  const [page, setPage] = useState(1)
+  const pageSize = 25
   const [showAddModal, setShowAddModal] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [userToDelete, setUserToDelete] = useState<UserData | null>(null)
@@ -373,31 +395,45 @@ export default function SuperAdminUsersPage() {
     return () => window.removeEventListener('resize', check)
   }, [])
 
+  const loadStudents = async (token: string, nextPage: number, query: string) => {
+    setUsersLoading(true)
+    const params = new URLSearchParams({
+      page: String(nextPage),
+      pageSize: String(pageSize),
+      q: query,
+    })
+    const res = await fetch(`/api/users/students?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) {
+      const data = await res.json()
+      setUsers(data.users ?? [])
+      setTotalUsers(data.total ?? 0)
+    }
+    setUsersLoading(false)
+  }
+
   useEffect(() => {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.replace('/login'); return }
+      setSessionToken(session.access_token)
       const { data: profileData } = await supabase.from('users').select('id, full_name, roles(name)').eq('id', session.user.id).single()
-      const role = (profileData?.roles as any)?.name?.toLowerCase?.() ?? ''
+      const role = getRoleName(profileData?.roles as RoleJoin) ?? ''
       if (role !== 'superadmin') { router.replace('/login'); return }
       setProfile(profileData)
-
-      const { data: usersData } = await supabase.from('users').select('id, email, full_name, phone, matric_number, roles!inner(name)').eq('roles.name', 'student')
-      if (usersData) {
-        setUsers(usersData.map((u: any) => ({ ...u, role: u.roles?.name || 'student', matric_number: u.matric_number || 'N/A', email: u.email || 'N/A' })))
-      }
-
-      const meritRes = await fetch('/api/merit/all', { headers: { Authorization: `Bearer ${session.access_token}` } })
-      if (meritRes.ok) {
-        const { merit } = await meritRes.json()
-        const totals: Record<string, number> = {}
-        merit.forEach((m: any) => { totals[m.user_id] = (totals[m.user_id] || 0) + m.points })
-        setMeritTotals(totals)
-      }
       setLoading(false)
     }
     init()
   }, [router])
+
+  useEffect(() => {
+    if (!sessionToken) return
+    const timer = setTimeout(() => {
+      void loadStudents(sessionToken, page, searchQuery)
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [sessionToken, page, searchQuery])
 
   const handleLogout = async () => { await supabase.auth.signOut(); router.replace('/login') }
 
@@ -421,13 +457,11 @@ export default function SuperAdminUsersPage() {
     setUserToDelete(null); setSelectedUserId(null)
   }
 
-  const filteredUsers = users.filter(u => {
-    const q = searchQuery.toLowerCase()
-    return u.full_name?.toLowerCase().includes(q) || u.matric_number?.toLowerCase().includes(q)
-  })
+  const filteredUsers = users
+  const totalPages = Math.max(Math.ceil(totalUsers / pageSize), 1)
 
-  const totalApprovedPts = Object.values(meritTotals).reduce((s, v) => s + v, 0)
-  const studentsWithMerit = Object.keys(meritTotals).filter(k => meritTotals[k] > 0).length
+  const totalApprovedPts = users.reduce((s, u) => s + u.merit_points, 0)
+  const studentsWithMerit = users.filter(u => u.earned_merit_points > 0).length
 
   if (loading || isMobile === null) return (
     <div style={{ minHeight: '100vh', background: t.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '16px' }}>
@@ -438,20 +472,12 @@ export default function SuperAdminUsersPage() {
 
   const handleDemeritDone = async () => {
     setDemeritUser(null)
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
-    const res = await fetch('/api/merit/all', { headers: { Authorization: `Bearer ${session.access_token}` } })
-    if (res.ok) {
-      const { merit } = await res.json()
-      const totals: Record<string, number> = {}
-      merit.forEach((m: any) => { totals[m.user_id] = (totals[m.user_id] || 0) + m.points })
-      setMeritTotals(totals)
-    }
+    if (sessionToken) void loadStudents(sessionToken, page, searchQuery)
   }
 
   const sharedModals = (
     <>
-      <AddStudentModal show={showAddModal} form={form as any} formLoading={formLoading} formError={formError} onChange={f => setForm(f as any)} onSubmit={handleAddUser} onClose={() => setShowAddModal(false)} />
+      <AddStudentModal show={showAddModal} form={form} formLoading={formLoading} formError={formError} onChange={setForm} onSubmit={handleAddUser} onClose={() => setShowAddModal(false)} />
       <DeleteModal user={userToDelete} onConfirm={handleDeleteConfirm} onClose={() => setUserToDelete(null)} />
       {meritDrawerUser && <MeritDrawer userId={meritDrawerUser.id} userName={meritDrawerUser.full_name} onClose={() => setMeritDrawerUser(null)} />}
       <DemeritModal user={demeritUser} onClose={() => setDemeritUser(null)} onDone={handleDemeritDone} />
@@ -527,7 +553,7 @@ export default function SuperAdminUsersPage() {
           {/* Stat strip */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '16px' }}>
             {[
-              { label: 'Total Students', value: users.length,        color: SA.accentText, bg: SA.accentBg,  border: SA.accentBorder },
+              { label: 'Total Students', value: totalUsers,          color: SA.accentText, bg: SA.accentBg,  border: SA.accentBorder },
               { label: 'Merit Awarded',  value: studentsWithMerit,   color: t.success,     bg: t.successBg,  border: t.successBorder },
               { label: 'Total Pts',      value: totalApprovedPts,    color: SA.accentText, bg: SA.accentBg,  border: SA.accentBorder },
             ].map((s, i) => (
@@ -541,7 +567,7 @@ export default function SuperAdminUsersPage() {
           {/* Search */}
           <div style={{ position: 'relative', marginBottom: '14px' }}>
             <Search size={12} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: t.textFaint }} />
-            <input type="text" placeholder="Search by name or matric..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+            <input type="text" placeholder="Search by name or matric..." value={searchQuery} onChange={e => { setPage(1); setSearchQuery(e.target.value) }}
               style={{ width: '100%', boxSizing: 'border-box', background: t.bgCard, border: `1px solid ${SA.accentBorder}`, borderRadius: '8px', padding: '8px 12px 8px 28px', color: t.text, fontSize: '12px', outline: 'none' }} />
           </div>
 
@@ -551,7 +577,7 @@ export default function SuperAdminUsersPage() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {filteredUsers.map(u => {
-                const pts = BASE_MERIT_POINTS + (meritTotals[u.id] || 0)
+                const pts = u.merit_points
                 const isSelected = selectedUserId === u.id
                 return (
                   <div key={u.id} onClick={() => setSelectedUserId(isSelected ? null : u.id)}
@@ -588,6 +614,23 @@ export default function SuperAdminUsersPage() {
               })}
             </div>
           )}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '14px', gap: '10px' }}>
+            <button
+              onClick={() => setPage(p => Math.max(p - 1, 1))}
+              disabled={page <= 1 || usersLoading}
+              style={{ flex: 1, padding: '8px 10px', borderRadius: '7px', border: `1px solid ${SA.accentBorder}`, background: t.bgCard, color: page <= 1 ? t.textFaintest : SA.accentText, fontSize: '12px', cursor: page <= 1 || usersLoading ? 'not-allowed' : 'pointer' }}>
+              Previous
+            </button>
+            <span style={{ fontSize: '11px', color: t.textFaint, whiteSpace: 'nowrap' }}>
+              Page {page} / {totalPages}
+            </span>
+            <button
+              onClick={() => setPage(p => Math.min(p + 1, totalPages))}
+              disabled={page >= totalPages || usersLoading}
+              style={{ flex: 1, padding: '8px 10px', borderRadius: '7px', border: `1px solid ${SA.accentBorder}`, background: t.bgCard, color: page >= totalPages ? t.textFaintest : SA.accentText, fontSize: '12px', cursor: page >= totalPages || usersLoading ? 'not-allowed' : 'pointer' }}>
+              Next
+            </button>
+          </div>
         </div>
 
         {sharedModals}
@@ -685,7 +728,7 @@ export default function SuperAdminUsersPage() {
         {/* Stat cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '20px' }}>
           {[
-            { label: 'Total Students',   value: users.length,         icon: Users,      color: SA.accentText, bg: SA.accentBg,  border: SA.accentBorder },
+            { label: 'Total Students',   value: totalUsers,           icon: Users,      color: SA.accentText, bg: SA.accentBg,  border: SA.accentBorder },
             { label: 'Merit Awarded',    value: studentsWithMerit,    icon: Star,       color: t.success,     bg: t.successBg,  border: t.successBorder },
             { label: 'Total Merit Pts',  value: totalApprovedPts,     icon: TrendingUp, color: SA.accentText, bg: SA.accentBg,  border: SA.accentBorder },
             { label: 'Showing',          value: filteredUsers.length, icon: Search,     color: '#38bdf8',     bg: 'rgba(56,189,248,0.1)', border: 'rgba(56,189,248,0.15)' },
@@ -713,11 +756,11 @@ export default function SuperAdminUsersPage() {
               <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: t.text, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Users size={15} color={SA.accent} />Student Directory
               </h2>
-              <p style={{ margin: '2px 0 0', fontSize: '12px', color: t.textFaint }}>{filteredUsers.length} of {users.length} students</p>
+            <p style={{ margin: '2px 0 0', fontSize: '12px', color: t.textFaint }}>Page {page} of {totalPages} · {totalUsers} students</p>
             </div>
             <div style={{ position: 'relative' }}>
               <Search size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: t.textFaint }} />
-              <input type="text" placeholder="Search by name or matric..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+              <input type="text" placeholder="Search by name or matric..." value={searchQuery} onChange={e => { setPage(1); setSearchQuery(e.target.value) }}
                 style={{ background: t.bgInput, border: `1px solid ${t.borderInput}`, borderRadius: '7px', padding: '7px 10px 7px 30px', color: t.text, fontSize: '12px', outline: 'none', width: '260px' }} />
             </div>
           </div>
@@ -734,7 +777,7 @@ export default function SuperAdminUsersPage() {
                 {filteredUsers.length === 0 ? (
                   <tr><td colSpan={6} style={{ padding: '48px', textAlign: 'center', color: t.textFaintest, fontSize: '13px' }}>No students found.</td></tr>
                 ) : filteredUsers.map((u, i) => {
-                  const pts = BASE_MERIT_POINTS + (meritTotals[u.id] || 0)
+                  const pts = u.merit_points
                   const isSelected = selectedUserId === u.id
                   return (
                     <tr key={u.id} onClick={() => setSelectedUserId(isSelected ? null : u.id)}
@@ -772,6 +815,23 @@ export default function SuperAdminUsersPage() {
               </tbody>
             </table>
           </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px', marginTop: '14px' }}>
+          <button
+            onClick={() => setPage(p => Math.max(p - 1, 1))}
+            disabled={page <= 1 || usersLoading}
+            style={{ padding: '8px 14px', borderRadius: '8px', border: `1px solid ${SA.accentBorder}`, background: t.bgCard, color: page <= 1 ? t.textFaintest : SA.accentText, fontSize: '12px', cursor: page <= 1 || usersLoading ? 'not-allowed' : 'pointer' }}>
+            Previous
+          </button>
+          <span style={{ fontSize: '12px', color: t.textFaint }}>
+            Page {page} of {totalPages}
+          </span>
+          <button
+            onClick={() => setPage(p => Math.min(p + 1, totalPages))}
+            disabled={page >= totalPages || usersLoading}
+            style={{ padding: '8px 14px', borderRadius: '8px', border: `1px solid ${SA.accentBorder}`, background: t.bgCard, color: page >= totalPages ? t.textFaintest : SA.accentText, fontSize: '12px', cursor: page >= totalPages || usersLoading ? 'not-allowed' : 'pointer' }}>
+            Next
+          </button>
         </div>
       </main>
       {sharedModals}

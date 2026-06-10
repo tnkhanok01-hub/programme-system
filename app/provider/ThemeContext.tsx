@@ -81,8 +81,8 @@ type ThemeContextValue = {
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
-  mode: 'dark',
-  t: THEMES.dark,
+  mode: 'light',
+  t: THEMES.light,
   setMode: () => {},
 })
 
@@ -93,7 +93,7 @@ export function useTheme() {
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setModeState] = useState<ThemeMode>('dark')
+  const [mode, setModeState] = useState<ThemeMode>('light')
   const [userId, setUserId] = useState('')
 
   // On mount: get user ID, then read their stored theme
@@ -129,8 +129,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       const uid = session?.user?.id ?? ''
       setUserId(uid)
       if (!uid) {
-        // Logged out — reset to dark
-        setModeState('dark')
+        // Logged out — reset to light
+        setModeState('light')
         return
       }
       const stored = readStorage(uid)
