@@ -1,14 +1,14 @@
 'use client'
 
 import { PhaseDoc } from '@/lib/types'
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { supabase } from '../../../lib/supabaseClient'
 import {
   ArrowLeft, CheckCircle, XCircle, AlertCircle, Clock,
   Calendar, MapPin, DollarSign, BookOpen, RefreshCw,
-  Upload, FileText, Download, Eye, X, Trash2,
-  Users, UserPlus, UserX, Hash, UserCheck, WalletCards,
+  FileText, Download, Eye, X, Trash2,
+  Users, UserCheck, WalletCards,
 } from 'lucide-react'
 
 import { generateApprovalLetter } from '@/lib/generateApprovalLetter'
@@ -16,7 +16,6 @@ import {getDocuments} from '@/services/documentService'
 import CommitteeSection from '@/components/programmes/CommitteeSection'
 import ChecklistPhaseTab from '@/components/programmes/ChecklistPhaseTab'
 import DuringPhaseTab from '@/components/programmes/DuringPhaseTab'
-import DocRow from '@/components/programmes/DocRow'
 import SurveyReportTab from '@/components/programmes/SurveyReportTab'
 import { PHASES, PRE_CHECKLIST, POST_CHECKLIST, SINGLE_ROLE_LIMIT, APPROVAL_CHECKLIST } from '@/lib/constants'
 import { canUseProgrammeFinance } from '@/lib/financeAccess.js'
@@ -33,20 +32,27 @@ interface Programme {
   advisor_id?: string | null
 }
 
-interface CommitteeMember {
-  id: string
-  role: string
-  created_at: string
-  user_id: string
-  users: { id: string; full_name: string; matric_number: string; phone?: string }
+type Phase = 'pre' | 'during' | 'post' | 'survey' | 'finance'
+type RoleJoin = { name?: string | null } | { name?: string | null }[] | null
+
+function getRoleName(roles: RoleJoin) {
+  return (Array.isArray(roles) ? roles[0]?.name : roles?.name)?.toLowerCase()
 }
 
-type Phase = 'pre' | 'during' | 'post' | 'survey' | 'finance'
+function ErrorBox({ msg }: { msg: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '10px 13px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '8px', marginTop: '6px' }}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '1px' }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <p style={{ margin: 0, fontSize: '12px', color: '#ef4444', lineHeight: 1.5 }}>{msg}</p>
+    </div>
+  )
+}
 
 const statusConfig: Record<string, { color: string; bg: string; border: string; icon: React.ElementType }> = {
   Pending:        { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  border: 'rgba(245,158,11,0.2)',  icon: AlertCircle },
   'Under Review': { color: '#38bdf8', bg: 'rgba(56,189,248,0.1)', border: 'rgba(56,189,248,0.2)',  icon: Clock },
   Approved:       { color: '#10b981', bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.2)',  icon: CheckCircle },
+  Completed:      { color: '#22c55e', bg: 'rgba(34,197,94,0.1)',  border: 'rgba(34,197,94,0.22)',   icon: CheckCircle },
   Rejected:       { color: '#ef4444', bg: 'rgba(239,68,68,0.1)',  border: 'rgba(239,68,68,0.2)',   icon: XCircle },
 }
 
@@ -120,6 +126,9 @@ export default function ProgrammeDetailPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  const [completionLoading, setCompletionLoading] = useState(false)
+  const [completionError, setCompletionError] = useState('')
+  const [completionSuccess, setCompletionSuccess] = useState('')
   const [approvalPreviewDoc, setApprovalPreviewDoc] = useState<PhaseDoc | null>(null)
   const [directorInfo, setDirectorInfo] = useState<{ full_name: string; matric_number: string } | null>(null)
   const [advisorInfo, setAdvisorInfo] = useState<{ full_name: string; email?: string } | null>(null)
@@ -132,7 +141,7 @@ export default function ProgrammeDetailPage() {
       setCurrentUserId(session.user.id)
 
       const { data: userData } = await supabase.from('users').select('roles(name)').eq('id', session.user.id).single()
-      const role = (userData?.roles as any)?.name?.toLowerCase() ?? 'student'
+      const role = getRoleName(userData?.roles as RoleJoin) ?? 'student'
       setUserRole(role)
       setIsAdmin(role === 'admin' || role === 'superadmin')
 
@@ -163,14 +172,14 @@ export default function ProgrammeDetailPage() {
         .select('full_name, matric_number')
         .eq('id', prog.programme_director_id)
         .single()
-      if (dirData) setDirectorInfo(dirData as any)
+      if (dirData) setDirectorInfo(dirData)
       if (prog.advisor_id) {
         const { data: advData } = await supabase
           .from('users')
           .select('full_name, email')
           .eq('id', prog.advisor_id)
           .single()
-        if (advData) setAdvisorInfo(advData as any)
+        if (advData) setAdvisorInfo(advData)
       }
       setForm({
         name: prog.name ?? '', category: prog.category ?? '', organiser: prog.organiser ?? '', venue: prog.venue ?? '',
@@ -273,6 +282,34 @@ export default function ProgrammeDetailPage() {
     await generateApprovalLetter(programme, directorInfo, programme.no_rujukan ?? '')
   }
 
+  const handleCompleteProgramme = async () => {
+    if (!programme) return
+    setCompletionLoading(true)
+    setCompletionError('')
+    setCompletionSuccess('')
+
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) { router.replace('/login'); return }
+
+    const res = await fetch(`/api/programmes/${programme.id}/complete`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+    const data = await res.json()
+
+    if (res.ok) {
+      setProgramme(data.programme)
+      setCompletionSuccess('Programme completed. Committee merit has been awarded.')
+    } else {
+      const missing = Array.isArray(data.missingDocs) && data.missingDocs.length > 0
+        ? ` Missing: ${data.missingDocs.join(', ')}.`
+        : ''
+      setCompletionError(`${data.error ?? 'Failed to complete programme.'}${missing}`)
+    }
+
+    setCompletionLoading(false)
+  }
+
   const canUpload          = isAdmin || isOwner || isElevatedMember
   const canManageCommittee = isAdmin || isOwner
   const canManageFinance   = canUseProgrammeFinance({ appRole: userRole, programmeRole: programmeFinanceRole })
@@ -287,13 +324,6 @@ export default function ProgrammeDetailPage() {
     if (phase === 'post') return POST_CHECKLIST.length
     return null
   }
-
-  const ErrorBox = ({ msg }: { msg: string }) => (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '10px 13px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '8px', marginTop: '6px' }}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '1px' }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <p style={{ margin: 0, fontSize: '12px', color: '#ef4444', lineHeight: 1.5 }}>{msg}</p>
-    </div>
-  )
 
   if (loading) return (
     <div style={{ minHeight: '100vh', background: '#070e1a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '16px' }}>
@@ -315,6 +345,10 @@ export default function ProgrammeDetailPage() {
   const isRejected      = programme.status === 'Rejected'
   const canResubmit     = isRejected && isOwner
   const hasResubmitError = !!resubmitDateError || !!resubmitBudgetError
+  const postChecklistComplete = POST_CHECKLIST.every(item =>
+    phaseDocs.some(d => d.phase === 'post' && d.doc_type === item.key)
+  )
+  const canCompleteProgramme = isAdmin && programme.status === 'Approved'
 
   return (
     <>
@@ -517,7 +551,45 @@ export default function ProgrammeDetailPage() {
               <div style={{ padding: isMobile ? '14px' : '20px' }}>
                 {activeTab === 'pre'    && <ChecklistPhaseTab key="pre"    phase="pre"  checklist={PRE_CHECKLIST}  programmeId={programme.id} docs={phaseDocs} onDocsChange={(u) => setPhaseDocs(u)} canUpload={canUpload} />}
                 {activeTab === 'during' && <DuringPhaseTab    key="during"              programmeId={programme.id} docs={phaseDocs} onDocsChange={setPhaseDocs} canUpload={canUpload} />}
-                {activeTab === 'post'   && <ChecklistPhaseTab key="post"   phase="post" checklist={POST_CHECKLIST} programmeId={programme.id} docs={phaseDocs} onDocsChange={(u) => setPhaseDocs(u)} canUpload={canUpload} />}
+                {activeTab === 'post'   && (
+                  <>
+                    {canCompleteProgramme && (
+                      <div style={{ marginBottom: '16px', padding: '14px 16px', borderRadius: '11px', background: postChecklistComplete ? 'rgba(34,197,94,0.06)' : 'rgba(245,158,11,0.06)', border: `1px solid ${postChecklistComplete ? 'rgba(34,197,94,0.18)' : 'rgba(245,158,11,0.18)'}`, display: 'flex', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between', gap: '12px', flexDirection: isMobile ? 'column' : 'row' }}>
+                        <div>
+                          <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: postChecklistComplete ? '#22c55e' : '#f59e0b' }}>
+                            Complete Programme
+                          </p>
+                          <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#94a3b8', lineHeight: 1.5 }}>
+                            {postChecklistComplete
+                              ? 'Finalise this programme and award committee merit.'
+                              : 'Upload all post-programme documents before completion.'}
+                          </p>
+                        </div>
+                        <button
+                          onClick={handleCompleteProgramme}
+                          disabled={!postChecklistComplete || completionLoading}
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '7px', padding: '9px 14px', borderRadius: '8px', border: postChecklistComplete ? '1px solid rgba(34,197,94,0.28)' : '1px solid rgba(148,163,184,0.12)', background: postChecklistComplete ? 'rgba(34,197,94,0.12)' : 'rgba(148,163,184,0.08)', color: postChecklistComplete ? '#22c55e' : '#64748b', fontSize: '12px', fontWeight: 700, cursor: !postChecklistComplete || completionLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                        >
+                          {completionLoading ? <RefreshCw size={13} style={{ animation: 'spin 0.8s linear infinite' }} /> : <CheckCircle size={13} />}
+                          {completionLoading ? 'Completing...' : 'Complete & Award'}
+                        </button>
+                      </div>
+                    )}
+                    {completionError && (
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '10px 13px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '8px', marginBottom: '12px' }}>
+                        <XCircle size={14} color="#ef4444" style={{ flexShrink: 0, marginTop: '1px' }} />
+                        <p style={{ margin: 0, fontSize: '12px', color: '#ef4444', lineHeight: 1.5 }}>{completionError}</p>
+                      </div>
+                    )}
+                    {completionSuccess && (
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '10px 13px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.22)', borderRadius: '8px', marginBottom: '12px' }}>
+                        <CheckCircle size={14} color="#22c55e" style={{ flexShrink: 0, marginTop: '1px' }} />
+                        <p style={{ margin: 0, fontSize: '12px', color: '#22c55e', lineHeight: 1.5 }}>{completionSuccess}</p>
+                      </div>
+                    )}
+                    <ChecklistPhaseTab key="post" phase="post" checklist={POST_CHECKLIST} programmeId={programme.id} docs={phaseDocs} onDocsChange={(u) => setPhaseDocs(u)} canUpload={canUpload} />
+                  </>
+                )}
                 {activeTab === 'survey' && (isAdmin || isOwner) && <SurveyReportTab key="survey" programmeId={programme.id} programmeName={programme.name} />}
                 {activeTab === 'finance' && canManageFinance && (
                   <iframe

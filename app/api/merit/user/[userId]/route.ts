@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { displayMeritTotal } from '@/lib/meritTotals.js'
 
 const svc = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -12,42 +13,41 @@ function getRoleName(roles: RoleJoin) {
   return (Array.isArray(roles) ? roles[0]?.name : roles?.name)?.toLowerCase()
 }
 
-export async function GET(req: Request) {
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ userId: string }> }
+) {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '')
   if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { data: { user } } = await svc.auth.getUser(token)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: userData } = await svc
+  const { userId } = await params
+  const { data: caller } = await svc
     .from('users')
     .select('roles(name)')
     .eq('id', user.id)
     .single()
 
-  const role = getRoleName(userData?.roles as RoleJoin)
-  if (role !== 'admin' && role !== 'superadmin') {
+  const callerRole = getRoleName(caller?.roles as RoleJoin)
+  if (user.id !== userId && callerRole !== 'admin' && callerRole !== 'superadmin') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const url = new URL(req.url)
-  const page = Math.max(Number(url.searchParams.get('page') ?? '1'), 1)
-  const pageSize = Math.min(Math.max(Number(url.searchParams.get('pageSize') ?? '50'), 1), 100)
-  const from = (page - 1) * pageSize
-  const to = from + pageSize - 1
-
-  const { data: meritData, error, count } = await svc
+  const { data: merit, error } = await svc
     .from('merit')
-    .select('id, user_id, programme_id, points, status, reason, updated_at, programmes(name)', { count: 'exact' })
+    .select('id, user_id, programme_id, points, status, reason, updated_at, programmes(name)')
+    .eq('user_id', userId)
     .order('updated_at', { ascending: false })
-    .range(from, to)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  const earnedTotal = (merit ?? []).reduce((sum, row) => sum + Number(row.points || 0), 0)
+
   return NextResponse.json({
-    merit: meritData ?? [],
-    page,
-    pageSize,
-    total: count ?? 0,
+    merit: merit ?? [],
+    earnedTotal,
+    displayTotal: displayMeritTotal(earnedTotal),
   })
 }

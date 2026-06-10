@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { sendEmail } from "@/lib/sendEmail";
-import { DIRECTOR_MERIT, HIGH_COMMITTEE_MERIT, HIGH_COMMITTEE_ROLES, MEMBER_MERIT } from '@/lib/constants';
 
 
 function getToken(request: Request): string | null {
@@ -15,6 +14,18 @@ function makeServiceClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
+}
+
+type RoleJoin = { name?: string | null } | { name?: string | null }[] | null
+type RoleIdRow = { id: string }
+type NotificationUser = {
+  id: string
+  email: string | null
+  full_name: string | null
+}
+
+function getRoleName(roles: RoleJoin) {
+  return (Array.isArray(roles) ? roles[0]?.name : roles?.name)?.toLowerCase()
 }
 
 export async function POST(
@@ -38,7 +49,7 @@ export async function POST(
     .eq('id', user.id)
     .single();
 
-  const callerRole = (userData?.roles as any)?.name?.toLowerCase() ?? '';
+  const callerRole = getRoleName(userData?.roles as RoleJoin) ?? '';
   const callerName = userData?.full_name ?? 'Unknown';
 
   if (callerRole !== 'admin' && callerRole !== 'superadmin') {
@@ -118,10 +129,11 @@ export async function POST(
 
     // Notify all superadmins
     const { data: superadminRoles } = await svc.from('roles').select('id').eq('name', 'superadmin');
-    const superadminRoleIds = (superadminRoles ?? []).map((r: any) => r.id);
+    const superadminRoleIds = ((superadminRoles ?? []) as RoleIdRow[]).map((r) => r.id);
     if (superadminRoleIds.length > 0) {
       const { data: superadminUsers } = await svc.from('users').select('id, email, full_name').in('role_id', superadminRoleIds);
-      const superadminIds = (superadminUsers ?? []).map((u: any) => u.id);
+      const superadminUserRows = (superadminUsers ?? []) as NotificationUser[]
+      const superadminIds = superadminUserRows.map((u) => u.id);
       if (superadminIds.length > 0) {
         await svc.from('notifications').insert(
           superadminIds.map((uid: string) => ({
@@ -132,11 +144,11 @@ export async function POST(
         );
 
         await Promise.all(
-          (superadminUsers ?? [])
-            .filter((u: any) => u.email)
-            .map((u: any) =>
+          superadminUserRows
+            .filter((u) => u.email)
+            .map((u) =>
               sendEmail(
-                u.email,
+                u.email!,
                 'Programme Needs Your Final Review',
                 `Dear ${u.full_name ?? 'Superadmin'},\n\nThe programme "${updated.name}" has been reviewed and approved by the admin.\n\nIt is now awaiting your final review and approval.\n\nPlease log in to UTM-SPMS to proceed.\n\nRegards,\nUTM-SPMS`
               ).catch(() => {})
@@ -200,42 +212,6 @@ export async function POST(
     .single();
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
-
-  // Award merit to director
-  if (programme.programme_director_id) {
-    await svc.from('merit').upsert(
-      {
-        user_id:      programme.programme_director_id,
-        programme_id: programmeId,
-        points:       DIRECTOR_MERIT,
-        status:       'awarded',
-        updated_at:   new Date().toISOString(),
-      },
-      { onConflict: 'user_id,programme_id' }
-    )
-  }
-
-  // Award merit to approved committee members
-  const { data: committeeMembers } = await svc
-    .from('programme_roles')
-    .select('user_id, role')
-    .eq('programme_id', programmeId)
-    .eq('status', 'approved')
-
-  if (committeeMembers && committeeMembers.length > 0) {
-    const meritInserts = committeeMembers
-      .filter((m: any) => m.user_id !== programme.programme_director_id)
-      .map((m: any) => ({
-        user_id:      m.user_id,
-        programme_id: programmeId,
-        points:       HIGH_COMMITTEE_ROLES.includes(m.role) ? HIGH_COMMITTEE_MERIT : MEMBER_MERIT,
-        status:       'awarded',
-        updated_at:   new Date().toISOString(),
-      }))
-    if (meritInserts.length > 0) {
-      await svc.from('merit').upsert(meritInserts, { onConflict: 'user_id,programme_id' })
-    }
-  }
 
   const { data: director } = await svc
   .from("users")

@@ -379,11 +379,12 @@ export async function generateApprovalLetter(
 
   guard(LH * 6)
   line('"MALAYSIA MADANI"', ML, 10, true)
-  gap(LH * 0.5)
+  gap(LH * 2)
   line('"BERKHIDMAT UNTUK NEGARA KERANA ALLAH"', ML, 10, true)
   gap(LH * 2)
 
   line('Saya yang menjalankan amanah,', ML)
+  gap(LH * 1.5)
   line('(DR. MOHAMED AZLAN BIN SUHOT)', ML, 10, true)
   line('Pengetua Kolej Siswa Jaya', ML)
   line('Pejabat Timbalan Naib Canselor (Hal Ehwal Pelajar dan Alumni)', ML)

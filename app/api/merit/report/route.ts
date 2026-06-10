@@ -19,13 +19,13 @@ export async function GET(req: Request) {
   const { data: { user } } = await svc.auth.getUser(token)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: userData } = await svc
+  const { data: caller } = await svc
     .from('users')
     .select('roles(name)')
     .eq('id', user.id)
     .single()
 
-  const role = getRoleName(userData?.roles as RoleJoin)
+  const role = getRoleName(caller?.roles as RoleJoin)
   if (role !== 'admin' && role !== 'superadmin') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -36,16 +36,16 @@ export async function GET(req: Request) {
   const from = (page - 1) * pageSize
   const to = from + pageSize - 1
 
-  const { data: meritData, error, count } = await svc
-    .from('merit')
-    .select('id, user_id, programme_id, points, status, reason, updated_at, programmes(name)', { count: 'exact' })
-    .order('updated_at', { ascending: false })
+  const { data, error, count } = await svc
+    .from('merit_transactions')
+    .select('id, user_id, programme_id, points, transaction_type, source_type, role, activity_pillar, programme_level, reason, created_at, users(full_name, matric_number), programmes(name)', { count: 'exact' })
+    .order('created_at', { ascending: false })
     .range(from, to)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   return NextResponse.json({
-    merit: meritData ?? [],
+    rows: data ?? [],
     page,
     pageSize,
     total: count ?? 0,

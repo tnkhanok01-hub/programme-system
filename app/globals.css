@@ -4,8 +4,8 @@
 
 /* Custom theme variables */
 :root {
-  --background: #0f172a;
-  --foreground: #ffffff;
+  --background: #f1f5f9;
+  --foreground: #0f172a;
 }
 
 /* Body styling */
@@ -15,11 +15,20 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Autofill fix for dark inputs */
+/* Autofill fix for themed inputs */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 40px #f8fafc inset !important;
+  -webkit-text-fill-color: #0f172a !important;
+  caret-color: #0f172a;
+}
+
+[data-theme="dark"] input:-webkit-autofill,
+[data-theme="dark"] input:-webkit-autofill:hover,
+[data-theme="dark"] input:-webkit-autofill:focus,
+[data-theme="dark"] input:-webkit-autofill:active {
   -webkit-box-shadow: 0 0 0 40px #334155 inset !important;
   -webkit-text-fill-color: white !important;
   caret-color: white;

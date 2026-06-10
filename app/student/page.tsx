@@ -1,13 +1,13 @@
 'use client'
 import NotificationBell from "../../components/notifications/NotificationBell";
+import ThemeToggleButton from "@/components/ThemeToggleButton";
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabaseClient'
-import { useTheme } from '@/app/provider/ThemeContext'
+import { type ThemeTokens, useTheme } from '@/app/provider/ThemeContext'
 import {
   BookOpen,
   Calendar,
-  Bell,
   LogOut,
   User,
   ChevronRight,
@@ -49,7 +49,7 @@ interface Profile {
 /* ─── PROGRAMME CARD ─────────────────────────────────────────────────────── */
 function ProgrammeCard({
   prog, userId, onClick, t,
-}: { prog: Programme; userId: string | null; onClick: () => void; t: any }) {
+}: { prog: Programme; userId: string | null; onClick: () => void; t: ThemeTokens }) {
   const getStatusStyle = (status: string) => {
     switch (status?.toLowerCase()) {
       case 'active':    return { bg: '#eaf3de', color: '#3b6d11', dot: '#639922' }
@@ -307,6 +307,7 @@ export default function StudentHomepage() {
             <div style={{ zIndex: 99999, position: "relative" }}>
   <NotificationBell />
 </div>
+            <ThemeToggleButton />
             <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'linear-gradient(135deg,#1d4ed8,#60a5fa)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 600, color: 'white' }}>
               {getInitials(profile?.full_name || '')}
             </div>
@@ -489,7 +490,10 @@ export default function StudentHomepage() {
               {currentTime.toLocaleDateString('en-MY', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
           </div>
-          <NotificationBell />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <ThemeToggleButton />
+            <NotificationBell />
+          </div>
         </div>
 
         {/* Stat cards */}

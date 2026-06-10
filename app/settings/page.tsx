@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
-import { useTheme } from '@/app/provider/ThemeContext'
+import { type ThemeTokens, useTheme } from '@/app/provider/ThemeContext'
 import {
   ArrowLeft, Lock, Bell, Eye, EyeOff, Globe,
   Check, Loader2, Shield, AlertTriangle, Save, Moon, Sun, Trash2,
@@ -23,7 +23,7 @@ type Settings = {
 
 const DEFAULT_SETTINGS: Settings = {
   language:            'en',
-  theme:               'dark',
+  theme:               'light',
   notif_status_change: true,
   notif_upcoming:      true,
   notif_committee:     true,
@@ -33,7 +33,7 @@ const DEFAULT_SETTINGS: Settings = {
 
 // ── Section wrapper ───────────────────────────────────────────────────────────
 
-function Section({ title, icon, children, t }: { title: string; icon: React.ReactNode; children: React.ReactNode; t: any }) {
+function Section({ title, icon, children, t }: { title: string; icon: React.ReactNode; children: React.ReactNode; t: ThemeTokens }) {
   return (
     <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: '14px', overflow: 'hidden', marginBottom: '14px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 20px', borderBottom: `1px solid ${t.border}` }}>
@@ -49,7 +49,7 @@ function Section({ title, icon, children, t }: { title: string; icon: React.Reac
 
 // ── Reusable rows ─────────────────────────────────────────────────────────────
 
-function ToggleRow({ label, sub, value, onChange, t }: { label: string; sub?: string; value: boolean; onChange: (v: boolean) => void; t: any }) {
+function ToggleRow({ label, sub, value, onChange, t }: { label: string; sub?: string; value: boolean; onChange: (v: boolean) => void; t: ThemeTokens }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', padding: '14px 20px', borderBottom: `1px solid ${t.border}` }}>
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -75,7 +75,7 @@ function ToggleRow({ label, sub, value, onChange, t }: { label: string; sub?: st
   )
 }
 
-function FieldRow({ label, children, last = false, t }: { label: string; children: React.ReactNode; last?: boolean; t: any }) {
+function FieldRow({ label, children, last = false, t }: { label: string; children: React.ReactNode; last?: boolean; t: ThemeTokens }) {
   return (
     <div style={{ padding: '14px 20px', borderBottom: last ? 'none' : `1px solid ${t.border}` }}>
       <p style={{ margin: '0 0 6px', fontSize: '15px', color: t.textFaint, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</p>
@@ -84,7 +84,7 @@ function FieldRow({ label, children, last = false, t }: { label: string; childre
   )
 }
 
-function getInputStyle(t: any): React.CSSProperties {
+function getInputStyle(t: ThemeTokens): React.CSSProperties {
   return {
     width: '100%', padding: '9px 11px', borderRadius: '8px',
     background: t.bgInput, border: `1px solid ${t.borderInput}`,
@@ -155,9 +155,18 @@ export default function SettingsPage() {
 
   const authHeaders = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
 
-  const set = (key: keyof Settings, value: any) => {
+  const set = <K extends keyof Settings>(key: K, value: Settings[K]) => {
     setSettings(prev => ({ ...prev, [key]: value }))
-    if (key === 'theme') setMode(value as 'dark' | 'light')
+    if (key === 'theme') {
+      setMode(value as 'dark' | 'light')
+      if (token) {
+        fetch('/api/settings', {
+          method: 'PATCH',
+          headers: authHeaders,
+          body: JSON.stringify({ theme: value }),
+        })
+      }
+    }
   }
 
   // ── Save preferences (PATCH) ───────────────────────────────────────────────
@@ -229,7 +238,7 @@ export default function SettingsPage() {
   }
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', background: '#070e1a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ minHeight: '100vh', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ width: '36px', height: '36px', borderRadius: '50%', border: '3px solid rgba(99,102,241,0.2)', borderTopColor: '#6366f1', animation: 'spin 0.8s linear infinite' }} />
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>

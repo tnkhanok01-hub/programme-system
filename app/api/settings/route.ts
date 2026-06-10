@@ -46,7 +46,7 @@ export async function GET(request: Request) {
   // Return settings with defaults merged in for any missing keys
   const defaults = {
     language:            'en',
-    theme:               'dark',
+    theme:               'light',
     notif_status_change: true,
     notif_upcoming:      true,
     notif_committee:     true,
@@ -141,7 +141,7 @@ export async function PATCH(request: Request) {
 export async function POST(request: Request) {
   const auth = await authenticate(request)
   if (auth.error) return auth.error
-  const { supabase, user, token } = auth
+  const { supabase, user } = auth
 
   let body: Record<string, unknown>
   try {

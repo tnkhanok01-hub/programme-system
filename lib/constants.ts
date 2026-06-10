@@ -1,5 +1,14 @@
 import { Phase } from '@/lib/types'
 
+export {
+  canonicalCommitteeRole,
+  defaultRoleMeritPoints,
+  DIRECTOR_MERIT,
+  HIGH_COMMITTEE_MERIT,
+  HIGH_COMMITTEE_ROLES,
+  MEMBER_MERIT,
+} from './meritPolicy.js'
+
 export const PHASES: { id: Phase; label: string; color: string; activeBg: string; activeBorder: string }[] = [
   { id: 'pre',    label: 'Pre',    color: '#60a5fa', activeBg: 'rgba(96,165,250,0.15)',  activeBorder: 'rgba(96,165,250,0.4)'  },
   { id: 'during', label: 'During', color: '#34d399', activeBg: 'rgba(52,211,153,0.15)',  activeBorder: 'rgba(52,211,153,0.4)'  },
@@ -42,18 +51,6 @@ export const SINGLE_ROLE_LIMIT = [
   'Vice Treasurer',
 ]
 
-export const HIGH_COMMITTEE_ROLES = [
-  'Vice Director - Management',
-  'Vice Director - Activity',
-  'Secretary',
-  'Vice Secretary',
-  'Treasurer',
-  'Vice Treasurer',
-]
-
 export const MEMBER_ROLES = ['Logistics', 'Publicity', 'Welfare', 'Member']
 
 export const BASE_MERIT_POINTS   = 100
-export const DIRECTOR_MERIT      = 25
-export const HIGH_COMMITTEE_MERIT = 15
-export const MEMBER_MERIT        = 10
