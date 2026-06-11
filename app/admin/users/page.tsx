@@ -6,7 +6,7 @@ import { supabase } from '../../../lib/supabaseClient'
 import {
   LayoutDashboard, BookOpen, Users, Settings, LogOut, Shield,
   Search, UserPlus, Trash2, X, AlertCircle, QrCode,
-  Star, UserCircle, Sun, Moon,
+  Star, UserCircle, Sun, Moon, CheckCircle, XCircle, Clock,
 } from 'lucide-react'
 import { useTheme } from '../../provider/ThemeContext'
 
@@ -26,6 +26,7 @@ interface MeritRecord {
   programme_id: string
   points: number
   status: string
+  reason?: string
   updated_at: string
   programmes?: { name: string | null } | { name: string | null }[] | null
 }
@@ -105,6 +106,13 @@ function MeritDrawer({ userId, onClose }: { userId: string; onClose: () => void 
 
   const earnedPts = records.reduce((s, r) => s + r.points, 0)
 
+  const statusCfg = (s: string) => {
+    if (s === 'approved') return { color: t.success, bg: t.successBg, border: t.successBorder, Icon: CheckCircle }
+    if (s === 'rejected') return { color: t.danger,  bg: t.dangerBg,  border: t.dangerBorder,  Icon: XCircle }
+    if (s === 'demerit')  return { color: t.danger,  bg: t.dangerBg,  border: t.dangerBorder,  Icon: AlertCircle }
+    return                       { color: '#a78bfa', bg: 'rgba(167,139,250,0.15)', border: 'rgba(167,139,250,0.3)', Icon: Clock }
+  }
+
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 70, backdropFilter: 'blur(4px)', padding: '16px' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
@@ -146,21 +154,33 @@ function MeritDrawer({ userId, onClose }: { userId: string; onClose: () => void 
               <Star size={28} style={{ margin: '0 auto 10px', color: t.textFaintest }} />
               <p style={{ margin: 0, fontSize: '13px' }}>No merit records yet.</p>
             </div>
-          ) : records.map(r => (
-            <div key={r.id} style={{ background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '10px', padding: '12px 14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {programmeName(r.programmes)}
-                  </p>
-                  <p style={{ margin: '2px 0 0', fontSize: '10px', color: t.textFaint }}>
-                    {new Date(r.updated_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </p>
+          ) : records.map(r => {
+            const isDemerit = r.status === 'demerit'
+            const cfg = statusCfg(r.status)
+            return (
+              <div key={r.id} style={{ background: isDemerit ? t.dangerBg : t.bgInput, border: `1px solid ${isDemerit ? t.dangerBorder : t.border}`, borderRadius: '10px', padding: '12px 14px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                  <div style={{ flex: '1 1 160px', minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: isDemerit ? t.danger : t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {isDemerit ? 'Demerit' : programmeName(r.programmes)}
+                    </p>
+                    {isDemerit && r.reason && (
+                      <p style={{ margin: '4px 0 0', fontSize: '12px', color: t.textMuted, fontStyle: 'italic' }}>{r.reason}</p>
+                    )}
+                    <p style={{ margin: '2px 0 0', fontSize: '10px', color: t.textFaint }}>
+                      {new Date(r.updated_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                    <MeritBadge points={r.points} />
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, padding: '3px 9px', borderRadius: '5px', fontSize: '11px', fontWeight: 500 }}>
+                      <cfg.Icon size={11} />{r.status}
+                    </span>
+                  </div>
                 </div>
-                <MeritBadge points={r.points} />
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
     </div>

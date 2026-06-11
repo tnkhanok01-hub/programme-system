@@ -103,6 +103,103 @@ function BudgetBanner({ stats, isMobile }: {
 }
 
 /* ─── EDIT MODAL ─────────────────────────────────────────────────────────── */
+function daysAwaiting(dateStr: string): number {
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const created = new Date(dateStr); created.setHours(0, 0, 0, 0)
+  return Math.floor((today.getTime() - created.getTime()) / (1000 * 60 * 60 * 24))
+}
+
+function ReviewDuePanel({ programmes, isMobile, onReview }: {
+  programmes: Programme[]; isMobile: boolean; onReview: (prog: Programme) => void
+}) {
+  const { t } = useTheme()
+  const items = programmes
+    .filter(p => p.status === 'Pending')
+    .map(p => ({ ...p, days: daysAwaiting(p.created_at) }))
+
+  if (items.length === 0) return null
+
+  return (
+    <div style={{
+      background: t.bgCard,
+      border: `1px solid ${"#f59e0b"}33`,
+      borderRadius: isMobile ? '12px' : '14px',
+      overflow: 'hidden',
+      marginBottom: isMobile ? '16px' : '20px',
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: isMobile ? '12px 14px' : '14px 20px',
+        borderBottom: `1px solid ${"#f59e0b"}1f`,
+        background: `${"#f59e0b"}0a`,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Clock size={14} color={"#f59e0b"} />
+          <span style={{ fontSize: isMobile ? '12px' : '14px', fontWeight: 600, color: t.text }}>
+            Review Due
+          </span>
+        </div>
+        <span style={{
+          background: `${"#f59e0b"}1f`,
+          color: "#f59e0b",
+          fontSize: '11px',
+          fontWeight: 700,
+          padding: '2px 8px',
+          borderRadius: '20px',
+        }}>
+          {items.length}
+        </span>
+      </div>
+
+      {items.map((item, i) => {
+        const isLast = i === items.length - 1
+        return (
+          <div
+            key={item.id}
+            onClick={() => onReview(item)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: isMobile ? '10px 14px' : '12px 20px',
+              borderBottom: isLast ? 'none' : `1px solid ${t.border}`,
+              cursor: 'pointer',
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = `${"#f59e0b"}08` }}
+            onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{
+                margin: 0,
+                fontSize: isMobile ? '12px' : '13px',
+                fontWeight: 600,
+                color: t.text,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}>
+                {item.name}
+              </p>
+              <p style={{ margin: '2px 0 0', fontSize: '11px', color: t.textMuted }}>
+                {item.organiser}
+              </p>
+            </div>
+
+            <span style={{ fontSize: '11px', fontWeight: 600, color: "#f59e0b", flexShrink: 0 }}>
+              {item.days <= 0 ? 'Due today' : `${item.days} day${item.days !== 1 ? 's' : ''} awaiting review`}
+            </span>
+
+            <span style={{ color: t.textFaint, fontSize: '14px', flexShrink: 0 }}>→</span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function EditModal({ show, isMobile, editForm, actionLoading, onClose, onChange, onUpdate }: {
   show: boolean; isMobile: boolean; editForm: Partial<Programme>; actionLoading: boolean
   onClose: () => void; onChange: (f: Partial<Programme>) => void; onUpdate: () => void
@@ -774,6 +871,8 @@ export default function AdminHomepage() {
       const [{ data: programmeData }, { count }] = await Promise.all([
         supabase.from('programmes').select('*').eq('advisor_id', profileData.id).order('created_at', { ascending: false }),
         supabase.from('users').select('*', { count: 'exact', head: true }),
+        fetch('/api/overdue/check', { headers: { Authorization: `Bearer ${session.access_token}` } })
+          .catch(() => null),
       ])
 
       if (programmeData) setProgrammes(programmeData)
@@ -947,7 +1046,7 @@ export default function AdminHomepage() {
 
   if (loading) return (
     <div style={{ minHeight: '100vh', background: t.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ width: '44px', height: '44px', borderRadius: '50%', border: `3px solid ${t.border}`, borderTopColor: '#3b82f6', animation: 'spin 0.8s linear infinite' }} />
+      <div style={{ width: '44px', height: '44px', borderRadius: '50%', borderWidth: '3px', borderStyle: 'solid', borderTopColor: '#3b82f6', borderRightColor: t.border, borderBottomColor: t.border, borderLeftColor: t.border, animation: 'spin 0.8s linear infinite' }} />
       <p style={{ color: t.textFaint, fontSize: '13px' }}>Initializing admin panel...</p>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
@@ -998,6 +1097,7 @@ export default function AdminHomepage() {
 
           <StatCards stats={stats} userCount={userCount} isMobile={true} />
           <BudgetBanner stats={stats} isMobile={true} />
+          <ReviewDuePanel programmes={programmes} isMobile={true} onReview={handleOpenReview} />
 
           <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: '12px', overflow: 'hidden' }}>
             <div style={{ padding: '14px 16px', borderBottom: `1px solid ${t.border}` }}>
@@ -1132,6 +1232,7 @@ export default function AdminHomepage() {
 
         <StatCards stats={stats} userCount={userCount} isMobile={false} />
         <BudgetBanner stats={stats} isMobile={false} />
+        <ReviewDuePanel programmes={programmes} isMobile={false} onReview={handleOpenReview} />
 
         <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: '14px', overflow: 'hidden' }}>
           <div style={{ padding: '18px 22px', borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap' }}>

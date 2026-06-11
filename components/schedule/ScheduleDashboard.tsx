@@ -4,11 +4,13 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { useTheme } from '@/app/provider/ThemeContext'
+import { canonicalCommitteeRole } from '@/lib/constants'
 import {
   Calendar, User, LayoutDashboard, LogOut, Award, Bell,
   Settings, ChevronLeft, ChevronRight, List, Grid,
   Filter, X, MapPin, Clock, Info, QrCode, Shield, Crown,
   Users, BookOpen, ArrowRightLeft, CirclePlus, UserCircle, Menu,
+  AlertTriangle,
 } from 'lucide-react'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -172,6 +174,31 @@ export default function ScheduleDashboard({ sysRole }: { sysRole: SysRole }) {
     })
     return all.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
   }, [programmes, userRoles, selectedCategory])
+
+  // ── Clash detection (student view) ─────────────────────────────────────────
+  // Flags pairs of programmes the student is registered for whose date ranges overlap.
+
+  const clashes = useMemo(() => {
+    if (sysRole !== 'student') return []
+    const todayStr = new Date().toISOString().split('T')[0]
+    const directedProgrammes = programmes.filter(p => {
+      const role = userRoles[p.id]
+      return role && canonicalCommitteeRole(role) === 'Programme Director' && p.end_date >= todayStr
+    })
+    const upcomingProgrammes = programmes.filter(p => p.end_date >= todayStr)
+    const result: { a: Programme; b: Programme }[] = []
+    const seen = new Set<string>()
+    directedProgrammes.forEach(a => {
+      upcomingProgrammes.forEach(b => {
+        if (a.id === b.id) return
+        if (a.start_date <= b.end_date && b.start_date <= a.end_date) {
+          const key = [a.id, b.id].sort().join('-')
+          if (!seen.has(key)) { seen.add(key); result.push({ a, b }) }
+        }
+      })
+    })
+    return result
+  }, [programmes, userRoles, sysRole])
 
   // ── Calendar helpers ────────────────────────────────────────────────────────
 
@@ -525,6 +552,46 @@ export default function ScheduleDashboard({ sysRole }: { sysRole: SysRole }) {
     )
   }
 
+  const renderClashWarning = () => {
+    if (sysRole !== 'student' || clashes.length === 0) return null
+    return (
+      <div style={{
+        background: t.bgCard,
+        border: `1px solid ${t.danger}33`,
+        borderRadius: isMobile ? '12px' : '14px',
+        overflow: 'hidden',
+        marginBottom: isMobile ? '16px' : '20px',
+      }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: isMobile ? '12px 14px' : '14px 20px',
+          borderBottom: `1px solid ${t.danger}1f`, background: `${t.danger}0a`,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertTriangle size={14} color={t.danger} />
+            <span style={{ fontSize: isMobile ? '12px' : '14px', fontWeight: 600, color: t.text }}>
+              Clash Programme Warning — Programmes you direct overlap
+            </span>
+          </div>
+          <span style={{ background: `${t.danger}1f`, color: t.danger, fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>
+            {clashes.length}
+          </span>
+        </div>
+        {clashes.map(({ a, b }, i) => (
+          <div key={`${a.id}-${b.id}`}
+            style={{ padding: isMobile ? '10px 14px' : '12px 20px', borderBottom: i === clashes.length - 1 ? 'none' : `1px solid ${t.border}`, fontSize: isMobile ? '12px' : '13px', color: t.textMuted }}>
+            <strong style={{ color: t.text }}>{a.name}</strong> overlaps with <strong style={{ color: t.text }}>{b.name}</strong>
+            <div style={{ marginTop: '2px', fontSize: '11px', color: t.textFaint }}>
+              {new Date(a.start_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' })} – {new Date(a.end_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+              {' '}vs{' '}
+              {new Date(b.start_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' })} – {new Date(b.end_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   const renderTimelineView = () => {
     const grouped: { [key: string]: CalendarEvent[] } = {}
     events.forEach(evt => {
@@ -606,6 +673,8 @@ export default function ScheduleDashboard({ sysRole }: { sysRole: SysRole }) {
               </div>
             </div>
           </div>
+
+          {renderClashWarning()}
 
           {view === 'calendar' ? renderCalendarView() : renderTimelineView()}
         </main>

@@ -44,7 +44,7 @@ export async function GET(request: Request) {
   if (profileError) return NextResponse.json({ error: 'Internal error' }, { status: 500 })
 
   const role = (profile?.roles as any)?.name?.toLowerCase()
-  if (role !== 'superadmin') {
+  if (role !== 'superadmin' && role !== 'admin') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -174,6 +174,92 @@ export async function GET(request: Request) {
           await svc.from('notification_sent_log').insert({
             programme_id: prog.id,
             notification_type: 'post_warning',
+          })
+        } catch (_) { /* ignore duplicate-key errors on concurrent runs */ }
+      }
+    }
+  }
+
+  // ── Review-due check: Pending/Under Review programmes awaiting reviewer action ──
+  const REVIEW_DUE_DAYS = 3
+
+  const { data: reviewProgrammes } = await svc
+    .from('programmes')
+    .select('id, name, created_at, status, advisor_id')
+    .in('status', ['Pending', 'Under Review'])
+
+  if (reviewProgrammes && reviewProgrammes.length > 0) {
+    const reviewProgrammeIds = reviewProgrammes.map((p: any) => p.id)
+
+    const { data: reviewSentLog } = await svc
+      .from('notification_sent_log')
+      .select('programme_id')
+      .in('programme_id', reviewProgrammeIds)
+      .eq('notification_type', 'review_due')
+
+    const reviewAlreadySent = new Set((reviewSentLog ?? []).map((s: any) => s.programme_id))
+
+    const dueProgrammes = (reviewProgrammes as any[]).filter(
+      p => daysSinceDate(p.created_at) >= REVIEW_DUE_DAYS && !reviewAlreadySent.has(p.id)
+    )
+
+    if (dueProgrammes.length > 0) {
+      // Resolve advisors for Pending programmes
+      const advisorIds = Array.from(new Set(
+        dueProgrammes.filter(p => p.status === 'Pending' && p.advisor_id).map(p => p.advisor_id)
+      ))
+      const { data: advisorRows } = advisorIds.length > 0
+        ? await svc.from('users').select('id, email, full_name').in('id', advisorIds)
+        : { data: [] as any[] }
+      const advisorMap = new Map<string, { id: string; email: string; full_name: string }>(
+        (advisorRows ?? []).map((u: any) => [u.id, u])
+      )
+
+      // Resolve superadmins for Under Review programmes
+      let superadmins: { id: string; email: string; full_name: string }[] = []
+      if (dueProgrammes.some(p => p.status === 'Under Review')) {
+        const { data: superadminRoles } = await svc.from('roles').select('id').eq('name', 'superadmin')
+        const superadminRoleIds = ((superadminRoles ?? []) as any[]).map((r) => r.id)
+        if (superadminRoleIds.length > 0) {
+          const { data: superadminUsers } = await svc.from('users').select('id, email, full_name').in('role_id', superadminRoleIds)
+          superadmins = (superadminUsers ?? []) as any[]
+        }
+      }
+
+      for (const prog of dueProgrammes) {
+        const days = daysSinceDate(prog.created_at)
+        let recipients: { id: string; email: string; full_name: string }[] = []
+
+        if (prog.status === 'Pending' && prog.advisor_id) {
+          const advisor = advisorMap.get(prog.advisor_id)
+          if (advisor) recipients = [advisor]
+        } else if (prog.status === 'Under Review') {
+          recipients = superadmins
+        }
+
+        if (recipients.length === 0) continue
+
+        const message = `Programme "${prog.name}" has been awaiting your review for ${days} day${days !== 1 ? 's' : ''}. Please log in to UTM-SPMS to review it.`
+
+        await Promise.all(recipients.map(async recipient => {
+          await svc.from('notifications').insert({
+            user_id: recipient.id,
+            title: 'Programme Review Due',
+            message,
+          })
+
+          await sendEmail(
+            recipient.email,
+            `Action Required: Programme Review Due — ${prog.name}`,
+            `Dear ${recipient.full_name ?? 'Reviewer'},\n\n${message}\n\nRegards,\nUTM-SPMS`
+          ).catch((err) => { console.error('Failed to send review-due email:', err) })
+        }))
+
+        // Record that the reminder was sent for this programme (tolerate unique-constraint on concurrent runs)
+        try {
+          await svc.from('notification_sent_log').insert({
+            programme_id: prog.id,
+            notification_type: 'review_due',
           })
         } catch (_) { /* ignore duplicate-key errors on concurrent runs */ }
       }
