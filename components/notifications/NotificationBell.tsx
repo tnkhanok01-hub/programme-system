@@ -155,12 +155,27 @@ export default function NotificationBell() {
       </button>
 
       {open && (
+        <>
+          <style>{`
+            .notification-dropdown {
+              position: absolute;
+              right: 0;
+              top: 50px;
+              width: 320px;
+            }
+            @media (max-width: 480px) {
+              .notification-dropdown {
+                position: fixed;
+                left: 12px;
+                right: 12px;
+                top: 64px;
+                width: auto;
+              }
+            }
+          `}</style>
         <div
+          className="notification-dropdown"
           style={{
-            position: "absolute",
-            right: 0,
-            top: "50px",
-            width: "320px",
             background: t.bgCard,
             border: `1px solid ${t.border}`,
             borderRadius: "14px",
@@ -302,6 +317,7 @@ export default function NotificationBell() {
             )}
           </div>
         </div>
+        </>
       )}
     </div>
   );
