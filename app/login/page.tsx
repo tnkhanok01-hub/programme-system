@@ -105,9 +105,9 @@ function LoginContent() {
     width: '100%',
     padding: '11px 13px',
     borderRadius: '9px',
-    background: 'rgba(255,255,255,0.05)',
-    border: '1px solid rgba(255,255,255,0.09)',
-    color: '#e2e8f0',
+    background: 'rgba(0,0,0,0.03)',
+    border: '1px solid rgba(0,0,0,0.12)',
+    color: '#0f172a',
     fontSize: '14px',
     outline: 'none',
     boxSizing: 'border-box',
@@ -121,7 +121,7 @@ function LoginContent() {
     gap: '5px',
     fontSize: '11px',
     fontWeight: 600,
-    color: '#94a3b8',
+    color: '#475569',
     marginBottom: '6px',
     textTransform: 'uppercase',
     letterSpacing: '0.06em',
@@ -133,11 +133,11 @@ function LoginContent() {
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         @keyframes spin { to { transform: rotate(360deg) } }
         input:focus { border-color: rgba(99,102,241,0.5) !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.08); }
-        input::placeholder { color: #475569; }
+        input::placeholder { color: #94a3b8; }
         @media (max-width: 640px) { input { font-size: 16px !important; } }
       `}</style>
 
-      <div style={{ minHeight: '100vh', background: '#070e1a', fontFamily: "'Inter', sans-serif", color: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px' }}>
+      <div style={{ minHeight: '100vh', background: '#f1f5f9', fontFamily: "'Inter', sans-serif", color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px' }}>
         <div style={{ width: '100%', maxWidth: '400px' }}>
 
           {/* Header */}
@@ -145,18 +145,18 @@ function LoginContent() {
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(135deg, #4f46e5, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
               <LogIn size={20} color="white" />
             </div>
-            <h1 style={{ margin: '0 0 4px', fontSize: '22px', fontWeight: 700, color: '#e2e8f0', letterSpacing: '-0.02em' }}>Welcome Back</h1>
-            <p style={{ margin: 0, fontSize: '13px', color: '#94a3b8' }}>Sign in to your UTM SPMS account</p>
+            <h1 style={{ margin: '0 0 4px', fontSize: '22px', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.02em' }}>Welcome Back</h1>
+            <p style={{ margin: 0, fontSize: '13px', color: '#475569' }}>Sign in to your UTM SPMS account</p>
           </div>
 
           {/* Card */}
-          <div style={{ background: '#0c1526', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '28px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 16px 40px rgba(0,0,0,0.4)' }}>
+          <div style={{ background: '#ffffff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: '16px', padding: '28px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
 
             <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
               {/* Email */}
               <div>
-                <label style={labelStyle}><Mail size={11} />UTM Email <span style={{ color: '#ef4444' }}>*</span></label>
+                <label style={labelStyle}><Mail size={11} />UTM Email <span style={{ color: '#dc2626' }}>*</span></label>
                 <input
                   style={inputStyle}
                   type="email"
@@ -169,7 +169,7 @@ function LoginContent() {
 
               {/* Password */}
               <div>
-                <label style={labelStyle}><Lock size={11} />Password <span style={{ color: '#ef4444' }}>*</span></label>
+                <label style={labelStyle}><Lock size={11} />Password <span style={{ color: '#dc2626' }}>*</span></label>
                 <div style={{ position: 'relative' }}>
                   <input
                     style={{ ...inputStyle, paddingRight: '42px' }}
@@ -182,7 +182,7 @@ function LoginContent() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(p => !p)}
-                    style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '2px', display: 'flex' }}>
+                    style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: '2px', display: 'flex' }}>
                     {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
@@ -190,7 +190,7 @@ function LoginContent() {
 
               {/* Forgot password */}
               <div style={{ textAlign: 'right', marginTop: '-8px' }}>
-                <Link href="/forgot-password" style={{ fontSize: '12px', color: '#818cf8', textDecoration: 'none', fontWeight: 500 }}>
+                <Link href="/forgot-password" style={{ fontSize: '12px', color: '#4f46e5', textDecoration: 'none', fontWeight: 500 }}>
                   Forgot Password?
                 </Link>
               </div>
@@ -200,11 +200,11 @@ function LoginContent() {
                 <div style={{
                   display: 'flex', alignItems: 'flex-start', gap: '8px',
                   padding: '11px 14px', borderRadius: '9px',
-                  background: message.type === 'success' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.08)',
-                  border: `1px solid ${message.type === 'success' ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.25)'}`,
+                  background: message.type === 'success' ? 'rgba(5,150,105,0.08)' : 'rgba(220,38,38,0.06)',
+                  border: `1px solid ${message.type === 'success' ? 'rgba(5,150,105,0.25)' : 'rgba(220,38,38,0.2)'}`,
                 }}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                    stroke={message.type === 'success' ? '#10b981' : '#ef4444'}
+                    stroke={message.type === 'success' ? '#059669' : '#dc2626'}
                     strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                     style={{ flexShrink: 0, marginTop: '1px' }}>
                     {message.type === 'success'
@@ -212,7 +212,7 @@ function LoginContent() {
                       : <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>
                     }
                   </svg>
-                  <p style={{ margin: 0, fontSize: '12px', color: message.type === 'success' ? '#10b981' : '#ef4444', lineHeight: 1.5 }}>{message.text}</p>
+                  <p style={{ margin: 0, fontSize: '12px', color: message.type === 'success' ? '#059669' : '#dc2626', lineHeight: 1.5 }}>{message.text}</p>
                 </div>
               )}
 
@@ -239,9 +239,9 @@ function LoginContent() {
           </div>
 
           {/* Register link */}
-          <p style={{ textAlign: 'center', fontSize: '13px', color: '#94a3b8', marginTop: '20px' }}>
+          <p style={{ textAlign: 'center', fontSize: '13px', color: '#475569', marginTop: '20px' }}>
             Don&apos;t have an account?{' '}
-            <Link href="/register" style={{ color: '#818cf8', textDecoration: 'none', fontWeight: 500 }}>
+            <Link href="/register" style={{ color: '#4f46e5', textDecoration: 'none', fontWeight: 500 }}>
               Register here
             </Link>
           </p>
