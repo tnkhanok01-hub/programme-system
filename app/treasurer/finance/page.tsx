@@ -1,14 +1,14 @@
 'use client'
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import React, { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   ArrowLeft,
   Banknote,
   CirclePlus,
   FileSpreadsheet,
-  LayoutDashboard,
   Loader2,
+  Paperclip,
   ReceiptText,
   Save,
   Trash,
@@ -92,6 +92,11 @@ const emptyTransactionForm = {
   remarks: '',
 }
 
+const optionStyle: React.CSSProperties = {
+  color: '#111827',
+  background: '#ffffff',
+}
+
 function getInitials(name: string) {
   return name?.split(' ').map(part => part[0]).slice(0, 2).join('').toUpperCase() || 'TR'
 }
@@ -125,25 +130,21 @@ function TypeBadge({ type }: { type: FinanceType }) {
   )
 }
 
-export default function TreasurerFinancePage() {
+function TreasurerFinanceContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { t } = useTheme()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [uploadingReceipt, setUploadingReceipt] = useState(false)
   const [deletingId, setDeletingId] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState<{ kind: 'budget_item' | 'transaction'; id: string } | null>(null)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [profile, setProfile] = useState<{ name: string; role: string } | null>(null)
   const [programmes, setProgrammes] = useState<ProgrammeOption[]>([])
   const [selectedProgrammeId, setSelectedProgrammeId] = useState('')
-  const [lockedProgrammeId] = useState(() => {
-    if (typeof window === 'undefined') return ''
-    return new URLSearchParams(window.location.search).get('programmeId') ?? ''
-  })
-  const [embedded] = useState(() => {
-    if (typeof window === 'undefined') return false
-    return new URLSearchParams(window.location.search).get('embedded') === '1'
-  })
+  const lockedProgrammeId = searchParams?.get('programmeId') ?? ''
   const [selectedProgramme, setSelectedProgramme] = useState<ProgrammeOption | null>(null)
   const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([])
   const [transactions, setTransactions] = useState<FinanceTransaction[]>([])
@@ -328,9 +329,47 @@ export default function TreasurerFinancePage() {
     await loadFinance(selectedProgrammeId)
   }
 
-  const handleDelete = async (kind: 'budget_item' | 'transaction', id: string) => {
+  const handleReceiptUpload = async (file: File) => {
     if (!selectedProgrammeId) return
-    if (!confirm('Delete this finance record?')) return
+    setError('')
+    setUploadingReceipt(true)
+
+    const token = await getToken()
+    if (!token) {
+      setUploadingReceipt(false)
+      return
+    }
+
+    const body = new FormData()
+    body.append('file', file)
+    body.append('programme_id', selectedProgrammeId)
+
+    const res = await fetch('/api/finance/receipt', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body,
+    })
+    const data = await res.json()
+    setUploadingReceipt(false)
+
+    if (!res.ok) {
+      setError(data.error ?? 'Unable to upload receipt.')
+      return
+    }
+
+    setTransactionForm(prev => ({ ...prev, receipt_url: data.url }))
+    flashSuccess('Receipt uploaded.')
+  }
+
+  const handleDelete = (kind: 'budget_item' | 'transaction', id: string) => {
+    if (!selectedProgrammeId) return
+    setConfirmDelete({ kind, id })
+  }
+
+  const confirmDeleteRecord = async () => {
+    if (!confirmDelete || !selectedProgrammeId) return
+    const { kind, id } = confirmDelete
+    setConfirmDelete(null)
     setDeletingId(id)
     setError('')
 
@@ -354,15 +393,17 @@ export default function TreasurerFinancePage() {
   }
 
   const goBack = () => {
-    if (profile?.role === 'admin') router.push('/admin')
+    if (lockedProgrammeId) {
+      router.back()
+    } else if (profile?.role === 'admin') router.push('/admin')
     else if (profile?.role === 'superadmin') router.push('/superadmin')
     else router.push('/student')
   }
 
-  const tabItems: { id: SheetTab; label: string; icon: React.ElementType }[] = [
-    { id: 'budget', label: 'BELANJAWAN', icon: FileSpreadsheet },
-    { id: 'actual', label: 'MAKLUMAT BELANJA SEBENAR', icon: ReceiptText },
-    { id: 'statement', label: 'PENYATA', icon: Banknote },
+  const tabItems: { id: SheetTab; label: string; mobileLabel: string; icon: React.ElementType }[] = [
+    { id: 'budget', label: 'BELANJAWAN', mobileLabel: 'BELANJAWAN', icon: FileSpreadsheet },
+    { id: 'actual', label: 'MAKLUMAT BELANJA SEBENAR', mobileLabel: 'BELANJA SEBENAR', icon: ReceiptText },
+    { id: 'statement', label: 'PENYATA', mobileLabel: 'PENYATA', icon: Banknote },
   ]
 
   if (loading || isMobile === null) {
@@ -385,7 +426,7 @@ export default function TreasurerFinancePage() {
         }
       `}</style>
 
-      {!embedded && <header className="finance-no-print" style={{ background: t.bgCardAlt, borderBottom: `1px solid ${t.border}`, position: 'sticky', top: 0, zIndex: 20 }}>
+      <header className="finance-no-print" style={{ background: t.bgCardAlt, borderBottom: `1px solid ${t.border}`, position: 'sticky', top: 0, zIndex: 20 }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: isMobile ? '13px 16px' : '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
             <button onClick={goBack} title="Back" style={{ width: '34px', height: '34px', borderRadius: '8px', border: `1px solid ${t.border}`, background: t.bgInput, color: t.textFaint, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -395,24 +436,26 @@ export default function TreasurerFinancePage() {
               <WalletCards size={17} color="white" />
             </div>
             <div style={{ minWidth: 0 }}>
-              <h1 style={{ margin: 0, fontSize: isMobile ? '15px' : '19px', fontWeight: 700, color: t.text, letterSpacing: '-0.02em' }}>Treasurer Finance</h1>
-              <p style={{ margin: '2px 0 0', fontSize: '11px', color: t.textFaint, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <h1 style={{ margin: 0, fontSize: isMobile ? '15px' : '19px', fontWeight: 700, color: t.text, letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {selectedProgramme?.name ?? 'No finance programme assigned'}
-              </p>
+              </h1>
+              <p style={{ margin: '2px 0 0', fontSize: '11px', color: t.textFaint }}>Treasurer Finance</p>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-            <button onClick={() => router.push('/student')} title="Dashboard" style={{ width: '34px', height: '34px', borderRadius: '8px', border: `1px solid ${t.border}`, background: t.bgInput, color: t.textFaint, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <LayoutDashboard size={15} />
-            </button>
-            <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'linear-gradient(135deg,#0f766e,#14b8a6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '11px', fontWeight: 700 }}>
+            <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'linear-gradient(135deg,#0f766e,#14b8a6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>
               {getInitials(profile?.name ?? '')}
             </div>
+            {profile?.name && (
+              <span style={{ fontSize: '13px', fontWeight: 600, color: t.text, whiteSpace: 'normal', textAlign: 'right', lineHeight: 1.3, maxWidth: isMobile ? '110px' : '220px' }}>
+                {profile.name}
+              </span>
+            )}
           </div>
         </div>
-      </header>}
+      </header>
 
-      <main className="finance-print-page" style={{ maxWidth: '1180px', margin: '0 auto', padding: embedded ? '0' : isMobile ? '16px' : '24px' }}>
+      <main className="finance-print-page" style={{ maxWidth: '1180px', margin: '0 auto', padding: isMobile ? '16px' : '24px' }}>
         {error && (
           <div style={{ ...panelStyle, borderColor: t.dangerBorder, background: t.dangerBg, padding: '12px 14px', marginBottom: '14px', color: t.danger, fontSize: '13px' }}>
             {error}
@@ -438,7 +481,7 @@ export default function TreasurerFinancePage() {
                   <label style={labelStyle}>Programme</label>
                   <select value={selectedProgrammeId} onChange={event => handleProgrammeChange(event.target.value)} style={inputStyle}>
                     {programmes.map(programme => (
-                      <option key={programme.id} value={programme.id}>{programme.name}</option>
+                      <option key={programme.id} value={programme.id} style={optionStyle}>{programme.name}</option>
                     ))}
                   </select>
                 </div>
@@ -448,26 +491,49 @@ export default function TreasurerFinancePage() {
               <SummaryMini label="Variance" value={summary.balanceVariance} tone={summary.balanceVariance >= 0 ? 'good' : 'bad'} />
             </section>
 
-            <section className="finance-no-print" style={{ display: 'flex', gap: '8px', overflowX: 'auto', marginBottom: '16px', paddingBottom: '2px' }}>
+            <section className="finance-no-print" style={isMobile
+              ? { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '16px' }
+              : { display: 'flex', gap: '8px', overflowX: 'auto', marginBottom: '16px', paddingBottom: '2px' }
+            }>
               {tabItems.map(tab => {
                 const Icon = tab.icon
                 const active = activeTab === tab.id
                 return (
-                  <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '7px',
-                    padding: '9px 12px',
-                    borderRadius: '8px',
-                    border: `1px solid ${active ? 'rgba(20,184,166,0.45)' : t.border}`,
-                    background: active ? 'rgba(20,184,166,0.13)' : t.bgCard,
-                    color: active ? '#14b8a6' : t.textFaint,
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}>
-                    <Icon size={14} />{tab.label}
+                  <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={isMobile
+                    ? {
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '5px',
+                      padding: '8px 4px',
+                      borderRadius: '8px',
+                      border: `1px solid ${active ? 'rgba(20,184,166,0.45)' : t.border}`,
+                      background: active ? 'rgba(20,184,166,0.13)' : t.bgCard,
+                      color: active ? '#14b8a6' : t.textFaint,
+                      fontSize: '9.5px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                      lineHeight: 1.25,
+                      minHeight: '52px',
+                    }
+                    : {
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '7px',
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      border: `1px solid ${active ? 'rgba(20,184,166,0.45)' : t.border}`,
+                      background: active ? 'rgba(20,184,166,0.13)' : t.bgCard,
+                      color: active ? '#14b8a6' : t.textFaint,
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }
+                  }>
+                    <Icon size={14} />{isMobile ? tab.mobileLabel : tab.label}
                   </button>
                 )
               })}
@@ -503,10 +569,12 @@ export default function TreasurerFinancePage() {
                 panelStyle={panelStyle}
                 isMobile={isMobile}
                 saving={saving}
+                uploadingReceipt={uploadingReceipt}
                 deletingId={deletingId}
                 totals={transactionTotals}
                 onFormChange={setTransactionForm}
                 onSubmit={handleTransactionSubmit}
+                onReceiptUpload={handleReceiptUpload}
                 onDelete={id => handleDelete('transaction', id)}
                 t={t}
               />
@@ -527,7 +595,35 @@ export default function TreasurerFinancePage() {
           </>
         )}
       </main>
+
+      {confirmDelete && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '16px' }}>
+          <div style={{ ...panelStyle, width: '100%', maxWidth: '360px', padding: '20px', textAlign: 'center' }}>
+            <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'rgba(239,68,68,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+              <Trash size={18} color="#ef4444" />
+            </div>
+            <h3 style={{ margin: '0 0 6px', fontSize: '15px', color: t.text, fontWeight: 700 }}>Delete this record?</h3>
+            <p style={{ margin: '0 0 18px', fontSize: '13px', color: t.textFaint }}>This action cannot be undone.</p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => setConfirmDelete(null)} style={{ flex: 1, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${t.border}`, background: t.bgInput, color: t.text, fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
+                Cancel
+              </button>
+              <button onClick={confirmDeleteRecord} style={{ flex: 1, padding: '10px 12px', borderRadius: '8px', border: 'none', background: '#dc2626', color: 'white', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  )
+}
+
+export default function TreasurerFinancePage() {
+  return (
+    <Suspense fallback={null}>
+      <TreasurerFinanceContent />
+    </Suspense>
   )
 }
 
@@ -565,14 +661,14 @@ function BudgetSheet(props: {
           <div>
             <label style={labelStyle}>Type</label>
             <select value={budgetForm.type} onChange={event => onFormChange(prev => ({ ...prev, type: event.target.value as FinanceType }))} style={inputStyle}>
-              <option value="expense">Expense</option>
-              <option value="income">Income</option>
+              <option value="expense" style={optionStyle}>Expense</option>
+              <option value="income" style={optionStyle}>Income</option>
             </select>
           </div>
           <div>
             <label style={labelStyle}>Category</label>
             <select value={budgetForm.category} onChange={event => onFormChange(prev => ({ ...prev, category: event.target.value }))} style={inputStyle}>
-              {categories.map(category => <option key={category} value={category}>{category}</option>)}
+              {categories.map(category => <option key={category} value={category} style={optionStyle}>{category}</option>)}
             </select>
           </div>
           <div>
@@ -600,31 +696,59 @@ function BudgetSheet(props: {
       </form>
       <div style={panelStyle}>
         <SheetHeader title="BELANJAWAN" meta={`${totals.income} income items · ${totals.expense} expense items`} icon={FileSpreadsheet} t={t} />
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '760px' }}>
-            <thead>
-              <tr>
-                {['Type', 'Category', 'Item', 'Qty', 'Unit', 'Total', 'Notes', ''].map(head => <th key={head} style={tableHead(t)}>{head}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {budgetItems.length === 0 ? <EmptyRow colSpan={8} label="No budget items yet." t={t} /> : budgetItems.map(item => (
-                <tr key={item.id}>
-                  <td style={tableCell(t)}><TypeBadge type={item.type} /></td>
-                  <td style={tableCell(t)}>{item.category}</td>
-                  <td style={tableCell(t)}>{item.item}</td>
-                  <td style={tableCell(t)}>{normalizeMoney(item.quantity).toLocaleString('en-MY')}</td>
-                  <td style={tableCell(t)}>{formatRM(item.unit_amount)}</td>
-                  <td style={{ ...tableCell(t), fontWeight: 700 }}>{formatRM(normalizeMoney(item.quantity) * normalizeMoney(item.unit_amount))}</td>
-                  <td style={tableCell(t)}>{item.notes || '-'}</td>
-                  <td style={tableCell(t)}>
+        {isMobile ? (
+          budgetItems.length === 0 ? (
+            <div style={{ padding: '30px', textAlign: 'center', color: t.textFaint, fontSize: '13px' }}>No budget items yet.</div>
+          ) : (
+            <div>
+              {budgetItems.map(item => (
+                <div key={item.id} style={{ padding: '14px', borderBottom: `1px solid ${t.border}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '4px' }}>
+                        <TypeBadge type={item.type} />
+                        <span style={{ fontSize: '11px', color: t.textFaint }}>{item.category}</span>
+                      </div>
+                      <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: t.text }}>{item.item}</p>
+                    </div>
                     <DeleteButton loading={deletingId === item.id} onClick={() => onDelete(item.id)} />
-                  </td>
-                </tr>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: t.textFaint }}>
+                    <span>{normalizeMoney(item.quantity).toLocaleString('en-MY')} × {formatRM(item.unit_amount)}</span>
+                    <span style={{ fontWeight: 700, color: t.text }}>{formatRM(normalizeMoney(item.quantity) * normalizeMoney(item.unit_amount))}</span>
+                  </div>
+                  {item.notes && <p style={{ margin: '6px 0 0', fontSize: '12px', color: t.textFaintest }}>{item.notes}</p>}
+                </div>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          )
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '760px' }}>
+              <thead>
+                <tr>
+                  {['Type', 'Category', 'Item', 'Qty', 'Unit', 'Total', 'Notes', ''].map(head => <th key={head} style={tableHead(t)}>{head}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {budgetItems.length === 0 ? <EmptyRow colSpan={8} label="No budget items yet." t={t} /> : budgetItems.map(item => (
+                  <tr key={item.id}>
+                    <td style={tableCell(t)}><TypeBadge type={item.type} /></td>
+                    <td style={tableCell(t)}>{item.category}</td>
+                    <td style={tableCell(t)}>{item.item}</td>
+                    <td style={tableCell(t)}>{normalizeMoney(item.quantity).toLocaleString('en-MY')}</td>
+                    <td style={tableCell(t)}>{formatRM(item.unit_amount)}</td>
+                    <td style={{ ...tableCell(t), fontWeight: 700 }}>{formatRM(normalizeMoney(item.quantity) * normalizeMoney(item.unit_amount))}</td>
+                    <td style={tableCell(t)}>{item.notes || '-'}</td>
+                    <td style={tableCell(t)}>
+                      <DeleteButton loading={deletingId === item.id} onClick={() => onDelete(item.id)} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -640,14 +764,16 @@ function ActualSheet(props: {
   panelStyle: React.CSSProperties
   isMobile: boolean
   saving: boolean
+  uploadingReceipt: boolean
   deletingId: string
   totals: { income: number; expense: number }
   onFormChange: React.Dispatch<React.SetStateAction<typeof emptyTransactionForm>>
   onSubmit: (event: React.FormEvent) => void
+  onReceiptUpload: (file: File) => void
   onDelete: (id: string) => void
   t: ThemeTokens
 }) {
-  const { transactions, transactionForm, categories, paymentMethods, inputStyle, labelStyle, panelStyle, isMobile, saving, deletingId, totals, onFormChange, onSubmit, onDelete, t } = props
+  const { transactions, transactionForm, categories, paymentMethods, inputStyle, labelStyle, panelStyle, isMobile, saving, uploadingReceipt, deletingId, totals, onFormChange, onSubmit, onReceiptUpload, onDelete, t } = props
   return (
     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '360px minmax(0, 1fr)', gap: '16px' }}>
       <form onSubmit={onSubmit} className="finance-no-print" style={{ ...panelStyle, padding: '18px', alignSelf: 'start' }}>
@@ -657,8 +783,8 @@ function ActualSheet(props: {
             <div>
               <label style={labelStyle}>Type</label>
               <select value={transactionForm.type} onChange={event => onFormChange(prev => ({ ...prev, type: event.target.value as FinanceType }))} style={inputStyle}>
-                <option value="expense">Expense</option>
-                <option value="income">Income</option>
+                <option value="expense" style={optionStyle}>Expense</option>
+                <option value="income" style={optionStyle}>Income</option>
               </select>
             </div>
             <div>
@@ -669,7 +795,7 @@ function ActualSheet(props: {
           <div>
             <label style={labelStyle}>Category</label>
             <select value={transactionForm.category} onChange={event => onFormChange(prev => ({ ...prev, category: event.target.value }))} style={inputStyle}>
-              {categories.map(category => <option key={category} value={category}>{category}</option>)}
+              {categories.map(category => <option key={category} value={category} style={optionStyle}>{category}</option>)}
             </select>
           </div>
           <div>
@@ -684,13 +810,33 @@ function ActualSheet(props: {
             <div>
               <label style={labelStyle}>Payment</label>
               <select value={transactionForm.payment_method} onChange={event => onFormChange(prev => ({ ...prev, payment_method: event.target.value }))} style={inputStyle}>
-                {paymentMethods.map(method => <option key={method} value={method}>{method}</option>)}
+                {paymentMethods.map(method => <option key={method} value={method} style={optionStyle}>{method}</option>)}
               </select>
             </div>
           </div>
           <div>
-            <label style={labelStyle}>Receipt URL</label>
-            <input value={transactionForm.receipt_url} onChange={event => onFormChange(prev => ({ ...prev, receipt_url: event.target.value }))} style={inputStyle} />
+            <label style={labelStyle}>Receipt</label>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <label style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', border: `1px solid ${t.borderInput}`, background: t.bgInput, color: t.text, borderRadius: '8px', padding: '9px 11px', fontSize: '12px', fontWeight: 600, cursor: uploadingReceipt ? 'not-allowed' : 'pointer', opacity: uploadingReceipt ? 0.7 : 1 }}>
+                {uploadingReceipt ? <Loader2 size={13} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Paperclip size={13} />}
+                {uploadingReceipt ? 'Uploading...' : 'Upload File'}
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  disabled={uploadingReceipt}
+                  onChange={event => {
+                    const file = event.target.files?.[0]
+                    if (file) onReceiptUpload(file)
+                    event.target.value = ''
+                  }}
+                  style={{ display: 'none' }}
+                />
+              </label>
+              {transactionForm.receipt_url && (
+                <a href={transactionForm.receipt_url} target="_blank" rel="noreferrer" style={{ fontSize: '12px', color: '#14b8a6', fontWeight: 600 }}>View receipt</a>
+              )}
+            </div>
+            <input value={transactionForm.receipt_url} onChange={event => onFormChange(prev => ({ ...prev, receipt_url: event.target.value }))} placeholder="Or paste a receipt URL" style={{ ...inputStyle, marginTop: '8px' }} />
           </div>
           <div>
             <label style={labelStyle}>Remarks</label>
@@ -703,32 +849,64 @@ function ActualSheet(props: {
       </form>
       <div style={panelStyle}>
         <SheetHeader title="MAKLUMAT BELANJA SEBENAR" meta={`${totals.income} income records · ${totals.expense} expense records`} icon={ReceiptText} t={t} />
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '840px' }}>
-            <thead>
-              <tr>
-                {['Date', 'Type', 'Category', 'Description', 'Amount', 'Payment', 'Receipt', 'Remarks', ''].map(head => <th key={head} style={tableHead(t)}>{head}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.length === 0 ? <EmptyRow colSpan={9} label="No actual finance records yet." t={t} /> : transactions.map(item => (
-                <tr key={item.id}>
-                  <td style={tableCell(t)}>{formatDate(item.transaction_date)}</td>
-                  <td style={tableCell(t)}><TypeBadge type={item.type} /></td>
-                  <td style={tableCell(t)}>{item.category}</td>
-                  <td style={tableCell(t)}>{item.description}</td>
-                  <td style={{ ...tableCell(t), fontWeight: 700 }}>{formatRM(item.amount)}</td>
-                  <td style={tableCell(t)}>{item.payment_method || '-'}</td>
-                  <td style={tableCell(t)}>{item.receipt_url ? <a href={item.receipt_url} target="_blank" rel="noreferrer" style={{ color: '#14b8a6' }}>Open</a> : '-'}</td>
-                  <td style={tableCell(t)}>{item.remarks || '-'}</td>
-                  <td style={tableCell(t)}>
+        {isMobile ? (
+          transactions.length === 0 ? (
+            <div style={{ padding: '30px', textAlign: 'center', color: t.textFaint, fontSize: '13px' }}>No actual finance records yet.</div>
+          ) : (
+            <div>
+              {transactions.map(item => (
+                <div key={item.id} style={{ padding: '14px', borderBottom: `1px solid ${t.border}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '4px' }}>
+                        <TypeBadge type={item.type} />
+                        <span style={{ fontSize: '11px', color: t.textFaint }}>{formatDate(item.transaction_date)}</span>
+                      </div>
+                      <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: t.text }}>{item.description}</p>
+                      <p style={{ margin: '2px 0 0', fontSize: '11px', color: t.textFaint }}>{item.category}</p>
+                    </div>
                     <DeleteButton loading={deletingId === item.id} onClick={() => onDelete(item.id)} />
-                  </td>
-                </tr>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: t.textFaint }}>
+                    <span>{item.payment_method || '-'}</span>
+                    <span style={{ fontWeight: 700, color: t.text }}>{formatRM(item.amount)}</span>
+                  </div>
+                  {item.receipt_url && (
+                    <a href={item.receipt_url} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: '6px', fontSize: '12px', color: '#14b8a6' }}>View Receipt</a>
+                  )}
+                  {item.remarks && <p style={{ margin: '6px 0 0', fontSize: '12px', color: t.textFaintest }}>{item.remarks}</p>}
+                </div>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          )
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '700px' }}>
+              <thead>
+                <tr>
+                  {['Date', 'Type', 'Category', 'Description', 'Amount', 'Payment', 'Receipt', 'Remarks', ''].map(head => <th key={head} style={tableHead(t)}>{head}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {transactions.length === 0 ? <EmptyRow colSpan={9} label="No actual finance records yet." t={t} /> : transactions.map(item => (
+                  <tr key={item.id}>
+                    <td style={tableCell(t)}>{formatDate(item.transaction_date)}</td>
+                    <td style={tableCell(t)}><TypeBadge type={item.type} /></td>
+                    <td style={tableCell(t)}>{item.category}</td>
+                    <td style={tableCell(t)}>{item.description}</td>
+                    <td style={{ ...tableCell(t), fontWeight: 700 }}>{formatRM(item.amount)}</td>
+                    <td style={tableCell(t)}>{item.payment_method || '-'}</td>
+                    <td style={tableCell(t)}>{item.receipt_url ? <a href={item.receipt_url} target="_blank" rel="noreferrer" style={{ color: '#14b8a6' }}>Open</a> : '-'}</td>
+                    <td style={tableCell(t)}>{item.remarks || '-'}</td>
+                    <td style={tableCell(t)}>
+                      <DeleteButton loading={deletingId === item.id} onClick={() => onDelete(item.id)} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -769,25 +947,44 @@ function StatementSheet(props: {
           <StatementCard label="Actual Balance" value={summary.actualBalance} />
           <StatementCard label="Balance Variance" value={summary.balanceVariance} />
         </div>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '620px' }}>
-            <thead>
-              <tr>
-                {['Section', 'Belanjawan', 'Belanja Sebenar', 'Variance'].map(head => <th key={head} style={tableHead(t)}>{head}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map(row => (
-                <tr key={row.label}>
-                  <td style={{ ...tableCell(t), fontWeight: 700 }}>{row.label}</td>
-                  <td style={tableCell(t)}>{formatRM(row.planned)}</td>
-                  <td style={tableCell(t)}>{formatRM(row.actual)}</td>
-                  <td style={{ ...tableCell(t), color: row.variance >= 0 ? '#10b981' : '#ef4444', fontWeight: 800 }}>{formatRM(row.variance)}</td>
+        {isMobile ? (
+          <div style={{ display: 'grid', gap: '10px' }}>
+            {rows.map(row => (
+              <div key={row.label} style={{ border: `1px solid ${t.border}`, borderRadius: '10px', padding: '12px' }}>
+                <p style={{ margin: '0 0 8px', fontSize: '13px', fontWeight: 700, color: t.text }}>{row.label}</p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: t.textFaint, marginBottom: '4px' }}>
+                  <span>Belanjawan</span><span style={{ color: t.text }}>{formatRM(row.planned)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: t.textFaint, marginBottom: '4px' }}>
+                  <span>Belanja Sebenar</span><span style={{ color: t.text }}>{formatRM(row.actual)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: t.textFaint }}>
+                  <span>Variance</span><span style={{ fontWeight: 800, color: row.variance >= 0 ? '#10b981' : '#ef4444' }}>{formatRM(row.variance)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '620px' }}>
+              <thead>
+                <tr>
+                  {['Section', 'Belanjawan', 'Belanja Sebenar', 'Variance'].map(head => <th key={head} style={tableHead(t)}>{head}</th>)}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {rows.map(row => (
+                  <tr key={row.label}>
+                    <td style={{ ...tableCell(t), fontWeight: 700 }}>{row.label}</td>
+                    <td style={tableCell(t)}>{formatRM(row.planned)}</td>
+                    <td style={tableCell(t)}>{formatRM(row.actual)}</td>
+                    <td style={{ ...tableCell(t), color: row.variance >= 0 ? '#10b981' : '#ef4444', fontWeight: 800 }}>{formatRM(row.variance)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
       <div className="finance-no-print" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px' }}>
         <div style={{ ...panelStyle, padding: '16px' }}>
@@ -843,7 +1040,7 @@ function EmptyRow({ colSpan, label, t }: { colSpan: number; label: string; t: Th
 function tableHead(t: ThemeTokens): React.CSSProperties {
   return {
     textAlign: 'left',
-    padding: '10px 12px',
+    padding: '8px 9px',
     borderBottom: `1px solid ${t.border}`,
     color: t.textFaint,
     fontSize: '11px',
@@ -855,7 +1052,7 @@ function tableHead(t: ThemeTokens): React.CSSProperties {
 
 function tableCell(t: ThemeTokens): React.CSSProperties {
   return {
-    padding: '11px 12px',
+    padding: '9px 9px',
     borderBottom: `1px solid ${t.border}`,
     color: t.text,
     fontSize: '12px',

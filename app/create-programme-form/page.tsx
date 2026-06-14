@@ -7,7 +7,7 @@ import { useTheme } from '@/app/provider/ThemeContext'
 import {
   ArrowLeft, CalendarPlus, CirclePlus, Loader2,
   BookOpen, MapPin, DollarSign, Calendar, AlignLeft, Tag,
-  CheckCircle, XCircle, Upload, X, FileText, Users,
+  CheckCircle, XCircle, Upload, X, FileText, Users, AlertCircle,
 } from 'lucide-react'
 import { PRE_CHECKLIST } from '../../lib/constants'
 
@@ -21,6 +21,7 @@ export default function CreateProgrammePage() {
   const [dateError, setDateError] = useState('')
   const [isMobile, setIsMobile] = useState(false)
   const [preFiles, setPreFiles] = useState<Record<string, File | null>>({ paperwork: null })
+  const [fileErrors, setFileErrors] = useState<Record<string, string>>({})
   const [uploadStep, setUploadStep] = useState('')
   const [advisorId, setAdvisorId] = useState('')
   const [admins, setAdmins] = useState<{ id: string; full_name: string }[]>([])
@@ -423,14 +424,31 @@ export default function CreateProgrammePage() {
                                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 11px', borderRadius: '7px', cursor: 'pointer', border: `1px solid ${done ? t.successBorder : 'rgba(96,165,250,0.35)'}`, background: done ? t.successBg : 'rgba(96,165,250,0.1)', color: done ? t.success : '#60a5fa', fontSize: '12px', fontWeight: 500 }}>
                                   <Upload size={12} />
                                   {done ? 'Replace' : 'Upload'}
-                                  <input type="file" style={{ display: 'none' }} onChange={e => {
+                                  <input type="file" accept=".pdf,application/pdf" style={{ display: 'none' }} onChange={e => {
                                     const f = e.target.files?.[0]
-                                    if (f) setPreFiles(prev => ({ ...prev, [item.key]: f }))
+                                    if (!f) return
+                                    if (f.type !== 'application/pdf' && !f.name.toLowerCase().endsWith('.pdf')) {
+                                      setFileErrors(prev => ({ ...prev, [item.key]: 'Only PDF files are allowed.' }))
+                                      e.target.value = ''
+                                      return
+                                    }
+                                    setFileErrors(prev => {
+                                      const next = { ...prev }
+                                      delete next[item.key]
+                                      return next
+                                    })
+                                    setPreFiles(prev => ({ ...prev, [item.key]: f }))
                                     e.target.value = ''
                                   }} />
                                 </label>
                               </div>
                             </div>
+                            {fileErrors[item.key] && (
+                              <div style={{ marginTop: '10px', padding: '8px 12px', borderRadius: '8px', background: t.dangerBg, border: `1px solid ${t.dangerBorder}`, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <AlertCircle size={13} color={t.danger} />
+                                <span style={{ fontSize: '12px', color: t.danger }}>{fileErrors[item.key]}</span>
+                              </div>
+                            )}
                           </div>
                         )
                       })}

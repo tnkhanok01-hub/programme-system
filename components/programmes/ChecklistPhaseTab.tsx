@@ -24,6 +24,9 @@ export default function ChecklistPhaseTab({ phase, checklist, programmeId, docs,
   const phaseDocs = docs.filter(d => d.phase === phase)
   const [uploadingKey, setUploadingKey] = useState<string | null>(null)
   const [previewDoc, setPreviewDoc] = useState<PhaseDoc | null>(null)
+  const [deleteDoc, setDeleteDoc] = useState<PhaseDoc | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [fileErrors, setFileErrors] = useState<Record<string, string>>({})
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({})
   const docsForKey = (key: string) => phaseDocs.filter(d => d.doc_type === key)
   const completedCount = checklist.filter(item => docsForKey(item.key).length > 0).length
@@ -32,6 +35,18 @@ export default function ChecklistPhaseTab({ phase, checklist, programmeId, docs,
     const file = e.target.files?.[0]
     if (!file) return
 
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      setFileErrors(prev => ({ ...prev, [docKey]: 'Only PDF files are allowed.' }))
+      const ref = fileRefs.current[docKey]
+      if (ref) ref.value = ''
+      return
+    }
+
+    setFileErrors(prev => {
+      const next = { ...prev }
+      delete next[docKey]
+      return next
+    })
     setUploadingKey(docKey)
 
     const fd = new FormData()
@@ -58,18 +73,26 @@ export default function ChecklistPhaseTab({ phase, checklist, programmeId, docs,
     }
   }
 
-  const handleDelete = async (doc: PhaseDoc) => {
-    if (!confirm(`Delete "${doc.file_name}"?`)) return
+  const handleDelete = (doc: PhaseDoc) => {
+    setDeleteDoc(doc)
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteDoc) return
+    setIsDeleting(true)
 
     try {
-      await deleteDocument(doc.id)
+      await deleteDocument(deleteDoc.id)
 
       const updatedDocs = await getDocuments(programmeId)
       const docsData = Array.isArray(updatedDocs) ? updatedDocs : updatedDocs.data
       onDocsChange(docsData ?? [])
+      setDeleteDoc(null)
 
     } catch (err: any) {
       alert(err.message || 'Delete failed')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -188,6 +211,7 @@ export default function ChecklistPhaseTab({ phase, checklist, programmeId, docs,
 
                     <input
                       type="file"
+                      accept=".pdf,application/pdf"
                       style={{ display: 'none' }}
                       disabled={isUploading}
                       ref={el => { fileRefs.current[item.key] = el }}
@@ -196,6 +220,13 @@ export default function ChecklistPhaseTab({ phase, checklist, programmeId, docs,
                   </label>
                 )}
               </div>
+
+              {fileErrors[item.key] && (
+                <div style={{ margin: '0 16px 14px', padding: '8px 12px', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <AlertCircle size={13} color="#ef4444" />
+                  <span style={{ fontSize: '12px', color: '#ef4444' }}>{fileErrors[item.key]}</span>
+                </div>
+              )}
 
               {itemDocs.length > 0 && (
                 <div style={{ padding: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -239,6 +270,43 @@ export default function ChecklistPhaseTab({ phase, checklist, programmeId, docs,
               src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${previewDoc.file_path}`}
               style={{ width: '100%', flex: 1, background: 'white', borderRadius: '8px', border: 'none' }}
             />
+          </div>
+        </div>
+      )}
+
+      {deleteDoc && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 90, padding: '16px', backdropFilter: 'blur(6px)' }}>
+          <div style={{ background: t.bgCard, border: `1px solid ${t.borderInput}`, width: '100%', maxWidth: '360px', padding: '20px', borderRadius: '14px', textAlign: 'center' }}>
+            <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'rgba(239,68,68,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+              <Trash2 size={18} color="#ef4444" />
+            </div>
+            <h3 style={{ margin: '0 0 6px', fontSize: '15px', color: t.text, fontWeight: 700 }}>Delete this document?</h3>
+            <p style={{ margin: '0 0 18px', fontSize: '13px', color: t.textFaint, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {deleteDoc.file_name} — this action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => setDeleteDoc(null)}
+                disabled={isDeleting}
+                style={{ flex: 1, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${t.border}`, background: t.bgInput, color: t.text, fontSize: '13px', fontWeight: 700, cursor: isDeleting ? 'not-allowed' : 'pointer', opacity: isDeleting ? 0.6 : 1 }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={isDeleting}
+                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px 12px', borderRadius: '8px', border: 'none', background: '#dc2626', color: 'white', fontSize: '13px', fontWeight: 700, cursor: isDeleting ? 'not-allowed' : 'pointer', opacity: isDeleting ? 0.7 : 1 }}
+              >
+                {isDeleting ? (
+                  <>
+                    <RefreshCw size={13} style={{ animation: 'spin 0.8s linear infinite' }} />
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete'
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

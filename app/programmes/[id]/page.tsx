@@ -2,6 +2,7 @@
 
 import { PhaseDoc } from '@/lib/types'
 import React, { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
 import { supabase } from '../../../lib/supabaseClient'
 import {
@@ -33,7 +34,7 @@ interface Programme {
   advisor_id?: string | null
 }
 
-type Phase = 'pre' | 'during' | 'post' | 'survey' | 'finance'
+type Phase = 'pre' | 'during' | 'post' | 'survey'
 type RoleJoin = { name?: string | null } | { name?: string | null }[] | null
 
 function getRoleName(roles: RoleJoin) {
@@ -544,11 +545,6 @@ export default function ProgrammeDetailPage() {
                     <Users size={13} />Surveys
                   </button>
                 )}
-                {canManageFinance && (
-                  <button onClick={() => setActiveTab('finance')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: isMobile ? '12px 6px' : '14px 10px', border: 'none', borderBottom: activeTab === 'finance' ? '2px solid #14b8a6' : '2px solid transparent', background: activeTab === 'finance' ? 'rgba(20,184,166,0.12)' : 'transparent', color: activeTab === 'finance' ? '#14b8a6' : t.textFaint, fontSize: '13px', fontWeight: activeTab === 'finance' ? 600 : 400, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
-                    <WalletCards size={13} />Finance
-                  </button>
-                )}
               </div>
               <div style={{ padding: isMobile ? '14px' : '20px' }}>
                 {activeTab === 'pre'    && <ChecklistPhaseTab key="pre"    phase="pre"  checklist={PRE_CHECKLIST}  programmeId={programme.id} docs={phaseDocs} onDocsChange={(u) => setPhaseDocs(u)} canUpload={canUpload} />}
@@ -593,15 +589,29 @@ export default function ProgrammeDetailPage() {
                   </>
                 )}
                 {activeTab === 'survey' && (isAdmin || isOwner) && <SurveyReportTab key="survey" programmeId={programme.id} programmeName={programme.name} />}
-                {activeTab === 'finance' && canManageFinance && (
-                  <iframe
-                    title="Programme finance"
-                    src={`/treasurer/finance?programmeId=${programme.id}&embedded=1`}
-                    style={{ width: '100%', minHeight: isMobile ? '1120px' : '980px', border: 'none', borderRadius: '10px', background: t.bg }}
-                  />
-                )}
               </div>
             </div>
+
+            {/* FINANCE */}
+            {canManageFinance && (
+              <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: '14px', padding: isMobile ? '16px' : '20px', marginBottom: '24px', display: 'flex', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between', gap: '12px', flexDirection: isMobile ? 'column' : 'row' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(20,184,166,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <WalletCards size={17} color="#14b8a6" />
+                  </div>
+                  <div>
+                    <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: t.text }}>Finance</p>
+                    <p style={{ margin: '2px 0 0', fontSize: '12px', color: t.textFaint }}>Manage budget, transactions and reports for this programme.</p>
+                  </div>
+                </div>
+                <Link
+                  href={`/treasurer/finance?programmeId=${programme.id}`}
+                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '7px', padding: '10px 16px', borderRadius: '9px', border: '1px solid rgba(20,184,166,0.35)', background: 'rgba(20,184,166,0.12)', color: '#14b8a6', fontSize: '13px', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}
+                >
+                  <WalletCards size={14} />Open Finance
+                </Link>
+              </div>
+            )}
 
             {/* APPROVAL DOCUMENTS */}
             {(isAdmin || isOwner) && phaseDocs.some(d => d.phase === 'approval') && (

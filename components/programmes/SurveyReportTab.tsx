@@ -480,7 +480,7 @@ export default function SurveyReportTab({ programmeId, programmeName }: Props) {
             color: generatingPdf ? '#475569' : '#818cf8',
             fontSize:'12px', fontWeight:600, cursor: generatingPdf ? 'not-allowed' : 'pointer', fontFamily:'inherit',
           }}>
-            <Download size={13} />{generatingPdf ? 'Generating…' : 'Download PDF Report'}
+            <Download size={13} />{generatingPdf ? 'Generating…' : 'Survey Report'}
           </button>
         )}
         <button onClick={generateAttendancePDF} disabled={generatingAttendance} style={{
@@ -490,7 +490,7 @@ export default function SurveyReportTab({ programmeId, programmeName }: Props) {
           color: generatingAttendance ? '#475569' : '#34d399',
           fontSize:'12px', fontWeight:600, cursor: generatingAttendance ? 'not-allowed' : 'pointer', fontFamily:'inherit',
         }}>
-          <Download size={13} />{generatingAttendance ? 'Generating…' : `Attendance List (${qualifiedCount})`}
+          <Download size={13} />{generatingAttendance ? 'Generating…' : `Attendance Report (${qualifiedCount})`}
         </button>
       </div>
 
