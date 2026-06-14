@@ -52,6 +52,8 @@ export default function ProfilePage() {
   const [meritSummary, setMeritSummary] = useState<MeritSummary | null>(null)
   const [meritLoading, setMeritLoading] = useState(false)
   const [showMeritBreakdown, setShowMeritBreakdown] = useState(false)
+  const [showExportPicker, setShowExportPicker] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const router = useRouter()
 
@@ -131,24 +133,39 @@ export default function ProfilePage() {
     router.replace('/login')
   }
 
-  const handleExportMerit = async () => {
+  const handleExportMerit = async (year: string) => {
     if (!user) return
+    setShowExportPicker(false)
+    setExporting(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { router.replace('/login'); return }
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) { router.replace('/login'); return }
+      const summary = meritSummary ?? await loadMeritSummary(session.access_token)
+      const activities = summary?.transactions ?? meritRecords
 
-    const summary = meritSummary ?? await loadMeritSummary(session.access_token)
-    const activities = summary?.transactions ?? meritRecords
+      const filteredActivities = year === 'all'
+        ? activities
+        : activities.filter(a => getMeritRecordYear(a) === Number(year))
 
-    await generateMeritReportPdf({
-      student: {
-        name: user.name,
-        email: user.email,
-        matric: user.matric,
-      },
-      activities,
-      totalMerit: meritPoints,
-    })
+      const totalMerit = year === 'all'
+        ? meritPoints
+        : filteredActivities.reduce((sum, item) => sum + Number(item.points || 0), 0)
+
+      await generateMeritReportPdf({
+        student: {
+          name: user.name,
+          email: user.email,
+          matric: user.matric,
+        },
+        activities: filteredActivities,
+        totalMerit,
+        year: year === 'all' ? undefined : year,
+        officialTotal: year === 'all' ? undefined : meritPoints,
+      })
+    } finally {
+      setExporting(false)
+    }
   }
 
   const handleStartEdit = () => { setSaveError(''); setSaveSuccess(false); setEditing(true) }
@@ -200,6 +217,11 @@ export default function ProfilePage() {
     return date ? new Date(date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }) : ''
   }
 
+  const getMeritRecordYear = (record: MeritSummaryTransaction) => {
+    const date = record.created_at ?? record.updated_at
+    return date ? new Date(date).getFullYear() : null
+  }
+
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
 
   const inputStyle: React.CSSProperties = {
@@ -237,6 +259,9 @@ export default function ProfilePage() {
   const RoleIcon = roleConfig.icon
   const detailedMeritRecords = meritSummary?.transactions ?? meritRecords
   const pillarEntries = Object.entries(meritSummary?.byPillar ?? {})
+  const availableMeritYears = Array.from(new Set(
+    detailedMeritRecords.map(getMeritRecordYear).filter((y): y is number => y !== null)
+  )).sort((a, b) => b - a)
 
   return (
     <>
@@ -452,6 +477,36 @@ export default function ProfilePage() {
                 </div>
               )}
 
+              {/* Export year picker modal */}
+              {showExportPicker && (
+                <div onClick={() => setShowExportPicker(false)}
+                  style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 80, backdropFilter: 'blur(4px)', padding: '16px' }}>
+                  <div onClick={e => e.stopPropagation()}
+                    style={{ background: t.bgCard, border: `1px solid ${t.accentBorder}`, borderRadius: '20px', width: '100%', maxWidth: '360px', overflow: 'hidden' }}>
+                    <div style={{ padding: '20px 24px', borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <p style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: t.text }}>Export Merit Report</p>
+                      <button onClick={() => setShowExportPicker(false)}
+                        style={{ background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '8px', padding: '8px', cursor: 'pointer', color: t.textFaint }}>
+                        <X size={18} />
+                      </button>
+                    </div>
+                    <div style={{ padding: '16px 24px 24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <p style={{ margin: '0 0 6px', fontSize: '13px', color: t.textFaint }}>Choose a year to export:</p>
+                      <button onClick={() => handleExportMerit('all')}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', background: t.accentBg, border: `1px solid ${t.accentBorder}`, borderRadius: '8px', padding: '10px 14px', color: t.accentText, fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                        <Download size={14} />All Years
+                      </button>
+                      {availableMeritYears.map(yr => (
+                        <button key={yr} onClick={() => handleExportMerit(String(yr))}
+                          style={{ display: 'flex', alignItems: 'center', gap: '8px', background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '8px', padding: '10px 14px', color: t.text, fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                          <Download size={14} />{yr}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Merit card */}
               <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: '20px', padding: '24px', marginBottom: '20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -481,9 +536,9 @@ export default function ProfilePage() {
                       style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.2)', borderRadius: '7px', padding: '5px 10px', color: '#60a5fa', fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
                       View Details
                     </button>
-                    <button onClick={handleExportMerit} disabled={meritLoading || detailedMeritRecords.length === 0}
-                      style={{ display: 'flex', alignItems: 'center', gap: '4px', background: meritLoading || detailedMeritRecords.length === 0 ? t.bgInput : 'rgba(34,197,94,0.1)', border: meritLoading || detailedMeritRecords.length === 0 ? `1px solid ${t.border}` : '1px solid rgba(34,197,94,0.22)', borderRadius: '7px', padding: '5px 10px', color: meritLoading || detailedMeritRecords.length === 0 ? t.textFaintest : '#22c55e', fontSize: '11px', fontWeight: 500, cursor: meritLoading || detailedMeritRecords.length === 0 ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                      <Download size={12} />Export PDF
+                    <button onClick={() => setShowExportPicker(true)} disabled={meritLoading || exporting || detailedMeritRecords.length === 0}
+                      style={{ display: 'flex', alignItems: 'center', gap: '4px', background: meritLoading || exporting || detailedMeritRecords.length === 0 ? t.bgInput : 'rgba(34,197,94,0.1)', border: meritLoading || exporting || detailedMeritRecords.length === 0 ? `1px solid ${t.border}` : '1px solid rgba(34,197,94,0.22)', borderRadius: '7px', padding: '5px 10px', color: meritLoading || exporting || detailedMeritRecords.length === 0 ? t.textFaintest : '#22c55e', fontSize: '11px', fontWeight: 500, cursor: meritLoading || exporting || detailedMeritRecords.length === 0 ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                      <Download size={12} />{exporting ? 'Exporting...' : 'Export PDF'}
                     </button>
                   </div>
                 </div>

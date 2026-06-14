@@ -311,6 +311,9 @@ export default function StudentHomepage() {
             <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'linear-gradient(135deg,#1d4ed8,#60a5fa)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 600, color: 'white' }}>
               {getInitials(profile?.full_name || '')}
             </div>
+            <button onClick={handleLogout} title="Sign out" style={{ background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '8px', width: '34px', height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.textFaint }}>
+              <LogOut size={14} />
+            </button>
           </div>
         </div>
 

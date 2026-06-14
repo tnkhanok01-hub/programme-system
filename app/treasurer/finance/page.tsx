@@ -92,9 +92,11 @@ const emptyTransactionForm = {
   remarks: '',
 }
 
-const optionStyle: React.CSSProperties = {
-  color: '#111827',
-  background: '#ffffff',
+function optionStyle(t: ThemeTokens): React.CSSProperties {
+  return {
+    color: t.text,
+    background: t.bgCard,
+  }
 }
 
 function getInitials(name: string) {
@@ -235,7 +237,7 @@ function TreasurerFinanceContent() {
     fontSize: '11px',
     color: t.textFaint,
     marginBottom: '5px',
-    fontWeight: 600,
+    fontWeight: 500,
   }
 
   const panelStyle: React.CSSProperties = {
@@ -417,8 +419,9 @@ function TreasurerFinanceContent() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: t.bg, color: t.text, fontFamily: "'Inter', -apple-system, sans-serif" }}>
+    <div style={{ minHeight: '100vh', background: t.bg, color: t.text, fontFamily: "'DM Sans', sans-serif" }}>
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap');
         @keyframes spin { to { transform: rotate(360deg) } }
         @media print {
           .finance-no-print { display: none !important; }
@@ -465,7 +468,7 @@ function TreasurerFinanceContent() {
         {programmes.length === 0 ? (
           <div style={{ ...panelStyle, padding: '32px', textAlign: 'center' }}>
             <WalletCards size={28} color={t.textFaintest} />
-            <h2 style={{ margin: '12px 0 6px', fontSize: '16px', color: t.text }}>No Treasurer Programme</h2>
+            <h2 style={{ margin: '12px 0 6px', fontSize: '16px', fontWeight: 700, color: t.text }}>No Treasurer Programme</h2>
             <p style={{ margin: 0, fontSize: '13px', color: t.textFaint }}>You need an approved Treasurer or Vice Treasurer committee role to manage programme finance.</p>
           </div>
         ) : (
@@ -476,7 +479,7 @@ function TreasurerFinanceContent() {
                   <label style={labelStyle}>Programme</label>
                   <select value={selectedProgrammeId} onChange={event => handleProgrammeChange(event.target.value)} style={inputStyle}>
                     {programmes.map(programme => (
-                      <option key={programme.id} value={programme.id} style={optionStyle}>{programme.name}</option>
+                      <option key={programme.id} value={programme.id} style={optionStyle(t)}>{programme.name}</option>
                     ))}
                   </select>
                 </div>
@@ -651,19 +654,19 @@ function BudgetSheet(props: {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '360px minmax(0, 1fr)', gap: '16px' }}>
       <form onSubmit={onSubmit} className="finance-no-print" style={{ ...panelStyle, padding: '18px', alignSelf: 'start' }}>
-        <h2 style={{ margin: '0 0 14px', fontSize: '15px', color: t.text, display: 'flex', alignItems: 'center', gap: '8px' }}><CirclePlus size={15} color="#14b8a6" />BELANJAWAN</h2>
+        <h2 style={{ margin: '0 0 14px', fontSize: '15px', fontWeight: 600, color: t.text, display: 'flex', alignItems: 'center', gap: '8px' }}><CirclePlus size={15} color="#14b8a6" />BELANJAWAN</h2>
         <div style={{ display: 'grid', gap: '12px' }}>
           <div>
             <label style={labelStyle}>Type</label>
             <select value={budgetForm.type} onChange={event => onFormChange(prev => ({ ...prev, type: event.target.value as FinanceType }))} style={inputStyle}>
-              <option value="expense" style={optionStyle}>Expense</option>
-              <option value="income" style={optionStyle}>Income</option>
+              <option value="expense" style={optionStyle(t)}>Expense</option>
+              <option value="income" style={optionStyle(t)}>Income</option>
             </select>
           </div>
           <div>
             <label style={labelStyle}>Category</label>
             <select value={budgetForm.category} onChange={event => onFormChange(prev => ({ ...prev, category: event.target.value }))} style={inputStyle}>
-              {categories.map(category => <option key={category} value={category} style={optionStyle}>{category}</option>)}
+              {categories.map(category => <option key={category} value={category} style={optionStyle(t)}>{category}</option>)}
             </select>
           </div>
           <div>
@@ -772,14 +775,14 @@ function ActualSheet(props: {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '360px minmax(0, 1fr)', gap: '16px' }}>
       <form onSubmit={onSubmit} className="finance-no-print" style={{ ...panelStyle, padding: '18px', alignSelf: 'start' }}>
-        <h2 style={{ margin: '0 0 14px', fontSize: '15px', color: t.text, display: 'flex', alignItems: 'center', gap: '8px' }}><ReceiptText size={15} color="#14b8a6" />MAKLUMAT BELANJA SEBENAR</h2>
+        <h2 style={{ margin: '0 0 14px', fontSize: '15px', fontWeight: 600, color: t.text, display: 'flex', alignItems: 'center', gap: '8px' }}><ReceiptText size={15} color="#14b8a6" />MAKLUMAT BELANJA SEBENAR</h2>
         <div style={{ display: 'grid', gap: '12px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <div>
               <label style={labelStyle}>Type</label>
               <select value={transactionForm.type} onChange={event => onFormChange(prev => ({ ...prev, type: event.target.value as FinanceType }))} style={inputStyle}>
-                <option value="expense" style={optionStyle}>Expense</option>
-                <option value="income" style={optionStyle}>Income</option>
+                <option value="expense" style={optionStyle(t)}>Expense</option>
+                <option value="income" style={optionStyle(t)}>Income</option>
               </select>
             </div>
             <div>
@@ -790,7 +793,7 @@ function ActualSheet(props: {
           <div>
             <label style={labelStyle}>Category</label>
             <select value={transactionForm.category} onChange={event => onFormChange(prev => ({ ...prev, category: event.target.value }))} style={inputStyle}>
-              {categories.map(category => <option key={category} value={category} style={optionStyle}>{category}</option>)}
+              {categories.map(category => <option key={category} value={category} style={optionStyle(t)}>{category}</option>)}
             </select>
           </div>
           <div>
@@ -805,7 +808,7 @@ function ActualSheet(props: {
             <div>
               <label style={labelStyle}>Payment</label>
               <select value={transactionForm.payment_method} onChange={event => onFormChange(prev => ({ ...prev, payment_method: event.target.value }))} style={inputStyle}>
-                {paymentMethods.map(method => <option key={method} value={method} style={optionStyle}>{method}</option>)}
+                {paymentMethods.map(method => <option key={method} value={method} style={optionStyle(t)}>{method}</option>)}
               </select>
             </div>
           </div>
@@ -929,7 +932,7 @@ function StatementSheet(props: {
       <div style={{ ...panelStyle, padding: isMobile ? '18px' : '22px' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', marginBottom: '20px' }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '18px', color: t.text }}>PENYATA</h2>
+            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: t.text }}>PENYATA</h2>
             <p style={{ margin: '4px 0 0', fontSize: '13px', color: t.textFaint }}>{programme?.name ?? '-'}</p>
             <p style={{ margin: '3px 0 0', fontSize: '12px', color: t.textFaintest }}>{formatDate(programme?.start_date)} - {formatDate(programme?.end_date)}</p>
           </div>
@@ -983,11 +986,11 @@ function StatementSheet(props: {
       </div>
       <div className="finance-no-print" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px' }}>
         <div style={{ ...panelStyle, padding: '16px' }}>
-          <h3 style={{ margin: '0 0 10px', fontSize: '14px', color: t.text }}>Budget Records</h3>
+          <h3 style={{ margin: '0 0 10px', fontSize: '14px', fontWeight: 600, color: t.text }}>Budget Records</h3>
           <p style={{ margin: 0, color: t.textFaint, fontSize: '13px' }}>{budgetItems.length} planned budget items are included in this statement.</p>
         </div>
         <div style={{ ...panelStyle, padding: '16px' }}>
-          <h3 style={{ margin: '0 0 10px', fontSize: '14px', color: t.text }}>Actual Records</h3>
+          <h3 style={{ margin: '0 0 10px', fontSize: '14px', fontWeight: 600, color: t.text }}>Actual Records</h3>
           <p style={{ margin: 0, color: t.textFaint, fontSize: '13px' }}>{transactions.length} actual finance records are included in this statement.</p>
         </div>
       </div>
@@ -999,7 +1002,7 @@ function SheetHeader({ title, meta, icon: Icon, t }: { title: string; meta: stri
   return (
     <div style={{ padding: '16px 18px', borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
       <div>
-        <h2 style={{ margin: 0, fontSize: '15px', color: t.text, display: 'flex', alignItems: 'center', gap: '8px' }}><Icon size={15} color="#14b8a6" />{title}</h2>
+        <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: t.text, display: 'flex', alignItems: 'center', gap: '8px' }}><Icon size={15} color="#14b8a6" />{title}</h2>
         <p style={{ margin: '3px 0 0', fontSize: '12px', color: t.textFaint }}>{meta}</p>
       </div>
     </div>

@@ -389,34 +389,6 @@ export default function SettingsPage() {
             </div>
           </Section>
 
-          {/* ── LANGUAGE ── */}
-          <Section title="Language" icon={<Globe size={14} color="#818cf8" />} t={t}>
-            <div style={{ padding: '14px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {LANGS.map(lang => (
-                <button
-                  key={lang.id}
-                  onClick={() => set('language', lang.id as 'en' | 'bm')}
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '10px 14px', borderRadius: '9px',
-                    border: `1px solid ${settings.language === lang.id ? t.accentBorder : t.border}`,
-                    background: settings.language === lang.id ? t.accentBg : t.bgInput,
-                    cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
-                  }}
-                >
-                  <span style={{ fontSize: '15px', color: settings.language === lang.id ? t.accentText : t.textMuted, fontWeight: settings.language === lang.id ? 600 : 400 }}>
-                    {lang.label}
-                  </span>
-                  {settings.language === lang.id && (
-                    <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Check size={10} color="#818cf8" />
-                    </div>
-                  )}
-                </button>
-              ))}
-            </div>
-          </Section>
-
           {/* ── DANGER ZONE ── */}
           <div style={{ background: t.bgCard, border: '1px solid rgba(239,68,68,0.3)', borderRadius: '14px', overflow: 'hidden', marginBottom: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 20px', borderBottom: '1px solid rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.04)' }}>

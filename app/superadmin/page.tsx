@@ -1090,6 +1090,18 @@ export default function SuperAdminDashboard() {
                     </button>
                   )
                 })}
+                <div style={{ height: '1px', background: T.accentBorderSub, margin: '6px 0' }} />
+                <button onClick={() => { setShowMobileMenu(false); handleLogout() }}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', gap: '12px',
+                    padding: '11px 12px', borderRadius: '9px', border: 'none', cursor: 'pointer',
+                    background: 'transparent', color: T.textSecondary,
+                    fontSize: '14px', fontWeight: 400,
+                    textAlign: 'left', fontFamily: 'inherit', transition: 'background 0.15s',
+                  }}>
+                  <LogOut size={17} />
+                  <span>Sign Out</span>
+                </button>
               </div>
             </div>
           </>

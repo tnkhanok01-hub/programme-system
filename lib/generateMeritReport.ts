@@ -25,6 +25,8 @@ type GenerateMeritReportInput = {
   student: MeritReportStudent
   activities: MeritReportActivity[]
   totalMerit: number
+  year?: string
+  officialTotal?: number
 }
 
 async function loadImageDataUrl(url: string): Promise<string | null> {
@@ -62,6 +64,8 @@ export async function generateMeritReportPdf({
   student,
   activities,
   totalMerit,
+  year,
+  officialTotal,
 }: GenerateMeritReportInput): Promise<void> {
   const bg = await loadImageDataUrl('/approvalTemplate/UTM_letterhead_bg.jpeg')
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
@@ -111,7 +115,7 @@ export async function generateMeritReportPdf({
   startPage()
 
   setText(14, 'bold')
-  doc.text('Student Merit Activity Report', marginLeft, y)
+  doc.text(year ? `Student Merit Activity Report - ${year}` : 'Student Merit Activity Report', marginLeft, y)
   y += 8
 
   setText(9)
@@ -132,12 +136,23 @@ export async function generateMeritReportPdf({
   doc.setDrawColor(187, 247, 208)
   doc.roundedRect(marginLeft, y, contentWidth, 17, 2, 2, 'FD')
   setText(8, 'bold')
-  doc.text('TOTAL OFFICIAL MERIT', marginLeft + 5, y + 6)
+  doc.text(year ? `TOTAL MERIT GAINS (${year})` : 'TOTAL OFFICIAL MERIT', marginLeft + 5, y + 6)
   setText(16, 'bold')
   doc.text(`${totalMerit} points`, marginLeft + 5, y + 14)
   setText(8)
   doc.text(`${activities.length} activity record${activities.length === 1 ? '' : 's'}`, marginRight - 45, y + 14)
   y += 26
+
+  if (year && officialTotal !== undefined) {
+    doc.setFillColor(239, 246, 255)
+    doc.setDrawColor(191, 219, 254)
+    doc.roundedRect(marginLeft, y, contentWidth, 17, 2, 2, 'FD')
+    setText(8, 'bold')
+    doc.text('TOTAL OFFICIAL MERIT', marginLeft + 5, y + 6)
+    setText(16, 'bold')
+    doc.text(`${officialTotal} points`, marginLeft + 5, y + 14)
+    y += 26
+  }
 
   setText(11, 'bold')
   doc.text('Activity Details', marginLeft, y)
@@ -206,5 +221,6 @@ export async function generateMeritReportPdf({
   }
 
   const safeName = safeFilePart(student.name || 'student')
-  doc.save(`utm-merit-report-${safeName}.pdf`)
+  const suffix = year ? `-${year}` : ''
+  doc.save(`utm-merit-report-${safeName}${suffix}.pdf`)
 }
