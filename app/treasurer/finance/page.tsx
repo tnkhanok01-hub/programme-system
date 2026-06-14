@@ -446,11 +446,6 @@ function TreasurerFinanceContent() {
             <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'linear-gradient(135deg,#0f766e,#14b8a6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>
               {getInitials(profile?.name ?? '')}
             </div>
-            {profile?.name && (
-              <span style={{ fontSize: '13px', fontWeight: 600, color: t.text, whiteSpace: 'normal', textAlign: 'right', lineHeight: 1.3, maxWidth: isMobile ? '110px' : '220px' }}>
-                {profile.name}
-              </span>
-            )}
           </div>
         </div>
       </header>
