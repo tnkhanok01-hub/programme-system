@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { POST_CHECKLIST } from '@/lib/constants'
 import { buildCommitteeMeritAwards, type CommitteeMeritMember } from '@/lib/committeeMeritAwards.js'
 import { awardMerit } from '@/lib/meritEngine'
+import { sendEmail } from '@/lib/sendEmail'
 
 function makeServiceClient() {
   return createClient(
@@ -130,6 +131,28 @@ export async function POST(
     .single()
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
+
+  if (programme.programme_director_id) {
+    const { data: director } = await svc
+      .from('users')
+      .select('email, full_name')
+      .eq('id', programme.programme_director_id)
+      .single()
+
+    await svc.from('notifications').insert({
+      user_id: programme.programme_director_id,
+      title: 'Programme Completed & Merit Awarded',
+      message: `Your programme "${programme.name}" has been marked as completed and merit points have been awarded to you and your committee. Congratulations!`,
+    })
+
+    if (director?.email) {
+      await sendEmail(
+        director.email,
+        'Programme Completed & Merit Awarded',
+        `Dear ${director.full_name ?? 'Programme Director'},\n\nCongratulations! Your programme "${programme.name}" has been successfully completed.\n\nMerit points have been awarded to you and all committee members in recognition of your contributions.\n\nRegards,\nUTM-SPMS`
+      ).catch(() => {})
+    }
+  }
 
   return NextResponse.json({
     message: 'Programme completed and committee merit awarded.',

@@ -58,6 +58,17 @@ export async function POST(req: Request) {
       )
     }
 
+    const isPdf =
+      file.type === "application/pdf" ||
+      file.name.toLowerCase().endsWith(".pdf")
+
+    if (!isPdf) {
+      return NextResponse.json(
+        { error: "Only PDF files are accepted" },
+        { status: 400 }
+      )
+    }
+
     // ── 4. Authorise: admin, programme director, or approved committee
     //       member with a role in SINGLE_ROLE_LIMIT ──────────────────────
     if (!isAdmin) {

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { Suspense, useCallback, useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
 import { Mail, Lock, LogIn, Eye, EyeOff } from "lucide-react";
@@ -20,19 +19,18 @@ function LoginContent() {
   const [message, setMessage]     = useState<{ type: 'error' | 'success'; text: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   const redirectByRole = useCallback((role: string) => {
     const path = window.location.pathname;
     if (role === "superadmin" && path !== "/superadmin") {
-      router.replace("/superadmin");
+      window.location.replace("/superadmin");
     } else if (role === "admin" && path !== "/admin") {
-      router.replace("/admin");
+      window.location.replace("/admin");
     } else if (role !== "admin" && role !== "superadmin" && path !== "/student") {
-      router.replace("/student");
+      window.location.replace("/student");
     }
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;

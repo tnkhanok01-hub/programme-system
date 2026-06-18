@@ -38,6 +38,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'File must be 10MB or smaller.' }, { status: 400 })
     }
 
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+    if (!isPdf) {
+      return NextResponse.json({ error: 'Only PDF files are accepted.' }, { status: 400 })
+    }
+
     const { data: profile } = await supabase
       .from('users')
       .select('roles(name)')

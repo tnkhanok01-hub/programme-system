@@ -568,7 +568,7 @@ function ReviewModal({ prog, isMobile, rejectComment, actionLoading, rejectLoadi
                   )}
                   <label style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '4px 9px', borderRadius: '5px', border: `1px solid ${T.accentBorder}`, background: T.accentBg, color: T.textAccent, fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}>
                     <FileText size={11} />{updatedPaperworkFile ? 'Change' : 'Choose'}
-                    <input type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" onChange={e => { setUpdatedPaperworkFile(e.target.files?.[0] ?? null); e.target.value = '' }} style={{ display: 'none' }} />
+                    <input type="file" accept=".pdf" onChange={e => { setUpdatedPaperworkFile(e.target.files?.[0] ?? null); e.target.value = '' }} style={{ display: 'none' }} />
                   </label>
                   {updatedPaperworkFile && (
                     <button onClick={handleUploadUpdatedPaperwork} disabled={uploadingUpdatedPaperwork}

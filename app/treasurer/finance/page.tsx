@@ -679,7 +679,7 @@ function BudgetSheet(props: {
               <input required type="number" min="0" step="0.01" value={budgetForm.quantity} onChange={event => onFormChange(prev => ({ ...prev, quantity: event.target.value }))} style={inputStyle} />
             </div>
             <div>
-              <label style={labelStyle}>Unit Amount</label>
+              <label style={labelStyle}>Unit Amount (RM)</label>
               <input required type="number" min="0" step="0.01" value={budgetForm.unit_amount} onChange={event => onFormChange(prev => ({ ...prev, unit_amount: event.target.value }))} style={inputStyle} />
             </div>
           </div>
@@ -802,7 +802,7 @@ function ActualSheet(props: {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <div>
-              <label style={labelStyle}>Amount</label>
+              <label style={labelStyle}>Amount (RM)</label>
               <input required type="number" min="0.01" step="0.01" value={transactionForm.amount} onChange={event => onFormChange(prev => ({ ...prev, amount: event.target.value }))} style={inputStyle} />
             </div>
             <div>
@@ -820,7 +820,7 @@ function ActualSheet(props: {
                 {uploadingReceipt ? 'Uploading...' : 'Upload File'}
                 <input
                   type="file"
-                  accept="image/*,application/pdf"
+                  accept=".pdf"
                   disabled={uploadingReceipt}
                   onChange={event => {
                     const file = event.target.files?.[0]

@@ -321,7 +321,7 @@ export default function StudentHomepage() {
           {/* Greeting */}
           <div style={{ marginBottom: '16px' }}>
             <h1 style={{ fontSize: '17px', fontWeight: 700, margin: 0, letterSpacing: '-0.02em', color: t.text }}>
-              {getGreeting()}, {profile?.full_name?.split(' ')[0] || 'Student'} 👋
+              {getGreeting()}, {profile?.full_name || 'Student'} 👋
             </h1>
             <p style={{ fontSize: '11px', color: t.textFaint, margin: '2px 0 0' }}>
               {currentTime.toLocaleDateString('en-MY', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
@@ -487,7 +487,7 @@ export default function StudentHomepage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
           <div>
             <h1 style={{ fontSize: '24px', fontWeight: 700, margin: 0, letterSpacing: '-0.03em', color: t.text }}>
-              {getGreeting()}, {profile?.full_name?.split(' ')[0] || 'Student'} 👋
+              {getGreeting()}, {profile?.full_name || 'Student'} 👋
             </h1>
             <p style={{ fontSize: '14px', color: t.textFaint, margin: '4px 0 0' }}>
               {currentTime.toLocaleDateString('en-MY', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}

@@ -30,6 +30,7 @@ interface UserSurvey {
 interface UserRole {
   programme_id: string
   role: string
+  status: string
 }
 
 function CompletedList({ programmeId, t }: { programmeId: string; t: any }) {
@@ -128,7 +129,7 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
         .from('programmes').select('*').eq('status', 'Approved').lte('start_date', todayStr)
 
       const { data: surveyData } = await supabase.from('surveys').select('programme_id, type').eq('user_id', userId)
-      const { data: roleData } = await supabase.from('programme_roles').select('programme_id, role').eq('user_id', userId)
+      const { data: roleData } = await supabase.from('programme_roles').select('programme_id, role, status').eq('user_id', userId)
 
       setSurveys(surveyData || [])
       setRoles(roleData || [])
@@ -347,20 +348,22 @@ export default function AttendanceDashboard({ sysRole }: { sysRole: 'student' | 
 
             <CompletedList programmeId={selectedProg.id} t={t} />
 
-            <div style={{ display: 'flex', gap: '10px' }}>
-              {isExpired(selectedProg) ? (
-                <div style={{ flex: 1, padding: '12px', borderRadius: '8px', border: `1px solid ${t.border}`, background: t.bgInput, color: t.textFaint, fontSize: '13px', fontWeight: 600, textAlign: 'center' }}>
-                  Programme has ended — QR unavailable
-                </div>
-              ) : (
-                <button
-                  onClick={() => setQrModal({ progId: selectedProg.id, name: selectedProg.name })}
-                  style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid rgba(245,158,11,0.3)', background: 'rgba(245,158,11,0.1)', color: '#f59e0b', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
-                >
-                  Generate End QR
-                </button>
-              )}
-            </div>
+            {(sysRole === 'admin' || sysRole === 'superadmin' || currentUserId === selectedProg.programme_director_id || roles.some(r => r.programme_id === selectedProg.id && r.status === 'approved')) && (
+              <div style={{ display: 'flex', gap: '10px' }}>
+                {isExpired(selectedProg) ? (
+                  <div style={{ flex: 1, padding: '12px', borderRadius: '8px', border: `1px solid ${t.border}`, background: t.bgInput, color: t.textFaint, fontSize: '13px', fontWeight: 600, textAlign: 'center' }}>
+                    Programme has ended — QR unavailable
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setQrModal({ progId: selectedProg.id, name: selectedProg.name })}
+                    style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid rgba(245,158,11,0.3)', background: 'rgba(245,158,11,0.1)', color: '#f59e0b', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                  >
+                    Generate End QR
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
