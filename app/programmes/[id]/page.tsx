@@ -404,7 +404,7 @@ export default function ProgrammeDetailPage() {
                     {programme.status === 'Approved' && programme.start_date && programme.end_date && (
                       <LifecycleBadge start={programme.start_date} end={programme.end_date} />
                     )}
-                    {isOwner && (
+                    {(isOwner || isAdmin) && (
                       <button onClick={() => setShowDeleteModal(true)} title="Delete programme"
                         style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '34px', height: '34px', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', cursor: 'pointer' }}>
                         <Trash2 size={15} />
@@ -438,7 +438,7 @@ export default function ProgrammeDetailPage() {
                         <Download size={13} />Approval Letter
                       </button>
                     )}
-                    {isOwner && (
+                    {(isOwner || isAdmin) && (
                       <button onClick={() => setShowDeleteModal(true)} title="Delete programme"
                         style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '34px', height: '34px', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', cursor: 'pointer' }}>
                         <Trash2 size={15} />

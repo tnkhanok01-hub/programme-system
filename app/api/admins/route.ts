@@ -64,6 +64,15 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Missing user id' }, { status: 400 })
   }
 
+  // Cascade-delete all data tied to this user before removing the account
+  await svc.from('notifications').delete().eq('user_id', targetId)
+  await svc.from('student_activity_records').delete().eq('user_id', targetId)
+  await svc.from('merit_transactions').delete().eq('user_id', targetId)
+  await svc.from('merit').delete().eq('user_id', targetId)
+  await svc.from('attendance').delete().eq('user_id', targetId)
+  await svc.from('finance_transactions').delete().eq('created_by', targetId)
+  await svc.from('finance_budget_items').delete().eq('created_by', targetId)
+  await svc.from('programme_roles').delete().eq('user_id', targetId)
   await svc.from('users').delete().eq('id', targetId)
 
   const { error: deleteError } = await svc.auth.admin.deleteUser(targetId)
