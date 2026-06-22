@@ -286,9 +286,17 @@ export default function CreateAdminPage() {
   }, [])
 
   useEffect(() => {
-    setProfile({ full_name: 'Super Admin' })
-    fetchData()
-  }, [fetchData])
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { router.replace('/login'); return }
+      const { data: profileData } = await supabase.from('users').select('*, roles(name)').eq('id', session.user.id).single()
+      const roleName = (profileData?.roles as { name?: string } | null)?.name?.toLowerCase()
+      if (roleName !== 'superadmin') { router.replace('/login'); return }
+      setProfile(profileData)
+      fetchData()
+    }
+    init()
+  }, [fetchData, router])
 
   const handleLogout = async () => { await supabase.auth.signOut(); router.replace('/login') }
   const getInitials = (name: string) => name?.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'SA'
@@ -300,9 +308,10 @@ export default function CreateAdminPage() {
     if (form.password !== form.confirmPassword) return setFormError("Passwords don't match")
     setLoading(true)
     const { data: { session } } = await supabase.auth.getSession()
+    if (!session) { setFormError('Session expired. Please log in again.'); setLoading(false); return }
     const res = await fetch('/api/create-admin', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
       body: JSON.stringify({ email: form.email, password: form.password, full_name: form.fullName, matric_number: form.matricNumber, phone: form.phone }),
     })
     if (res.ok) {
