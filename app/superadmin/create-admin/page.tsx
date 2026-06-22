@@ -320,7 +320,12 @@ export default function CreateAdminPage() {
     const { type, target } = confirmDialog
     if (!target) return
     if (type === 'delete') {
-      await supabase.from('users').delete().eq('id', target.id)
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+      await fetch(`/api/admins?id=${target.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
     } else {
       const newRoleId = rolesMap[type === 'promote' ? 'admin' : 'student']
       if (newRoleId) await supabase.from('users').update({ role_id: newRoleId }).eq('id', target.id)

@@ -473,7 +473,13 @@ export default function SuperAdminUsersPage() {
 
   const handleDeleteConfirm = async () => {
     if (!userToDelete) return
-    await supabase.from('users').delete().eq('id', userToDelete.id)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    const res = await fetch(`/api/admins?id=${userToDelete.id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+    if (!res.ok) return
     setUsers(users.filter(u => u.id !== userToDelete.id))
     setUserToDelete(null); setSelectedUserId(null)
   }
