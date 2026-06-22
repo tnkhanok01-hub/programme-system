@@ -50,10 +50,10 @@ export async function DELETE(request: Request) {
   // Verify caller is admin or superadmin
   const { data: callerProfile } = await svc
     .from('users')
-    .select('roles(name)')
+    .select('*, roles(name)')
     .eq('id', user.id)
     .single()
-  const callerRole = (Array.isArray(callerProfile?.roles) ? callerProfile.roles[0]?.name : (callerProfile?.roles as { name?: string } | null)?.name)?.toLowerCase()
+  const callerRole = ((callerProfile?.roles as unknown as { name?: string } | null)?.name ?? '').toLowerCase()
   if (callerRole !== 'admin' && callerRole !== 'superadmin') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
