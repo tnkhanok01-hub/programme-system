@@ -6,9 +6,9 @@ import { supabase } from '@/lib/supabaseClient'
 import { useTheme } from '@/app/provider/ThemeContext'
 import { canonicalCommitteeRole } from '@/lib/constants'
 import {
-  Calendar, User, LayoutDashboard, LogOut, Award, Bell,
+  Calendar, User, LayoutDashboard, LogOut,
   Settings, ChevronLeft, ChevronRight, List, Grid,
-  Filter, X, MapPin, Clock, Info, QrCode, Shield, Crown,
+  Filter, X, MapPin, Clock, Info, QrCode,
   Users, BookOpen, ArrowRightLeft, CirclePlus, UserCircle, Menu,
   AlertTriangle,
 } from 'lucide-react'
@@ -68,23 +68,8 @@ function getHomeRoute(sysRole: SysRole) {
 
 // ── Logo accent per role ──────────────────────────────────────────────────────
 
-function LogoIcon({ sysRole }: { sysRole: SysRole }) {
-  if (sysRole === 'superadmin') return (
-    <div style={{ position: 'relative', width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg, #92400e, #d97706)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <Shield size={16} color="white" />
-      <Crown size={8} color="#fef3c7" style={{ position: 'absolute', top: '-4px', right: '-4px' }} />
-    </div>
-  )
-  if (sysRole === 'admin') return (
-    <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg, #6d28d9, #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <Shield size={16} color="white" />
-    </div>
-  )
-  return (
-    <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg, #1e40af, #3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <Award size={18} color="white" />
-    </div>
-  )
+function LogoIcon({ size = 36 }: { sysRole: SysRole; size?: number }) {
+  return <img src="/UTM_SPMS_logo.png" alt="UTM-SPMS" style={{ height: `${size}px`, width: 'auto', objectFit: 'contain' }} />
 }
 
 // ── Main component ────────────────────────────────────────────────────────────

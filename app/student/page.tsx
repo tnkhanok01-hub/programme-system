@@ -13,7 +13,6 @@ import {
   ChevronRight,
   Clock,
   MapPin,
-  Award,
   CheckCircle,
   AlertCircle,
   Search,
@@ -295,9 +294,7 @@ export default function StudentHomepage() {
         {/* Sticky top bar */}
         <div style={{ background: t.bgCardAlt, borderBottom: `1px solid ${t.border}`, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'linear-gradient(135deg,#1e40af,#3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Award size={13} color="white" />
-            </div>
+            <img src="/UTM_SPMS_logo.png" alt="UTM-SPMS" style={{ height: '32px', width: 'auto', objectFit: 'contain' }} />
             <div>
               <p style={{ fontWeight: 700, fontSize: '13px', margin: 0, color: t.text, letterSpacing: '-0.02em' }}>UTM-SPMS</p>
               <p style={{ fontSize: '9px', color: t.textFaint, margin: 0 }}>STUDENT PORTAL</p>
@@ -431,9 +428,7 @@ export default function StudentHomepage() {
       <aside style={{ width: '240px', background: t.bgCardAlt, borderRight: `1px solid ${t.border}`, display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 10 }}>
         <div style={{ padding: '28px 24px 20px', borderBottom: `1px solid ${t.border}` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg, #1e40af, #3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Award size={18} color="white" />
-            </div>
+            <img src="/UTM_SPMS_logo.png" alt="UTM-SPMS" style={{ height: '38px', width: 'auto', objectFit: 'contain' }} />
             <div>
               <p style={{ fontWeight: 700, fontSize: '15px', margin: 0, letterSpacing: '-0.02em', color: t.text }}>UTM-SPMS</p>
               <p style={{ fontSize: '11px', color: t.textFaint, margin: 0 }}>STUDENT PORTAL</p>

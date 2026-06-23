@@ -520,10 +520,7 @@ export default function SuperAdminUsersPage() {
         {/* Top bar */}
         <div style={{ background: t.bgCard, borderBottom: `1px solid ${t.border}`, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 30 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: SA.gradientLogo, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-              <Shield size={12} color="white" />
-              <Crown size={7} color="#fef3c7" style={{ position: 'absolute', top: '-3px', right: '-3px' }} />
-            </div>
+            <img src="/UTM_SPMS_logo.png" alt="UTM-SPMS" style={{ height: '32px', width: 'auto', objectFit: 'contain' }} />
             <div>
               <p style={{ fontWeight: 700, fontSize: '13px', margin: 0, color: t.text, letterSpacing: '-0.02em' }}>UTM-SPMS</p>
               <p style={{ fontSize: '9px', color: SA.accent, margin: 0, fontWeight: 600, letterSpacing: '0.06em' }}>SUPERADMIN</p>
@@ -674,10 +671,7 @@ export default function SuperAdminUsersPage() {
       <aside style={{ width: '220px', background: t.bgCard, borderRight: `1px solid ${t.border}`, display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 20 }}>
         <div style={{ padding: '24px 20px', borderBottom: `1px solid ${t.border}` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '34px', height: '34px', borderRadius: '9px', background: SA.gradientLogo, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-              <Shield size={14} color="white" />
-              <Crown size={8} color="#fef3c7" style={{ position: 'absolute', top: '-4px', right: '-4px' }} />
-            </div>
+            <img src="/UTM_SPMS_logo.png" alt="UTM-SPMS" style={{ height: '36px', width: 'auto', objectFit: 'contain' }} />
             <div>
               <p style={{ fontWeight: 700, fontSize: '14px', margin: 0, color: t.text, letterSpacing: '-0.02em' }}>UTM-SPMS</p>
               <p style={{ fontSize: '10px', color: SA.accent, margin: 0, fontWeight: 600, letterSpacing: '0.06em' }}>SUPERADMIN</p>

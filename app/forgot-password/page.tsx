@@ -115,9 +115,7 @@ export default function ForgotPassword() {
 
           {/* Header */}
           <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(135deg, #4f46e5, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
-              <Mail size={20} color="white" />
-            </div>
+            <img src="/UTM_SPMS_logo.png" alt="UTM-SPMS" style={{ width: '90px', height: 'auto', display: 'block', margin: '0 auto 14px', objectFit: 'contain' }} />
             <h1 style={{ margin: '0 0 4px', fontSize: '22px', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.02em' }}>Reset Password</h1>
             <p style={{ margin: 0, fontSize: '13px', color: '#475569' }}>Enter your UTM email and we&apos;ll send you a reset link</p>
           </div>
