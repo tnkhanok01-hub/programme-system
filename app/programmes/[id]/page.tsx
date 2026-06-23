@@ -323,8 +323,9 @@ export default function ProgrammeDetailPage() {
     return phaseDocs.filter(d => d.phase === phase).length
   }
   const checklistTotal = (phase: Phase) => {
-    if (phase === 'pre')  return PRE_CHECKLIST.length
-    if (phase === 'post') return POST_CHECKLIST.length
+    if (phase === 'pre')    return PRE_CHECKLIST.length
+    if (phase === 'post')   return POST_CHECKLIST.length
+    if (phase === 'during') return 5
     return null
   }
 
@@ -351,6 +352,8 @@ export default function ProgrammeDetailPage() {
   const postChecklistComplete = POST_CHECKLIST.every(item =>
     phaseDocs.some(d => d.phase === 'post' && d.doc_type === item.key)
   )
+  const duringPhotoComplete = phaseDocs.filter(d => d.phase === 'during').length >= 5
+  const canComplete = postChecklistComplete && duringPhotoComplete
   const canCompleteProgramme = isAdmin && programme.status === 'Approved'
 
   return (
@@ -552,21 +555,25 @@ export default function ProgrammeDetailPage() {
                 {activeTab === 'post'   && (
                   <>
                     {canCompleteProgramme && (
-                      <div style={{ marginBottom: '16px', padding: '14px 16px', borderRadius: '11px', background: postChecklistComplete ? 'rgba(34,197,94,0.06)' : 'rgba(245,158,11,0.06)', border: `1px solid ${postChecklistComplete ? 'rgba(34,197,94,0.18)' : 'rgba(245,158,11,0.18)'}`, display: 'flex', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between', gap: '12px', flexDirection: isMobile ? 'column' : 'row' }}>
+                      <div style={{ marginBottom: '16px', padding: '14px 16px', borderRadius: '11px', background: canComplete ? 'rgba(34,197,94,0.06)' : 'rgba(245,158,11,0.06)', border: `1px solid ${canComplete ? 'rgba(34,197,94,0.18)' : 'rgba(245,158,11,0.18)'}`, display: 'flex', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between', gap: '12px', flexDirection: isMobile ? 'column' : 'row' }}>
                         <div>
-                          <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: postChecklistComplete ? '#22c55e' : '#f59e0b' }}>
+                          <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: canComplete ? '#22c55e' : '#f59e0b' }}>
                             Complete Programme
                           </p>
                           <p style={{ margin: '3px 0 0', fontSize: '12px', color: t.textMuted, lineHeight: 1.5 }}>
-                            {postChecklistComplete
+                            {canComplete
                               ? 'Finalise this programme and award committee merit.'
-                              : 'Upload all post-programme documents before completion.'}
+                              : !duringPhotoComplete && !postChecklistComplete
+                                ? 'Upload at least 5 during-phase photos and all post-programme documents before completion.'
+                                : !duringPhotoComplete
+                                  ? 'Upload at least 5 during-phase photos before completion.'
+                                  : 'Upload all post-programme documents before completion.'}
                           </p>
                         </div>
                         <button
                           onClick={handleCompleteProgramme}
-                          disabled={!postChecklistComplete || completionLoading}
-                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '7px', padding: '9px 14px', borderRadius: '8px', border: postChecklistComplete ? '1px solid rgba(34,197,94,0.28)' : '1px solid rgba(148,163,184,0.12)', background: postChecklistComplete ? 'rgba(34,197,94,0.12)' : 'rgba(148,163,184,0.08)', color: postChecklistComplete ? '#22c55e' : t.textFaint, fontSize: '12px', fontWeight: 700, cursor: !postChecklistComplete || completionLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                          disabled={!canComplete || completionLoading}
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '7px', padding: '9px 14px', borderRadius: '8px', border: canComplete ? '1px solid rgba(34,197,94,0.28)' : '1px solid rgba(148,163,184,0.12)', background: canComplete ? 'rgba(34,197,94,0.12)' : 'rgba(148,163,184,0.08)', color: canComplete ? '#22c55e' : t.textFaint, fontSize: '12px', fontWeight: 700, cursor: !canComplete || completionLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
                         >
                           {completionLoading ? <RefreshCw size={13} style={{ animation: 'spin 0.8s linear infinite' }} /> : <CheckCircle size={13} />}
                           {completionLoading ? 'Completing...' : 'Complete & Award'}

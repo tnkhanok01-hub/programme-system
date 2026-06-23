@@ -86,6 +86,21 @@ export async function POST(
     )
   }
 
+  const { data: duringDocs, error: duringError } = await svc
+    .from('programme_documents')
+    .select('id')
+    .eq('programme_id', programmeId)
+    .eq('phase', 'during')
+
+  if (duringError) return NextResponse.json({ error: duringError.message }, { status: 500 })
+
+  if ((duringDocs ?? []).length < 5) {
+    return NextResponse.json(
+      { error: 'During-phase photos are incomplete. At least 5 photos must be uploaded.', missingDocs: ['During-phase photos (minimum 5 required)'] },
+      { status: 400 }
+    )
+  }
+
   const { data: meritMeta } = await svc
     .from('programme_merit_metadata')
     .select('activity_pillar, programme_level')

@@ -62,11 +62,25 @@ export async function POST(req: Request) {
       file.type === "application/pdf" ||
       file.name.toLowerCase().endsWith(".pdf")
 
-    if (!isPdf) {
-      return NextResponse.json(
-        { error: "Only PDF files are accepted" },
-        { status: 400 }
-      )
+    const isImage =
+      file.type === "image/png" ||
+      file.type === "image/jpeg" ||
+      /\.(png|jpe?g)$/i.test(file.name)
+
+    if (phase === "during") {
+      if (!isImage) {
+        return NextResponse.json(
+          { error: "Only PNG or JPG image files are accepted for during-phase uploads" },
+          { status: 400 }
+        )
+      }
+    } else {
+      if (!isPdf) {
+        return NextResponse.json(
+          { error: "Only PDF files are accepted" },
+          { status: 400 }
+        )
+      }
     }
 
     // ── 4. Authorise: admin, programme director, or approved committee
